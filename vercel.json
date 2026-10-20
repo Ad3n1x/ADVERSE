@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://adverse-api.onrender.com/api/$1"
+      "destination": "https://adverse-api-7yim.onrender.com/api/$1"
     }
   ]
 }

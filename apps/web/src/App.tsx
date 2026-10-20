@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Command, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw } from 'lucide-react';
+import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Command, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut } from 'lucide-react';
 
 type Investigation={id:string;title:string;question:string;createdAt:string;status:string;notes?:string};
 type Evidence={id?:string;_id?:string;title:string;url:string;sourceType:string;publisher:string;publishedAt?:string|null;retrievedAt:string;excerpt:string;verificationStatus:string;captureTimestamp?:string};
@@ -12,6 +12,7 @@ const API='/api/v1';
 const key=(x:{id?:string;_id?:string})=>x.id||x._id||'';
 async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(API+path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let message='Request failed';try{const b=await r.json();message=b.error?.message||message;if(b.error?.details?.fieldErrors)message+=' '+JSON.stringify(b.error.details.fieldErrors);}catch{}throw new Error(message);}if(r.status===204)return undefined as T;return r.json();}
 function App(){
+ const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'>('login'),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState('');
  const [tab,setTab]=useState<Tab>('Overview'),[cases,setCases]=useState<Investigation[]>([]),[caseId,setCaseId]=useState(''),[evidence,setEvidence]=useState<Evidence[]>([]),[entities,setEntities]=useState<Entity[]>([]),[relationships,setRelationships]=useState<Relationship[]>([]),[apiStatus,setApiStatus]=useState('checking'),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [createOpen,setCreateOpen]=useState(false),[caseTitle,setCaseTitle]=useState(''),[question,setQuestion]=useState('');
  const [query,setQuery]=useState(''),[searchResults,setSearchResults]=useState<SearchResult[]>([]),[searching,setSearching]=useState(false);

@@ -62,7 +62,7 @@ A `render.yaml` blueprint is included. Create the web service from the repositor
 
 ### Vercel frontend
 
-Import the GitHub repository in Vercel. Set the root directory to the repository root and use the included `vercel.json`. After Render creates the API service, update the rewrite destination in `vercel.json` to the exact assigned Render hostname. The rewrite template must be verified against the actual service URL before deployment.
+Import the GitHub repository in Vercel. Set the root directory to the repository root and use the included `vercel.json`. The Vercel rewrite points to the currently assigned Render service hostname `https://adverse-api-7yim.onrender.com`. Update it if the Render service URL changes.
 
 ### Secrets
 
