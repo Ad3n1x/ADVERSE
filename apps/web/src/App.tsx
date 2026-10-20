@@ -9,9 +9,9 @@ type Relationship={id?:string;_id?:string;fromEntityId:string;toEntityId:string;
 type SearchResult={title:string;url:string;excerpt:string;publisher:string;retrievedAt:string;sourceType:string;provider?:string;providerErrors?:string[]};
 type Capture={timestamp:string;original:string;statuscode:string;archivedUrl:string};
 type Tab='Overview'|'Investigations'|'Intelligence search'|'Evidence vault'|'Evidence graph'|'Time machine'|'Cross-source review'|'Monitoring'|'Integrations'|'Settings';
-const API='/api/v1';
+const API=(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
 const key=(x:{id?:string;_id?:string})=>x.id||x._id||'';
-async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(API+path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let message='Request failed';try{const b=await r.json();message=b.error?.message||message;if(b.error?.details?.fieldErrors)message+=' '+JSON.stringify(b.error.details.fieldErrors);}catch{}throw new Error(message);}if(r.status===204)return undefined as T;return r.json();}
+async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(API+path,{...init,credentials:'include',headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let message='Request failed';try{const b=await r.json();message=b.error?.message||message;if(b.error?.details?.fieldErrors)message+=' '+JSON.stringify(b.error.details.fieldErrors);}catch{}throw new Error(message);}if(r.status===204)return undefined as T;return r.json();}
 function App(){
  const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'>('login'),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState('');
  const [tab,setTab]=useState<Tab>('Overview'),[cases,setCases]=useState<Investigation[]>([]),[caseId,setCaseId]=useState(''),[evidence,setEvidence]=useState<Evidence[]>([]),[entities,setEntities]=useState<Entity[]>([]),[relationships,setRelationships]=useState<Relationship[]>([]),[apiStatus,setApiStatus]=useState('checking'),[error,setError]=useState(''),[notice,setNotice]=useState('');
