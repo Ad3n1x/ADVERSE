@@ -11,3 +11,31 @@ test('rejects blank investigation titles for authenticated users',async()=>withS
 test('prevents a second user from reading another user’s investigation',async()=>withServer(async base=>{const a=await register(base,'owner@example.org');const b=await register(base,'other@example.org');const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:a.cookie},body:JSON.stringify({title:'Private case'})});const {data}=await created.json();const read=await fetch(base+'/api/v1/investigations/'+data.id,{headers:{cookie:b.cookie}});assert.equal(read.status,404);}));
 test('evidence rejects loopback URL destinations',async()=>withServer(async base=>{const auth=await register(base,'evidence@example.org');const c=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'Safety case'})});const {data}=await c.json();const r=await fetch(base+'/api/v1/investigations/'+data.id+'/evidence',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'Local service',url:'http://127.0.0.1/admin'})});assert.equal(r.status,400);}));
 test('URL validation blocks loopback, private hosts and non-HTTP schemes',()=>{assert.throws(()=>validatePublicUrl('http://localhost:8080'));assert.throws(()=>validatePublicUrl('http://10.0.0.1'));assert.throws(()=>validatePublicUrl('file:///etc/passwd'));assert.equal(validatePublicUrl('https://example.org/path').hostname,'example.org');});
+
+test('monitoring rules are private to an investigation and can be removed',async()=>withServer(async base=>{
+ const owner=await register(base,'watch-owner@example.org');
+ const outsider=await register(base,'watch-outsider@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title:'Archive watch test'})});
+ assert.equal(created.status,201);
+ const {data:investigation}=await created.json();
+ const add=await fetch(base+'/api/v1/investigations/'+investigation.id+'/monitoring',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({url:'https://example.org/history',label:'Example history',intervalHours:12})});
+ assert.equal(add.status,201);
+ const {data:watch}=await add.json();
+ assert.equal(watch.intervalHours,12);
+ const read=await fetch(base+'/api/v1/investigations/'+investigation.id+'/monitoring',{headers:{cookie:owner.cookie}});
+ assert.equal(read.status,200);
+ assert.equal((await read.json()).data.watches.length,1);
+ const forbidden=await fetch(base+'/api/v1/monitoring/'+watch.id,{method:'DELETE',headers:{cookie:outsider.cookie}});
+ assert.equal(forbidden.status,404);
+ const removed=await fetch(base+'/api/v1/monitoring/'+watch.id,{method:'DELETE',headers:{cookie:owner.cookie}});
+ assert.equal(removed.status,204);
+}));
+test('monitoring rejects unsafe URLs and unsupported intervals',async()=>withServer(async base=>{
+ const auth=await register(base,'watch-validation@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'Watch validation'})});
+ const {data:investigation}=await created.json();
+ const unsafe=await fetch(base+'/api/v1/investigations/'+investigation.id+'/monitoring',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({url:'http://127.0.0.1/private',intervalHours:24})});
+ assert.equal(unsafe.status,400);
+ const interval=await fetch(base+'/api/v1/investigations/'+investigation.id+'/monitoring',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({url:'https://example.org',intervalHours:2})});
+ assert.equal(interval.status,400);
+}));
