@@ -28,7 +28,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 ## Known limitations
 
 - Federated search covers the providers listed above when reachable; it is not a general web index, does not crawl the entire internet, and provider failures may reduce coverage.
-- AI review is disabled until `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` are configured on the API service. Provider compatibility varies; AI review does not browse or independently verify original URLs.
+- AI review uses Google Gemini when `GEMINI_API_KEY` is configured on the API service; `GEMINI_MODEL` defaults to `gemini-2.5-flash`. An OpenAI-compatible chat-completions provider remains available through `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` as a fallback. The public health endpoint reports only whether configuration is present and does not expose credentials. A configured provider is not proof of successful end-to-end review; verify with an authenticated investigation containing at least two evidence records. AI review does not browse or independently verify original URLs.
 - Cross-source lexical overlap and extractive claim triage are not semantic entailment, comprehensive contradiction detection, or fact-checking. Similarity can group unrelated claims; numeric differences can reflect units or context. Domain clustering cannot establish common ownership or editorial independence.
 - Archived text comparison is heuristic and may contain extraction noise.
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
