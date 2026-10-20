@@ -64,13 +64,14 @@ async function retryPendingEmails() {
   }
 }
 
-export async function runMonitoringCycle() {
+export async function runMonitoringCycle({ watchId = '' } = {}) {
   if (globalThis.__ADVERSE_MONGO_READY__ !== true || running) return { checked: 0, retriedEmails: 0, skipped: true };
   running = true;
   let checked = 0;
   try {
     await retryPendingEmails();
-    const due = await Watch.find({ enabled: true, nextCheckAt: { $lte: new Date() } }).sort({ nextCheckAt: 1 }).limit(5).lean();
+    const query = watchId ? { _id: watchId, enabled: true } : { enabled: true, nextCheckAt: { $lte: new Date() } };
+    const due = await Watch.find(query).sort({ nextCheckAt: 1 }).limit(watchId ? 1 : 5).lean();
     for (const watch of due) {
       const now = new Date();
       const nextCheckAt = new Date(now.getTime() + Number(watch.intervalHours || 24) * 60 * 60 * 1000);
