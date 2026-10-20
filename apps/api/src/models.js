@@ -57,6 +57,7 @@ const alertSchema = new Schema({
   captureTimestamp: { type: String, required: true },
   emailStatus: { type: String, enum: ['pending', 'sent', 'disabled'], default: 'pending', index: true },
   emailAttempts: { type: Number, default: 0 },
+  emailNextAttemptAt: { type: Date, default: null, index: true },
   emailLastError: { type: String, maxlength: 300, default: '' },
   emailSentAt: { type: Date, default: null },
   observedAt: { type: Date, default: Date.now },
