@@ -20,7 +20,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
 - Archive monitoring rules, alert review, acknowledgement, and deletion. The worker checks for new Internet Archive captures; it is not a live-page change detector and needs MongoDB plus an awake, running API worker.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
-- API tests and GitHub Actions CI for API checks/tests and frontend production builds.
+- API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
 ## Known limitations
 
@@ -50,6 +50,7 @@ Without `MONGODB_URI`, local development uses in-memory storage and records are 
 3. Run `npm run dev` to start the web app and API.
 4. Open `http://localhost:5173`; API health is available at `http://localhost:4000/api/v1/health`.
 5. Run `npm test`, `npm run check -w @adverse/api`, and `npm run build -w @adverse/web`.
+6. Run `npx playwright install chromium` once, then `npm run test:e2e` for browser workflow checks.
 
 The Vite development server proxies `/api` to `http://localhost:4000`.
 
