@@ -41,3 +41,10 @@
 .graph-relationship-option{display:flex;flex-direction:column;gap:5px;padding:9px 10px;border:1px solid #28322f;border-radius:4px;background:#12191c;color:#c8d4ce;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
 .graph-relationship-option b{color:#78e5d1;font-weight:600}
 @media(max-width:600px){.graph-accessible{padding:12px}.graph-entity-list{grid-template-columns:repeat(2,minmax(0,1fr))}.graph-entity-option{padding:9px}}
+
+
+.graph-layout-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.graph-layout-actions>div:last-child{display:flex;gap:7px;flex-wrap:wrap}
+.real-graph g[role="button"]{touch-action:none}
+.real-graph g[role="button"]:active{cursor:grabbing}
+@media(max-width:600px){.graph-layout-actions{align-items:flex-start;flex-direction:column}.graph-layout-actions>div:last-child{width:100%}.graph-layout-actions .secondary-button{flex:1}}
