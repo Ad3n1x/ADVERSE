@@ -3,6 +3,15 @@ import { waybackCaptures } from './providers.js';
 
 let running = false;
 
+export function hasMaterialArchiveChange(watch, latest) {
+  const previousTimestamp=String(watch?.lastCaptureTimestamp||'');
+  const nextTimestamp=String(latest?.timestamp||'');
+  if(!previousTimestamp||!nextTimestamp||nextTimestamp<=previousTimestamp)return false;
+  const previousDigest=String(watch?.lastCaptureDigest||'');
+  const nextDigest=String(latest?.digest||'');
+  return previousDigest&&nextDigest ? previousDigest!==nextDigest : true;
+}
+
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const emailConfig = () => ({
   apiKey: String(process.env.BREVO_API_KEY || '').trim(),
@@ -81,9 +90,7 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
         const result = await waybackCaptures(watch.url);
         const latest = (result.captures || []).slice().sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))[0];
         const latestTimestamp = latest?.timestamp || '';
-        const newerCapture = Boolean(watch.lastCaptureTimestamp && latestTimestamp && latestTimestamp > watch.lastCaptureTimestamp);
-        const changedFingerprint = Boolean(latest?.digest && watch.lastCaptureDigest && latest.digest !== watch.lastCaptureDigest);
-        const shouldAlert = newerCapture && (latest?.digest && watch.lastCaptureDigest ? changedFingerprint : true);
+        const shouldAlert = hasMaterialArchiveChange(watch, latest);
         if (shouldAlert) {
           const hasFingerprint = Boolean(latest?.digest && watch.lastCaptureDigest);
           const alert = await Alert.create({
