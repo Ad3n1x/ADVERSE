@@ -9,31 +9,31 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
 - MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
-- Public search through Wikipedia's MediaWiki API (not a whole-web search engine).
+- Federated public-source search across Wikipedia, Crossref scholarly works, and OpenAlex research metadata. Provider coverage is bounded and is not whole-web search.
 - Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
-- Passive public DNS lookup through Google Public DNS-over-HTTPS.
+- Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
 - Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
 - Evidence chronology that keeps publication, capture, and retrieval dates distinct.
 - Searchable interactive entity graph with node inspection, linked relationship review, evidence references, and verification-status styling.
 - Cross-source lexical-overlap analysis with publisher-domain clustering, shared terms, provenance cautions, and privacy-scoped API tests.
 - Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
-- JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
-- Archive monitoring rules, alert review, acknowledgement, and deletion. Researchers can manually trigger an owner-scoped check from the UI; scheduled checks still depend on MongoDB and an awake, running API worker.
+- JSON and CSV exports plus a server-generated multi-page PDF investigation report with evidence, entities, relationships, source dates, and explicit limitations.
+- Archive monitoring rules, alert review, acknowledgement, and deletion. An authenticated internal scheduler endpoint and a Render Cron runner/Blueprint are included; durable scheduled execution requires provisioning the cron service and configuring the same strong `MONITORING_CRON_SECRET` on both services. Manual owner-scoped checks remain available.
 - Brevo transactional alerts track delivery attempts and retain failed sends as pending so later worker cycles can retry them. A Brevo API acceptance test passed; an end-to-end test that observes a genuinely newer archive capture and confirms delivery to the configured inbox is still required. The UI shows sent/pending/disabled status and the latest delivery error.
-- Monitoring checks compare Internet Archive capture timestamps; they do not continuously inspect live pages or prove that page content changed. The process-local worker runs while the API process is awake; it is not a durable external scheduler, so sleeping/restarts can delay checks.
+- Monitoring checks compare Internet Archive capture timestamps; they do not continuously inspect live pages or prove that page content changed. The in-process worker is only a fallback; the Render Cron runner is the durable scheduling path once provisioned.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
 - API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
 ## Known limitations
 
-- Wikipedia results cover Wikipedia only.
+- Federated search covers Wikipedia, Crossref, and OpenAlex only; it is not a general web index and provider failures may reduce coverage.
 - AI review is disabled until `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` are configured on the API service. Provider compatibility varies; AI review does not browse or independently verify original URLs.
 - Cross-source lexical overlap is not semantic entailment or contradiction detection. Domain clustering cannot establish common ownership or editorial independence.
 - Archived text comparison is heuristic and may contain extraction noise.
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
 - DNS observations do not establish ownership, control, or intent.
-- Monitoring depends on the Internet Archive provider, MongoDB, and a running worker. Free hosting can sleep, so checks may be delayed. Brevo email delivery is implemented when configured; push notifications and a durable external scheduler are not implemented.
-- The graph remains a lightweight SVG visualization. Force-directed layout, path highlighting, large-graph performance tuning, and saved layouts are not implemented. The timeline is an evidence chronology, not a time-travel view that reconstructs the graph as it appeared at arbitrary historical dates.
+- Monitoring depends on the Internet Archive provider, MongoDB, and a scheduled runner. The Render Cron runner/Blueprint is in source, but it is not active until the cron resource is provisioned and its secret is configured. Brevo email delivery is implemented when configured; push notifications are not implemented.
+- The graph remains a lightweight SVG visualization. It highlights a shortest-connection spanning tree and provides accessible entity/relationship lists, but force-directed layout, pan/zoom, large-graph performance tuning, and saved layouts are not implemented. Historical graph view reconstructs which records were known by a date; it cannot prove objective historical state.
 - Browser end-to-end testing is not yet comprehensive. Security tests cover representative URL restrictions and cross-user access, but do not constitute a full SSRF/DNS-rebinding, redirect-chain, CSP, accessibility, or penetration audit.
 - Registration is open. Do not treat this research build as a substitute for legal, journalistic, or security review before storing sensitive investigations.
 
@@ -70,8 +70,10 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 - `GET /api/v1/domains?url=...`
 - `GET /api/v1/investigations/:id/cross-source-review`
 - `POST /api/v1/investigations/:id/ai-review`
+- `GET /api/v1/investigations/:id/history/graph?asOf=ISO_DATE`
 - `GET /api/v1/investigations/:id/timeline`
-- `GET /api/v1/investigations/:id/export?format=json|csv`
+- `GET /api/v1/investigations/:id/export?format=json|csv|pdf`
+- `POST /api/v1/internal/monitoring/run` (requires `x-monitoring-secret`)
 - `GET/POST /api/v1/investigations/:id/monitoring`
 - `DELETE /api/v1/monitoring/:id`
 - `POST /api/v1/alerts/:id/acknowledge`
