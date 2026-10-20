@@ -83,6 +83,12 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 
 Authenticated routes require a valid session.
 
+## Broad keyword search
+
+The authenticated `GET /api/v1/search?q=...` endpoint expands a search into a bounded query plan: exact phrase, natural-language wording, core terms, individual input tokens, and related wording variants. For example, `MovieBox old version` is searched as a phrase and broader variants including individual terms and alternative wording such as older/previous/earlier/legacy. Results from each available provider are merged by normalized URL, with matched query variants retained for transparency and relevance ranking.
+
+Search providers currently include the saved ADVERSE evidence index, Wikipedia, Crossref, OpenAlex, GDELT Global News, Google News, and Wikidata. The plan is intentionally bounded to reduce request fan-out and provider overload. It cannot guarantee every page on the internet: providers index different material, may rate-limit or fail, and do not provide exhaustive crawling. The UI reports the query plan and available provider failures so researchers can see how coverage was attempted.
+
 ## Deployment
 
 ### Render API
