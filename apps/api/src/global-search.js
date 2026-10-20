@@ -49,7 +49,8 @@ export function expandSearchQueries(input, maxQueries = 10) {
     const variants = SYNONYMS.get(word);
     if (variants) {
       for (const variant of variants) {
-        add(raw + ' ' + variant, 'related wording');
+        const at = raw.toLocaleLowerCase().indexOf(word);
+        add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
         if (queries.length >= maxQueries) break;
       }
     }
