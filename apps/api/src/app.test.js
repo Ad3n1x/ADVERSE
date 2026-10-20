@@ -65,3 +65,12 @@ test('cross-source review cannot expose another user investigation',async()=>wit
  const response=await fetch(base+'/api/v1/investigations/'+data.id+'/cross-source-review',{headers:{cookie:outsider.cookie}});
  assert.equal(response.status,404);
 }));
+
+test('AI review reports an explicit configuration error instead of fabricating analysis',async()=>withServer(async base=>{
+ const auth=await register(base,'ai-review@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'AI configuration test'})});
+ const {data}=await created.json();
+ const response=await fetch(base+'/api/v1/investigations/'+data.id+'/ai-review',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({})});
+ assert.equal(response.status,503);
+ assert.equal((await response.json()).error.code,'AI_NOT_CONFIGURED');
+}));
