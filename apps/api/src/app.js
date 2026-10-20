@@ -69,14 +69,13 @@ app.post('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{const 
 app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
-  const terms=[...new Set((q.toLowerCase().match(/[\\p{L}\\p{N}]{2,}/gu)||[]).slice(0,12))];
-  const escaped=q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\app.get('/api/v1/search',limitProvider,wrap(async(req,res)=>{const q=String(req.query.q||'').slice(0,200);try{const results=await searchPublic(q);res.json({data:results,meta:{providers:[...new Set(results.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),coverage:'Federated public-source search across Wikipedia, Crossref and OpenAlex. Coverage varies by provider and search terms; this is not whole-web search.'}});}catch(e){sendError(res,502,'PROVIDER_UNAVAILABLE','Public search is currently unavailable.',{provider:'Wikipedia Search API',reason:e.message});}}));');
-  const regex=new RegExp(terms.map(term=>term.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\app.get('/api/v1/search',limitProvider,wrap(async(req,res)=>{const q=String(req.query.q||'').slice(0,200);try{const results=await searchPublic(q);res.json({data:results,meta:{providers:[...new Set(results.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),coverage:'Federated public-source search across Wikipedia, Crossref and OpenAlex. Coverage varies by provider and search terms; this is not whole-web search.'}});}catch(e){sendError(res,502,'PROVIDER_UNAVAILABLE','Public search is currently unavailable.',{provider:'Wikipedia Search API',reason:e.message});}}));')).join('|'),'i');
+  const terms=[...new Set((q.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)||[]).slice(0,12))];
+  const regex=new RegExp(terms.join('|'),'i');
   const investigations=isDb()?await Investigation.find({ownerId:req.user.id}).select('_id').lean():[...memory.investigations.values()].filter(item=>item.ownerId===req.user.id).map(item=>({_id:item.id}));
   const caseIds=investigations.map(item=>String(item._id));
   let indexed=[];
   if(caseIds.length){
-    if(isDb()) indexed=await Evidence.find({investigationId:{$in:caseIds},$or:[{title:regex},{excerpt:regex},{publisher:regex},{url:regex}] }).sort({retrievedAt:-1}).limit(60).lean();
+    if(isDb()) indexed=await Evidence.find({investigationId:{$in:caseIds},$or:[{title:regex},{excerpt:regex},{publisher:regex},{url:regex}]}).sort({retrievedAt:-1}).limit(60).lean();
     else indexed=[...memory.evidence.values()].filter(item=>caseIds.includes(String(item.investigationId))&&regex.test([item.title,item.excerpt,item.publisher,item.url].join(' '))).slice(0,60);
   }
   const rank=item=>{
@@ -88,13 +87,12 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
     return hits*4+titleHits*5+freshness;
   };
   const stored=indexed.map(item=>({title:item.title,url:item.url,excerpt:item.excerpt||'',publisher:item.publisher||'Saved source',retrievedAt:item.retrievedAt||item.createdAt||new Date().toISOString(),publishedAt:item.publishedAt||null,sourceType:item.sourceType||'web',provider:'ADVERSE Index',verificationStatus:item.verificationStatus||'unverified',investigationId:String(item.investigationId),rank:rank(item),indexed:true}));
-  const livePromise=searchPublic(q).catch(error=>({error:String(error?.message||'Public providers unavailable')}));
-  const live=await livePromise;
+  const live=await searchPublic(q).catch(error=>({error:String(error?.message||'Public providers unavailable')}));
   const liveResults=Array.isArray(live)?live:[];
   const seen=new Set(stored.map(item=>String(item.url||'').toLowerCase()));
   const merged=[...stored,...liveResults.filter(item=>{const key=String(item.url||'').toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).map(item=>({...item,rank:rank(item),indexed:false}))];
   merged.sort((a,b)=>b.rank-a.rank);
-  res.json({data:merged.slice(0,60).map(({rank: _rank,...item})=>item),meta:{providers:[...new Set(merged.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),indexedCount:stored.length,liveCount:liveResults.length,providerUnavailable:!Array.isArray(live),providerError:Array.isArray(live)?'':live.error,coverage:'Hybrid search across the signed-in user’s saved ADVERSE evidence index plus live Wikipedia, Crossref, and OpenAlex results. Ranking combines query-term overlap, title matches, and freshness. This is not exhaustive whole-web search.'}});
+  res.json({data:merged.slice(0,60).map(({rank:_rank,...item})=>item),meta:{providers:[...new Set(merged.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),indexedCount:stored.length,liveCount:liveResults.length,providerUnavailable:!Array.isArray(live),providerError:Array.isArray(live)?'':live.error,coverage:'Hybrid search across the signed-in user’s saved ADVERSE evidence index plus live Wikipedia, Crossref, and OpenAlex results. Ranking combines query-term overlap, title matches, and freshness. This is not exhaustive whole-web search.'}});
 }));
 app.post('/api/v1/investigations/:id/search/save',wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=z.object({title:z.string().min(1).max(240),url:z.string().url(),excerpt:z.string().max(5000).default(''),publisher:z.string().max(200).default('Wikipedia')}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Invalid search result.');let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const data=await saveRecord(Evidence,'evidence',{id:id(),investigationId:req.params.id,...p.data,url:u.href,sourceType:'web',retrievedAt:new Date(),publishedAt:null,verificationStatus:'unverified',entities:[],captureTimestamp:'',contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',createdAt:new Date(),updatedAt:new Date()});res.status(201).json({data});}));
 
