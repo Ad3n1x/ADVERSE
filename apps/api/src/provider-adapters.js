@@ -78,6 +78,8 @@ export function getProviderCatalog() {
     {name:'GDELT Global News',category:'news',configured:true,access:'public'},
     {name:'Google News RSS',category:'news',configured:true,access:'public'},
     {name:'Wikidata',category:'knowledge graph',configured:true,access:'public'},
+    {name:'Purili Web Search',category:'web search',configured:true,access:'public',requiresKey:false},
+    {name:'Truegle Web Search',category:'web search',configured:true,access:'public',requiresKey:false},
     ...providers.map(p=>({name:p.name,category:p.name.includes('News')||p.name==='NewsAPI'?'news':p.name.includes('YouTube')?'video':p.name==='Reddit Search'?'community':'web search',configured:p.configured,access:p.configured?'enabled':'requires API key or configuration'}))
   ];
 }
