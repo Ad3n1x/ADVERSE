@@ -20,4 +20,5 @@ test('keeps source provenance and identifies claim candidates', () => {
   assert.equal(result.provenanceClusters.length, 2);
   assert.ok(result.claims.every(claim => Array.isArray(claim.sources) && claim.sources.every(s => s.url)));
   assert.ok(result.claims.every(claim => claim.status !== 'verified'));
+  assert.ok(result.claims.some(claim => claim.possibleConflicts.some(conflict => conflict.kind === 'different_numeric_details')));
 });
