@@ -74,3 +74,29 @@ test('AI review reports an explicit configuration error instead of fabricating a
  assert.equal(response.status,503);
  assert.equal((await response.json()).error.code,'AI_NOT_CONFIGURED');
 }));
+
+
+test('entity evidence references must belong to the same investigation', async()=>withServer(async base=>{
+ const owner=await register(base,'entity-provenance@example.org');
+ const makeCase=async title=>{const r=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title})});return (await r.json()).data;};
+ const first=await makeCase('Entity provenance target');
+ const second=await makeCase('Entity provenance source');
+ const evidenceResponse=await fetch(base+'/api/v1/investigations/'+second.id+'/evidence',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title:'Source record',url:'https://example.org/source',excerpt:'A public source excerpt.'})});
+ assert.equal(evidenceResponse.status,201);
+ const evidence=(await evidenceResponse.json()).data;
+ const response=await fetch(base+'/api/v1/investigations/'+first.id+'/entities',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({name:'Cross-case entity',evidenceIds:[evidence.id||evidence._id]})});
+ assert.equal(response.status,400);
+ assert.equal((await response.json()).error.code,'INVALID_EVIDENCE_REFERENCE');
+}));
+
+test('CSV export neutralizes spreadsheet formula-leading evidence values', async()=>withServer(async base=>{
+ const owner=await register(base,'csv-formula@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title:'CSV safety test'})});
+ const {data:investigation}=await created.json();
+ const saved=await fetch(base+'/api/v1/investigations/'+investigation.id+'/evidence',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title:'Formula test',url:'https://example.org',excerpt:'=HYPERLINK("https://attacker.example","click")'})});
+ assert.equal(saved.status,201);
+ const exported=await fetch(base+'/api/v1/investigations/'+investigation.id+'/export?format=csv',{headers:{cookie:owner.cookie}});
+ assert.equal(exported.status,200);
+ const csv=await exported.text();
+ assert.match(csv,/"'=HYPERLINK\("https://attacker\.example","click"\)"/);
+}));
