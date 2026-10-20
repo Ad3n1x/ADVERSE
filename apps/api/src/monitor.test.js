@@ -1,6 +1,16 @@
+test('archive monitoring ignores newer captures with the same content digest',()=>{
+ assert.equal(hasMaterialArchiveChange({lastCaptureTimestamp:'20240101000000',lastCaptureDigest:'same'},{timestamp:'20240201000000',digest:'same'}),false);
+});
+test('archive monitoring alerts when a newer capture has a different content digest',()=>{
+ assert.equal(hasMaterialArchiveChange({lastCaptureTimestamp:'20240101000000',lastCaptureDigest:'before'},{timestamp:'20240201000000',digest:'after'}),true);
+});
+test('archive monitoring uses timestamp-only fallback when a digest is unavailable',()=>{
+ assert.equal(hasMaterialArchiveChange({lastCaptureTimestamp:'20240101000000',lastCaptureDigest:''},{timestamp:'20240201000000',digest:''}),true);
+ assert.equal(hasMaterialArchiveChange({lastCaptureTimestamp:'20240201000000',lastCaptureDigest:'same'},{timestamp:'20240101000000',digest:'new'}),false);
+});
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { notifyAlertByEmail } from './monitor.js';
+import { hasMaterialArchiveChange, notifyAlertByEmail } from './monitor.js';
 
 const originalFetch = globalThis.fetch;
 const envKeys = ['BREVO_API_KEY', 'ALERT_EMAIL_FROM', 'ALERT_EMAIL_TO'];
