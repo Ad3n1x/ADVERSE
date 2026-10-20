@@ -62,14 +62,16 @@ async function retryPendingEmails() {
     const watch = await Watch.findById(alert.watchId).lean();
     await deliverAndRecord(alert, watch);
   }
+  return pending.length;
 }
 
 export async function runMonitoringCycle({ watchId = '' } = {}) {
   if (globalThis.__ADVERSE_MONGO_READY__ !== true || running) return { checked: 0, retriedEmails: 0, skipped: true };
   running = true;
   let checked = 0;
+  let retriedEmails = 0;
   try {
-    await retryPendingEmails();
+    retriedEmails = await retryPendingEmails();
     const query = watchId ? { _id: watchId, enabled: true } : { enabled: true, nextCheckAt: { $lte: new Date() } };
     const due = await Watch.find(query).sort({ nextCheckAt: 1 }).limit(watchId ? 1 : 5).lean();
     for (const watch of due) {
@@ -108,7 +110,7 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
       }
       checked += 1;
     }
-    return { checked, retriedEmails: 0, skipped: false };
+    return { checked, retriedEmails, skipped: false };
   } finally {
     running = false;
   }
