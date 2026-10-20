@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert } from './models.js';
 import { searchPublic, scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
 import { runMonitoringCycle } from './monitor.js';
+import { runDiscoveryCycle } from './discovery.js';
 import { createReportPdf } from './pdf.js';
 
 export const app = express();
@@ -44,6 +45,16 @@ const saveRecord=async(Model,collection,record)=>{if(isDb()){const doc=await Mod
 const exists=async(iid,uid)=>Boolean(await investigationGet(iid,uid));
 app.get('/api/v1/health',(_req,res)=>res.json({ok:true,service:'adverse-api',persistence:isDb()?'mongodb':'ephemeral-memory',providers:['Wikipedia Search','Crossref','OpenAlex','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],timestamp:new Date().toISOString()}));
 
+app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
+  const expected=String(process.env.DISCOVERY_CRON_SECRET||'');
+  const supplied=String(req.get('x-discovery-secret')||'');
+  if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Discovery scheduler authentication is required.');
+  const a=Buffer.from(expected),b=Buffer.from(supplied);
+  if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Discovery scheduler authentication failed.');
+  if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled discovery requires MongoDB persistence.');
+  const result=await runDiscoveryCycle();
+  res.json({data:result,generatedAt:new Date().toISOString()});
+}));
 app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const result=await runMonitoringCycle();res.json({data:result,generatedAt:new Date().toISOString()});}));
 app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{const p=authSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid email and a password of at least 12 characters.',p.error.flatten());const email=p.data.email.toLowerCase();const existsUser=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);if(existsUser)return sendError(res,409,'ACCOUNT_EXISTS','An account with this email already exists.');const salt=crypto.randomBytes(16).toString('hex');const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');const user=isDb()?await User.create({email,displayName:p.data.displayName||email.split('@')[0],passwordHash}):{id:id(),email,displayName:p.data.displayName||email.split('@')[0],passwordHash};if(!isDb())memory.users.set(user.id,user);const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.status(201).json({data:safe});}));
 app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.json({data:safe});}));
