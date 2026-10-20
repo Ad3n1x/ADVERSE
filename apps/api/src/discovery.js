@@ -42,7 +42,7 @@ async function researchInvestigation(investigation) {
   if (!queries.length) return { caseId: iid, discovered: 0, saved: 0, scraped: 0 };
   const settled = await Promise.allSettled(queries.map(query => searchAllPublic(query)));
   const discovered = settled.flatMap((result, index) => result.status === 'fulfilled'
-    ? result.value.map(item => ({ ...item, matchedQuery: queries[index] })) : []);
+    ? (result.value.results || []).map(item => ({ ...item, matchedQuery: queries[index] })) : []);
   const existingUrls = new Set(existing.map(item => String(item.url || '').toLowerCase()));
   const seen = new Set();
   const fresh = discovered.filter(item => {
