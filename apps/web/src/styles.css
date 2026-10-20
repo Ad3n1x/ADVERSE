@@ -53,3 +53,7 @@
 .graph-filter-label{display:flex;flex-direction:column;gap:4px;color:#93a39c;font-size:10px}
 .graph-filter-label select{max-width:180px;min-height:34px;border:1px solid #34453f;border-radius:4px;background:#12191c;color:#e0e8e5;padding:6px 8px;font:inherit}
 @media(max-width:600px){.graph-layout-controls{width:100%;align-items:stretch}.graph-filter-label{flex:1}.graph-filter-label select{max-width:none;width:100%}}
+
+button.graph-relationship-option{text-align:left;font-family:inherit;cursor:pointer}
+.graph-relationship-option:hover,.graph-relationship-option:focus-visible{border-color:#78e5d1;outline:2px solid #78e5d144;outline-offset:1px}
+.graph-relationship-option.selected{border-color:#b79a5f;background:#29251b}
