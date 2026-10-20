@@ -14,7 +14,9 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Passive public DNS lookup through Google Public DNS-over-HTTPS.
 - Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
 - Evidence chronology that keeps publication, capture, and retrieval dates distinct.
-- Relationship graph and evidence-linked relationship records, initially marked unverified.
+- Searchable interactive entity graph with node inspection, linked relationship review, evidence references, and verification-status styling.
+- Cross-source lexical-overlap analysis with publisher-domain clustering, shared terms, provenance cautions, and privacy-scoped API tests.
+- Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
 - JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
 - Archive monitoring rules, alert review, acknowledgement, and deletion. The worker checks for new Internet Archive captures; it is not a live-page change detector and needs MongoDB plus an awake, running API worker.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
@@ -23,13 +25,13 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 ## Known limitations
 
 - Wikipedia results cover Wikipedia only.
-- No AI-generated analysis or automated citation synthesis is enabled. Optional AI environment variables are placeholders only.
-- Cross-source review is a human comparison view; semantic agreement scoring and source-independence scoring are not implemented.
+- AI review is disabled until `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` are configured on the API service. Provider compatibility varies; AI review does not browse or independently verify original URLs.
+- Cross-source lexical overlap is not semantic entailment or contradiction detection. Domain clustering cannot establish common ownership or editorial independence.
 - Archived text comparison is heuristic and may contain extraction noise.
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
 - DNS observations do not establish ownership, control, or intent.
 - Monitoring depends on the Internet Archive provider, MongoDB, and a running worker. Free hosting can sleep, so checks may be delayed. Alerts are in-app records; email/push notifications are not implemented.
-- The graph is a lightweight SVG visualization. Advanced force-directed layout, path highlighting, large-graph filtering, and saved layouts are not implemented.
+- The graph remains a lightweight SVG visualization; force-directed layout, path highlighting, large-graph performance tuning, and saved layouts are not implemented.
 - Browser end-to-end testing is not yet comprehensive.
 - Registration is open. Do not treat this research build as a substitute for legal, journalistic, or security review before storing sensitive investigations.
 
@@ -63,6 +65,8 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 - `GET /api/v1/archives?url=...`
 - `GET /api/v1/archives/compare?url=...&from=YYYYMMDDhhmmss&to=YYYYMMDDhhmmss`
 - `GET /api/v1/domains?url=...`
+- `GET /api/v1/investigations/:id/cross-source-review`
+- `POST /api/v1/investigations/:id/ai-review`
 - `GET /api/v1/investigations/:id/timeline`
 - `GET /api/v1/investigations/:id/export?format=json|csv`
 - `GET/POST /api/v1/investigations/:id/monitoring`
@@ -84,7 +88,7 @@ The Vercel project builds from the repository root using `vercel.json`. The rewr
 
 ### Secrets
 
-Never commit real credentials. Keep MongoDB and provider tokens on the API service only. The AI environment variables are not currently wired to an active AI feature.
+Never commit real credentials. Keep MongoDB and provider tokens on the API service only. AI review uses `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` on the API service only; never expose the API key in the frontend.
 
 ## Evidence principles
 
