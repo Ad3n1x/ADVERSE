@@ -7,12 +7,27 @@ const timeoutFetch = async (url, options = {}) => {
   return response;
 };
 export async function searchPublic(query) {
-  const q = query.trim();
+  const q = String(query || '').trim();
   if (q.length < 2) throw new Error('Search query must contain at least 2 characters.');
-  const url = new URL('https://en.wikipedia.org/w/api.php');
-  url.search = new URLSearchParams({ action:'query', list:'search', srsearch:q, srlimit:'8', format:'json', origin:'*' }).toString();
-  const data = await (await timeoutFetch(url, { headers: { accept: 'application/json' } })).json();
-  return (data.query?.search || []).map((item) => ({ title:item.title, url:'https://en.wikipedia.org/wiki/' + encodeURIComponent(item.title.replaceAll(' ','_')), excerpt:String(item.snippet || '').replace(/<[^>]*>/g,'').replaceAll('&quot;','"').replaceAll('&amp;','&'), sourceType:'web', publisher:'Wikipedia', retrievedAt:new Date().toISOString(), publishedAt:null, provider:'Wikipedia Search' }));
+  const retrievedAt = new Date().toISOString();
+  const tasks = [
+    (async()=>{const url=new URL('https://en.wikipedia.org/w/api.php');url.search=new URLSearchParams({action:'query',list:'search',srsearch:q,srlimit:'8',format:'json',origin:'*'}).toString();const data=await(await timeoutFetch(url,{headers:{accept:'application/json'}})).json();return(data.query?.search||[]).map(item=>({title:item.title,url:'https://en.wikipedia.org/wiki/'+encodeURIComponent(item.title.replaceAll(' ','_')),excerpt:String(item.snippet||'').replace(/<[^>]*>/g,'').replaceAll('&quot;','"').replaceAll('&amp;','&'),sourceType:'web',publisher:'Wikipedia',retrievedAt,publishedAt:null,provider:'Wikipedia'}));})(),
+    (async()=>{const url=new URL('https://api.crossref.org/works');url.search=new URLSearchParams({query:q,rows:'8',select:'DOI,title,URL,author,published,container-title,abstract,type'}).toString();const data=await(await timeoutFetch(url,{headers:{accept:'application/json'}})).json();return(data.message?.items||[]).map(item=>({title:String(item.title?.[0]||'Untitled scholarly work'),url:item.URL||('https://doi.org/'+item.DOI),excerpt:String(item.abstract||'').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim().slice(0,1200),sourceType:'document',publisher:String(item['container-title']?.[0]||'Crossref'),retrievedAt,publishedAt:item.published?.['date-parts']?.[0]?.join('-')||null,provider:'Crossref',doi:item.DOI||''}));})(),
+    (async()=>{const url=new URL('https://api.openalex.org/works');url.search=new URLSearchParams({search:q,per_page:'8',select:'id,doi,title,publication_year,authorships,primary_location,abstract_inverted_index,type'}).toString();const data=await(await timeoutFetch(url,{headers:{accept:'application/json'}})).json();return(data.results||[]).map(item=>({title:String(item.title||'Untitled research work'),url:item.doi||item.primary_location?.landing_page_url||item.id,excerpt:abstractFromInvertedIndex(item.abstract_inverted_index),sourceType:'document',publisher:item.primary_location?.source?.display_name||'OpenAlex',retrievedAt,publishedAt:item.publication_year?String(item.publication_year):null,provider:'OpenAlex',doi:item.doi||''}));})()
+  ];
+  const settled=await Promise.allSettled(tasks);
+  const providers=['Wikipedia','Crossref','OpenAlex'];
+  const results=settled.flatMap((item,index)=>item.status==='fulfilled'?item.value:[]);
+  if(!results.length)throw new Error('All public search providers failed.');
+  const seen=new Set();
+  const unique=results.filter(item=>{const k=(item.url||item.title).toLowerCase();if(seen.has(k))return false;seen.add(k);return true;}).slice(0,24);
+  return unique.map(item=>({...item,providerErrors:settled.map((result,index)=>result.status==='rejected'?providers[index]+': unavailable':null).filter(Boolean)}));
+}
+function abstractFromInvertedIndex(index) {
+  if(!index||typeof index!=='object')return '';
+  const words=[];
+  for(const [word,positions] of Object.entries(index))for(const position of positions||[])words.push([position,word]);
+  return words.sort((a,b)=>a[0]-b[0]).slice(0,220).map(x=>x[1]).join(' ').slice(0,1200);
 }
 export async function waybackCaptures(inputUrl) {
   const parsed = validatePublicUrl(inputUrl);
