@@ -26,3 +26,18 @@
 @media(max-width:700px){.review-actions{align-items:stretch;flex-direction:column;width:100%}.review-actions button{justify-content:center}.ai-review-results{margin:12px;padding:12px}.ai-review-heading{flex-direction:column}}
 
 .watch-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}.watch-actions .secondary-button{white-space:nowrap}.email-status{display:block;margin-top:6px;color:#d8b477;font-size:10px}.email-status.email-sent{color:#8bdcc9}.watch-row .watch-details{min-width:0;flex:1}
+
+
+/* Accessible graph navigation and relationship inspection */
+.graph-accessible{position:relative;z-index:1;padding:16px;border-top:1px solid #29332f;background:#101619}
+.graph-accessible .muted-copy{max-width:850px;font-size:11px;line-height:1.6;color:#91a09b}
+.graph-entity-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:7px;margin:12px 0 18px}
+.graph-entity-option{display:flex;flex-direction:column;align-items:flex-start;gap:5px;min-width:0;padding:10px 11px;border:1px solid #2b3935;border-radius:5px;background:#141c1f;color:#e0e8e5;text-align:left;cursor:pointer}
+.graph-entity-option:hover,.graph-entity-option:focus-visible{border-color:#78e5d1;outline:2px solid #78e5d144;outline-offset:1px}
+.graph-entity-option.selected{border-color:#b79a5f;background:#29251b}
+.graph-entity-option span{max-width:100%;overflow-wrap:anywhere;font-size:11px;font-weight:600}
+.graph-entity-option small,.graph-relationship-option small{color:#82918b;font-size:9px;line-height:1.5}
+.graph-relationship-list{display:grid;gap:7px}
+.graph-relationship-option{display:flex;flex-direction:column;gap:5px;padding:9px 10px;border:1px solid #28322f;border-radius:4px;background:#12191c;color:#c8d4ce;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.graph-relationship-option b{color:#78e5d1;font-weight:600}
+@media(max-width:600px){.graph-accessible{padding:12px}.graph-entity-list{grid-template-columns:repeat(2,minmax(0,1fr))}.graph-entity-option{padding:9px}}
