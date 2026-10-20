@@ -18,8 +18,9 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Cross-source lexical-overlap analysis with publisher-domain clustering, shared terms, provenance cautions, and privacy-scoped API tests.
 - Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
 - JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
-- Archive monitoring rules, alert review, acknowledgement, and deletion. The worker checks for new Internet Archive captures; it is not a live-page change detector and needs MongoDB plus an awake, running API worker.
-- Optional transactional email alerts through Brevo, with graceful failure when email configuration is absent.
+- Archive monitoring rules, alert review, acknowledgement, and deletion. Researchers can manually trigger an owner-scoped check from the UI; scheduled checks still depend on MongoDB and an awake, running API worker.
+- Brevo transactional alerts track delivery attempts and retain failed sends as pending so later worker cycles can retry them. The UI shows sent/pending/disabled status and the latest delivery error.
+- Monitoring checks compare Internet Archive capture timestamps; they do not continuously inspect live pages or prove that page content changed.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
 - API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
@@ -90,7 +91,7 @@ The Vercel project builds from the repository root using `vercel.json`. The rewr
 
 ### Secrets
 
-Never commit real credentials. Keep MongoDB and provider tokens on the API service only. AI review uses `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` on the API service only; never expose the API key in the frontend. Optional email alerts use Brevo's transactional email API and require `BREVO_API_KEY`, `ALERT_EMAIL_FROM` (a verified sender email), and `ALERT_EMAIL_TO`. Keep the API key on the Render API service only; email sends are skipped when any value is missing.
+Never commit real credentials. Keep MongoDB and provider tokens on the API service only. AI review uses `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` on the API service only; never expose the API key in the frontend. Optional email alerts use Brevo's transactional email API and require `BREVO_API_KEY`, `ALERT_EMAIL_FROM` (a verified sender email), and `ALERT_EMAIL_TO`. Keep the API key on the Render API service only. Missing or rejected email configuration leaves alert delivery pending, and subsequent monitoring cycles retry pending alerts. The authenticated `POST /api/v1/monitoring/:id/check` endpoint lets an investigation owner request an immediate archive check.
 
 ## Evidence principles
 
