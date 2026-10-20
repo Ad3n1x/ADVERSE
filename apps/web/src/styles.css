@@ -219,3 +219,6 @@ button:disabled{opacity:.45;cursor:not-allowed}
 button.graph-relationship-option{text-align:left;font-family:inherit;cursor:pointer}
 .graph-relationship-option:hover,.graph-relationship-option:focus-visible{border-color:#78e5d1;outline:2px solid #78e5d144;outline-offset:1px}
 .graph-relationship-option.selected{border-color:#b79a5f;background:#29251b}
+
+.heading-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;flex-wrap:wrap}
+@media(max-width:760px){.heading-actions{width:100%;justify-content:flex-start}.heading-actions>.primary-button,.heading-actions>.secondary-button{flex:1}}
