@@ -27,10 +27,23 @@ export async function waybackCaptures(inputUrl) {
 }
 function isPrivateIPv4(ip) {
   const a=ip.split('.').map(Number); if(a.length!==4||a.some(n=>!Number.isInteger(n)||n<0||n>255))return true;
-  return a[0]===0||a[0]===10||a[0]===127||a[0]>=224||(a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||(a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127)||(a[0]===192&&a[1]===0)||(a[0]===198&&(a[1]===18||a[1]===19));
+  return a[0]===0||a[0]===10||a[0]===127||a[0]>=224||(a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||(a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127)||(a[0]===192&&(a[1]===0||a[1]===88&&a[2]===99||a[1]===0&&a[2]===2))||(a[0]===198&&(a[1]===18||a[1]===19||a[1]===51&&a[2]===100))||(a[0]===203&&a[1]===0&&a[2]===113)||(a[0]===255);
+}
+function mappedIPv4(ip) {
+  const x=ip.toLowerCase();
+  if (!x.startsWith('::ffff:')) return null;
+  const tail=x.slice(7);
+  if (tail.includes('.')) return tail;
+  const groups=tail.split(':');
+  if (groups.length!==2 || groups.some(group=>! /^[0-9a-f]{1,4}$/.test(group))) return null;
+  const high=parseInt(groups[0],16), low=parseInt(groups[1],16);
+  return `${high>>8}.${high&255}.${low>>8}.${low&255}`;
 }
 function isPrivateIPv6(ip) {
-  const x=ip.toLowerCase(); return x==='::'||x==='::1'||x.startsWith('fe8')||x.startsWith('fe9')||x.startsWith('fea')||x.startsWith('feb')||x.startsWith('fc')||x.startsWith('fd')||x.startsWith('ff')||x.startsWith('::ffff:127.')||x.startsWith('::ffff:10.')||x.startsWith('::ffff:192.168.');
+  const x=ip.toLowerCase();
+  const mapped=mappedIPv4(x);
+  if (mapped) return isPrivateIPv4(mapped);
+  return x==='::'||x==='::1'||x.startsWith('fe8')||x.startsWith('fe9')||x.startsWith('fea')||x.startsWith('feb')||x.startsWith('fc')||x.startsWith('fd')||x.startsWith('ff')||x.startsWith('2001:db8:')||x.startsWith('2001:10:')||x.startsWith('2001:20:');
 }
 export function validatePublicUrl(input) {
   let u; try { u=new URL(input); } catch { throw new Error('Enter a valid public URL.'); }
