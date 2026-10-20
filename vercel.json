@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build -w @adverse/web",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "npm install",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://adverse-api.onrender.com/api/$1"
+    }
+  ]
+}

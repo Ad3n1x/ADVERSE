@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: adverse-api
+    runtime: node
+    rootDir: apps/api
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WEB_ORIGIN
+        sync: false
+      - key: MONGODB_URI
+        sync: false

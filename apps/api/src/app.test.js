@@ -1,14 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { app } from './app.js';
-
-test('health route responds with service status', async () => {
-  const server = app.listen(0);
-  try {
-    const address = server.address();
-    const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/health`);
-    assert.equal(response.status, 200);
-    const body = await response.json();
-    assert.equal(body.ok, true);
-  } finally { server.close(); }
-});
+import { validatePublicUrl } from './providers.js';
+async function withServer(fn){const server=app.listen(0);try{await fn(`http://127.0.0.1:${server.address().port}`);}finally{await new Promise(resolve=>server.close(resolve));}}
+test('health reports API status and persistence mode',async()=>withServer(async base=>{const r=await fetch(base+'/api/v1/health');assert.equal(r.status,200);assert.equal((await r.json()).ok,true);}));
+test('creates and reads an investigation',async()=>withServer(async base=>{const r=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Test case',question:'Does source A support claim B?'})});assert.equal(r.status,201);const {data}=await r.json();assert.equal(data.title,'Test case');const read=await fetch(base+'/api/v1/investigations/'+data.id);assert.equal(read.status,200);assert.equal((await read.json()).data.id,data.id);}));
+test('rejects blank investigation titles',async()=>withServer(async base=>{const r=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'  '})});assert.equal(r.status,400);}));
+test('evidence requires a public HTTP URL',async()=>withServer(async base=>{const c=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Safety case'})});const {data}=await c.json();const r=await fetch(base+`/api/v1/investigations/${data.id}/evidence`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title:'Local service',url:'http://127.0.0.1/admin'})});assert.equal(r.status,400);}));
+test('URL validation blocks loopback, local hosts and non-HTTP schemes',()=>{assert.throws(()=>validatePublicUrl('http://localhost:8080'));assert.throws(()=>validatePublicUrl('http://10.0.0.1'));assert.throws(()=>validatePublicUrl('file:///etc/passwd'));assert.equal(validatePublicUrl('https://example.org/path').hostname,'example.org');});
