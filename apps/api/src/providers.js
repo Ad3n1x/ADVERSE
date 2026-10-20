@@ -56,3 +56,11 @@ export async function compareArchivedText(a,b) {
   const setA=new Set(before),setB=new Set(after);
   return { added:after.filter(x=>!setA.has(x)).slice(0,100), removed:before.filter(x=>!setB.has(x)).slice(0,100), method:'normalized text sentence comparison', limitation:'Heuristic comparison only. Navigation, scripts, layout, and extraction differences may create noise.' };
 }
+
+export async function searchOrganizations(query) {
+  const q=query.trim(); if(q.length<2)throw new Error('Organization search requires at least two characters.');
+  const token=process.env.OPENCORPORATES_API_TOKEN; if(!token)throw new Error('OPENCORPORATES_API_TOKEN is not configured. Obtain an API token and confirm the applicable licence and usage limits.');
+  const url=new URL('https://api.opencorporates.com/v0.4/companies/search');url.searchParams.set('q',q);url.searchParams.set('per_page','10');
+  const data=await(await timeoutFetch(url,{headers:{'X-API-TOKEN':token,accept:'application/json'},timeout:10000})).json();
+  return (data.results?.companies||[]).map(({company})=>({name:company.name,companyNumber:company.company_number,jurisdiction:company.jurisdiction_code,companyType:company.company_type||'',status:company.current_status||'',incorporationDate:company.incorporation_date||null,sourceUrl:company.opencorporates_url,source:'OpenCorporates',retrievedAt:new Date().toISOString()}));
+}
