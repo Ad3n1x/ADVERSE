@@ -16,7 +16,7 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByLabel('Investigation title').fill('E2E Public History Case');
   await page.getByLabel('Research question').fill('Can the source history be reconstructed?');
   await page.getByRole('button', { name: /Create case/ }).click();
-  await expect(page.getByText('E2E Public History Case')).toBeVisible();
+  await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
 
   await page.getByRole('button', { name: 'Evidence graph' }).click();
   await page.getByRole('button', { name: /Add entity/ }).click();
