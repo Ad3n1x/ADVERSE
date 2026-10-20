@@ -14,7 +14,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
 - Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
 - Evidence chronology that keeps publication, capture, and retrieval dates distinct.
-- Searchable interactive entity graph with draggable nodes, locally saved layouts, relationship-type filters, node inspection, linked relationship review, evidence references, and verification-status styling.
+- Searchable interactive force-directed entity graph with draggable nodes, pan/zoom, fit-to-view, local layout save/restore/reset, relationship-type filters, node inspection, relationship details, evidence references, and verification-status styling. Graph edges are investigative navigation aids, not proof.
 - Cross-source lexical-overlap analysis with publisher-domain clustering, shared terms, provenance cautions, and privacy-scoped API tests.
 - Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
 - JSON and CSV exports plus a server-generated multi-page PDF investigation report with evidence, entities, relationships, source dates, and explicit limitations.
@@ -33,7 +33,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
 - DNS observations do not establish ownership, control, or intent.
 - Monitoring depends on the Internet Archive provider, MongoDB, and a scheduled runner. The scheduler endpoint and runner script are in source, but scheduled execution is not active until an external cron resource is provisioned and its secret is configured. Brevo email delivery is implemented when configured; push notifications are not implemented.
-- The graph remains a lightweight SVG visualization. It highlights a shortest-connection spanning tree and provides accessible entity/relationship lists, but force-directed layout, pan/zoom, large-graph performance tuning, and saved layouts are not implemented. Historical graph view reconstructs which records were known by a date; it cannot prove objective historical state.
+- The graph uses a lightweight force-directed 2D layout with pan/zoom and locally saved node positions. Very large graph performance still needs profiling; saved positions remain browser-local rather than synced across devices. Historical graph view reconstructs which records were known by a date; it cannot prove objective historical state.
 - Browser end-to-end testing is not yet comprehensive. Security tests cover representative URL restrictions and cross-user access, but do not constitute a full SSRF/DNS-rebinding, redirect-chain, CSP, accessibility, or penetration audit.
 - Registration is open. Do not treat this research build as a substitute for legal, journalistic, or security review before storing sensitive investigations.
 
