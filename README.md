@@ -2,43 +2,56 @@
 
 **Discover connections. Reconstruct history. Verify the evidence.**
 
-ADVERSE is an evidence-first public-information research workspace. It is designed to keep original sources and uncertainty visible while researchers build investigations, map documented relationships, and examine website history.
+ADVERSE is an evidence-first public-information research workspace. It helps researchers collect source records, map documented relationships, reconstruct website history, and export a traceable investigation report without presenting unverified claims as facts.
 
-## Current implementation
+## Implemented
 
-- React + TypeScript responsive workspace.
-- Express API with investigation, evidence, entity, and relationship endpoints.
-- MongoDB models for investigation records, evidence, entities, and relationships; an explicit in-memory fallback is available for local evaluation and is lost on process restart.
-- Public search via the Wikipedia MediaWiki API (limited coverage, not a whole-web index).
-- Internet Archive Wayback CDX capture lookup and timestamped archive links.
-- Heuristic archived-text comparison endpoint, with size limits and explicit limitations.
-- Passive DNS record lookup through Google Public DNS-over-HTTPS.
-- Evidence timeline and source records with separate publication, retrieval, and capture timestamps.
-- JSON investigation export and CSV evidence export.
-- Email/password registration and login, scrypt password hashing, signed HttpOnly SameSite cookies, seven-day sessions, basic authentication rate limiting, and per-user investigation ownership checks.\n- API input validation, Helmet headers, URL scheme checks, private-address checks for DNS lookups, bounded request bodies and timeouts.
-- API tests and GitHub Actions CI workflow.
+- Responsive React + TypeScript workspace with private researcher accounts.
+- Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
+- MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
+- Public search through Wikipedia's MediaWiki API (not a whole-web search engine).
+- Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
+- Passive public DNS lookup through Google Public DNS-over-HTTPS.
+- Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
+- Evidence chronology that keeps publication, capture, and retrieval dates distinct.
+- Relationship graph and evidence-linked relationship records, initially marked unverified.
+- JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
+- Archive monitoring rules, alert review, acknowledgement, and deletion. The worker checks for new Internet Archive captures; it is not a live-page change detector and needs MongoDB plus an awake, running API worker.
+- Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
+- API tests and GitHub Actions CI for API checks/tests and frontend production builds.
 
-## Not complete
+## Known limitations
 
-Teams, PDF export, background monitoring/notifications, automated claim comparison, AI analysis, full company-record provider, and comprehensive browser/e2e testing are not implemented. Do not expose this build publicly for sensitive data until authentication and authorization exist. The graph is a lightweight SVG view of saved entities/relationships; advanced graph layout, large-graph filtering, path highlighting and saved layouts remain future work.
+- Wikipedia results cover Wikipedia only.
+- No AI-generated analysis or automated citation synthesis is enabled. Optional AI environment variables are placeholders only.
+- Cross-source review is a human comparison view; semantic agreement scoring and source-independence scoring are not implemented.
+- Archived text comparison is heuristic and may contain extraction noise.
+- Internet Archive coverage is incomplete; no capture does not prove a page never existed.
+- DNS observations do not establish ownership, control, or intent.
+- Monitoring depends on the Internet Archive provider, MongoDB, and a running worker. Free hosting can sleep, so checks may be delayed. Alerts are in-app records; email/push notifications are not implemented.
+- The graph is a lightweight SVG visualization. Advanced force-directed layout, path highlighting, large-graph filtering, and saved layouts are not implemented.
+- Browser end-to-end testing is not yet comprehensive.
+- Registration is open. Do not treat this research build as a substitute for legal, journalistic, or security review before storing sensitive investigations.
 
 ## Requirements
 
-- Node.js 20+
+- Node.js 20 or newer
 - npm
-- MongoDB (local or Atlas) for durable persistence. Without `MONGODB_URI`, the API falls back to in-memory storage and records disappear on restart.
+- MongoDB for durable persistence
+
+Without `MONGODB_URI`, local development uses in-memory storage and records are lost when the API process restarts. Production startup requires both `MONGODB_URI` and `JWT_SECRET`.
 
 ## Local development
 
-1. Copy `.env.example` to `.env` and set `MONGODB_URI` if persistence is desired.
-2. Install dependencies from the repository root: `npm install`.
-3. Start both apps: `npm run dev`.
-4. Web app: `http://localhost:5173`; API health: `http://localhost:4000/api/v1/health`.
-5. Run API tests: `npm test`; API syntax check: `npm run check -w @adverse/api`; production frontend build: `npm run build -w @adverse/web`.
+1. Copy `.env.example` to `.env` and set the required environment values.
+2. From the repository root, run `npm install`.
+3. Run `npm run dev` to start the web app and API.
+4. Open `http://localhost:5173`; API health is available at `http://localhost:4000/api/v1/health`.
+5. Run `npm test`, `npm run check -w @adverse/api`, and `npm run build -w @adverse/web`.
 
-The Vite dev server proxies `/api` to `http://localhost:4000`.
+The Vite development server proxies `/api` to `http://localhost:4000`.
 
-## API routes
+## Key API routes
 
 - `GET/POST /api/v1/investigations`
 - `GET/PATCH/DELETE /api/v1/investigations/:id`
@@ -52,27 +65,30 @@ The Vite dev server proxies `/api` to `http://localhost:4000`.
 - `GET /api/v1/domains?url=...`
 - `GET /api/v1/investigations/:id/timeline`
 - `GET /api/v1/investigations/:id/export?format=json|csv`
+- `GET/POST /api/v1/investigations/:id/monitoring`
+- `DELETE /api/v1/monitoring/:id`
+- `POST /api/v1/alerts/:id/acknowledge`
 - `GET /api/v1/health`
 
-## Deploying
+Authenticated routes require a valid session.
+
+## Deployment
 
 ### Render API
 
-A `render.yaml` blueprint is included. Create the web service from the repository blueprint and configure `MONGODB_URI` and `WEB_ORIGIN` in Render's environment settings. Set `WEB_ORIGIN` to the deployed frontend origin. The service health check is `/api/v1/health`.
+The repository includes a Render Blueprint at `render.yaml`. Configure `MONGODB_URI` and `WEB_ORIGIN` in the Render environment settings. The Blueprint generates a `JWT_SECRET`. Set `WEB_ORIGIN` to the deployed frontend origin. Health check: `/api/v1/health`.
 
 ### Vercel frontend
 
-Import the GitHub repository in Vercel. Set the root directory to the repository root and use the included `vercel.json`. The Vercel rewrite points to the currently assigned Render service hostname `https://adverse-api-7yim.onrender.com`. Update it if the Render service URL changes.
+The Vercel project builds from the repository root using `vercel.json`. The rewrite forwards `/api/*` requests to the current Render service at `https://adverse-api-7yim.onrender.com`. Update that hostname if the Render service URL changes.
 
 ### Secrets
 
-Never commit actual credentials. Configure `MONGODB_URI` only on the backend service. Provider tokens, if added in later work, must remain server-side.
+Never commit real credentials. Keep MongoDB and provider tokens on the API service only. The AI environment variables are not currently wired to an active AI feature.
 
-## Research and safety limitations
+## Evidence principles
 
-- Wikipedia search results cover Wikipedia only.
-- Wayback captures are incomplete; no capture does not prove a page never existed.
-- Text diffs are heuristic and may include extraction noise.
-- DNS records show observed DNS answers, not ownership or intent.
-- Relationship records require a source evidence reference but remain unverified until a researcher reviews them.
-- Registration is open; the API uses signed sessions and filters investigations by owner. Rate limiting is process-local, and the service should still be reviewed before handling sensitive investigations. Provider endpoints are public and should receive production rate limiting.
+- Preserve original source URLs and source-attributed dates.
+- Treat source excerpts and researcher-entered notes as records, not independent verification.
+- A documented relationship is not proof of causation or wrongdoing.
+- Read original sources and review limitations before drawing conclusions.
