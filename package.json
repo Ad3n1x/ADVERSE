@@ -1,0 +1,23 @@
+{
+  "name": "adverse",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,green \"npm run dev -w @adverse/web\" \"npm run dev -w @adverse/api\"",
+    "dev:web": "npm run dev -w @adverse/web",
+    "dev:api": "npm run dev -w @adverse/api",
+    "build": "npm run build -w @adverse/web && npm run check -w @adverse/api",
+    "test": "npm run test -w @adverse/api",
+    "typecheck:web": "npm run typecheck -w @adverse/web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
