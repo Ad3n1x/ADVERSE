@@ -54,6 +54,10 @@ const alertSchema = new Schema({
   message: { type: String, required: true, maxlength: 1000 },
   url: { type: String, required: true, maxlength: 2048 },
   captureTimestamp: { type: String, required: true },
+  emailStatus: { type: String, enum: ['pending', 'sent', 'disabled'], default: 'pending', index: true },
+  emailAttempts: { type: Number, default: 0 },
+  emailLastError: { type: String, maxlength: 300, default: '' },
+  emailSentAt: { type: Date, default: null },
   observedAt: { type: Date, default: Date.now },
   acknowledgedAt: { type: Date, default: null }
 }, stamp);
