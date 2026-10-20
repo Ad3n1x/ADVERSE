@@ -12,7 +12,7 @@ async function requestJson(url, options = {}) {
 
 function normalize(item, provider) {
   const url = String(item.url || '').trim();
-  if (!/^https?:\/\//i.test(url)) return null;
+  if (!(url.startsWith('https://') || url.startsWith('http://'))) return null;
   return {
     title: clean(item.title, 240) || 'Untitled result',
     url,
