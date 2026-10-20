@@ -48,3 +48,8 @@
 .real-graph g[role="button"]{touch-action:none}
 .real-graph g[role="button"]:active{cursor:grabbing}
 @media(max-width:600px){.graph-layout-actions{align-items:flex-start;flex-direction:column}.graph-layout-actions>div:last-child{width:100%}.graph-layout-actions .secondary-button{flex:1}}
+
+.graph-layout-controls{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap}
+.graph-filter-label{display:flex;flex-direction:column;gap:4px;color:#93a39c;font-size:10px}
+.graph-filter-label select{max-width:180px;min-height:34px;border:1px solid #34453f;border-radius:4px;background:#12191c;color:#e0e8e5;padding:6px 8px;font:inherit}
+@media(max-width:600px){.graph-layout-controls{width:100%;align-items:stretch}.graph-filter-label{flex:1}.graph-filter-label select{max-width:none;width:100%}}
