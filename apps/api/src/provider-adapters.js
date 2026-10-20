@@ -9,7 +9,7 @@ async function json(url, options = {}) {
 }
 function add(name, fn, configured = true) { providers.push({ name, fn, configured }); }
 function result(title, url, excerpt, provider, extra = {}) {
-  if (!/^https?:\\/\\//i.test(url || '')) return null;
+  if (String(url || '').indexOf('http') !== 0) return null;
   return { title: clean(title, 240) || 'Untitled result', url, excerpt: clean(excerpt, 1200), publisher: provider, retrievedAt: new Date().toISOString(), publishedAt: extra.publishedAt || null, sourceType: extra.sourceType || 'web', provider, ...extra };
 }
 
