@@ -45,7 +45,7 @@ const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({
 const listFor=async(Model,collection,iid)=>isDb()?Model.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory[collection].values()].filter(x=>x.investigationId===iid);
 const saveRecord=async(Model,collection,record)=>{if(isDb()){const doc=await Model.create(record);return doc.toObject();}memory[collection].set(record.id,record);return record;};
 const exists=async(iid,uid)=>Boolean(await investigationGet(iid,uid));
-app.get('/api/v1/health',(_req,res)=>res.json({ok:true,service:'adverse-api',persistence:isDb()?'mongodb':'ephemeral-memory',providers:['Wikipedia Search','Crossref','OpenAlex','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],timestamp:new Date().toISOString()}));
+app.get('/api/v1/health',(_req,res)=>res.json({ok:true,service:'adverse-api',persistence:isDb()?'mongodb':'ephemeral-memory',providers:['Wikipedia Search','Crossref','OpenAlex','GDELT Global News','Google News RSS','Wikidata Knowledge Graph','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],capabilities:['federated-search','automated-discovery','source-provenance-review','claim-triage','historical-archive-comparison'],timestamp:new Date().toISOString()}));
 
 app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
   const expected=String(process.env.DISCOVERY_CRON_SECRET||'');
