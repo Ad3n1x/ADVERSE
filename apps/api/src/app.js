@@ -5,7 +5,8 @@ import crypto from 'node:crypto';
 import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert } from './models.js';
-import { searchPublic, scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
+import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
+import { searchAllPublic } from './global-search.js';
 import { runMonitoringCycle } from './monitor.js';
 import { runDiscoveryCycle } from './discovery.js';
 import { createReportPdf } from './pdf.js';
@@ -98,7 +99,7 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
     return hits*4+titleHits*5+freshness;
   };
   const stored=indexed.map(item=>({title:item.title,url:item.url,excerpt:item.excerpt||'',publisher:item.publisher||'Saved source',retrievedAt:item.retrievedAt||item.createdAt||new Date().toISOString(),publishedAt:item.publishedAt||null,sourceType:item.sourceType||'web',provider:'ADVERSE Index',verificationStatus:item.verificationStatus||'unverified',investigationId:String(item.investigationId),rank:rank(item),indexed:true}));
-  const live=await searchPublic(q).catch(error=>({error:String(error?.message||'Public providers unavailable')}));
+  const live=await searchAllPublic(q).catch(error=>({error:String(error?.message||'Public providers unavailable')}));
   const liveResults=Array.isArray(live)?live:[];
   const seen=new Set(stored.map(item=>String(item.url||'').toLowerCase()));
   const merged=[...stored,...liveResults.filter(item=>{const key=String(item.url||'').toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).map(item=>({...item,rank:rank(item),indexed:false}))];
@@ -115,7 +116,7 @@ app.post('/api/v1/investigations/:id/research',limitProvider,wrap(async(req,res)
   const question=String(investigation.question||'').trim();
   const queries=[title,question,title+' '+question].map(x=>x.trim()).filter((x,i,a)=>x.length>=2&&a.indexOf(x)===i).slice(0,3);
   if(!queries.length)return sendError(res,400,'RESEARCH_QUERY_REQUIRED','Add a case title or research question before discovering sources.');
-  const settled=await Promise.allSettled(queries.map(q=>searchPublic(q)));
+  const settled=await Promise.allSettled(queries.map(q=>searchAllPublic(q)));
   const available=settled.flatMap((item,index)=>item.status==='fulfilled'?item.value.map(result=>({...result,matchedQuery:queries[index]})):[]);
   if(!available.length)return sendError(res,502,'RESEARCH_UNAVAILABLE','Public search providers returned no results. Try again later.',{queries,providerFailures:settled.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||'provider unavailable'))});
   const seen=new Set();
