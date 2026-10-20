@@ -39,8 +39,8 @@ export function expandSearchQueries(input, maxQueries = 10) {
     add(meaningful.join(' '), 'core terms');
     add(meaningful.join(' OR '), 'broad term match');
   }
-  // Search each meaningful token separately before spending the remaining budget on variants.
-  for (const word of meaningful) {
+  // Search every input token separately before spending the remaining budget on variants.
+  for (const word of words) {
     if (queries.length >= maxQueries) break;
     if (word.length >= 2) add(word, 'individual keyword');
   }
