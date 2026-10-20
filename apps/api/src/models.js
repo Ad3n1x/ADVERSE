@@ -42,6 +42,7 @@ const watchSchema = new Schema({
   intervalHours: { type: Number, enum: [6, 12, 24], default: 24 },
   enabled: { type: Boolean, default: true },
   lastCaptureTimestamp: { type: String, default: '' },
+  lastCaptureDigest: { type: String, default: '' },
   lastCheckedAt: { type: Date, default: null },
   nextCheckAt: { type: Date, default: Date.now },
   lastError: { type: String, maxlength: 500, default: '' }
