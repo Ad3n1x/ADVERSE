@@ -9,7 +9,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
 - MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
-- Federated public-source search across Wikipedia, Crossref scholarly works, OpenAlex research metadata, GDELT Global News, Google News RSS, and Wikidata. Providers run independently so one outage need not cancel the whole query; coverage remains bounded and is not whole-web search or a universal web crawler.
+- Federated public-source search across Wikipedia, Crossref scholarly works, OpenAlex research metadata, GDELT Global News, Google News RSS, Wikidata, plus optional adapters for Brave Search, Bing Web Search, Google Programmable Search, SerpAPI, Tavily, Exa, NewsAPI, Reddit Search, and YouTube Data API. Optional adapters activate when their server-side credentials are configured. Provider runs are isolated; coverage remains bounded and is not whole-web search or a universal web crawler.
 - Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
 - Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
 - Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
@@ -66,6 +66,7 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 - `GET/POST /api/v1/investigations/:id/entities`
 - `GET/POST /api/v1/investigations/:id/relationships`
 - `GET /api/v1/search?q=...`
+- `GET /api/v1/search/providers` (authenticated provider availability and configuration catalog)
 - `GET /api/v1/archives?url=...`
 - `GET /api/v1/archives/compare?url=...&from=YYYYMMDDhhmmss&to=YYYYMMDDhhmmss`
 - `GET /api/v1/domains?url=...`
@@ -87,7 +88,7 @@ Authenticated routes require a valid session.
 
 The authenticated `GET /api/v1/search?q=...` endpoint expands a search into a bounded query plan: exact phrase, natural-language wording, core terms, individual input tokens, and related wording variants. For example, `MovieBox old version` is searched as a phrase and broader variants including individual terms and alternative wording such as older/previous/earlier/legacy. Results from each available provider are merged by normalized URL, with matched query variants retained for transparency and relevance ranking.
 
-Search providers currently include the saved ADVERSE evidence index, Wikipedia, Crossref, OpenAlex, GDELT Global News, Google News, and Wikidata. The plan is intentionally bounded to reduce request fan-out and provider overload. It cannot guarantee every page on the internet: providers index different material, may rate-limit or fail, and do not provide exhaustive crawling. The UI reports the query plan and available provider failures so researchers can see how coverage was attempted.
+Search providers include the saved ADVERSE evidence index, Wikipedia, Crossref, OpenAlex, GDELT Global News, Google News, Wikidata, and optional adapters for Brave Search, Bing Web Search, Google Programmable Search, SerpAPI, Tavily, Exa, NewsAPI, Reddit, and YouTube. Configure only the providers you have permission to use with server-side environment variables: `BRAVE_SEARCH_API_KEY`, `BING_SEARCH_API_KEY`, `GOOGLE_CSE_API_KEY` plus `GOOGLE_CSE_CX`, `SERPAPI_API_KEY`, `TAVILY_API_KEY`, `EXA_API_KEY`, `NEWSAPI_API_KEY`, and `YOUTUBE_API_KEY`. Do not expose these keys in frontend variables or commit them to Git. `GET /api/v1/search/providers` lists configured and unconfigured connectors. The plan is intentionally bounded to reduce request fan-out and provider overload. It cannot guarantee every page on the internet: providers index different material, may rate-limit or fail, and do not provide exhaustive crawling. The UI reports the query plan and available provider failures so researchers can see how coverage was attempted.
 
 ## Deployment
 
