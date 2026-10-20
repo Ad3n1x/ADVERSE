@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { Investigation, Evidence, Entity } from './models.js';
-import { searchPublic, scrapePublicPage, validatePublicUrl } from './providers.js';
+import { scrapePublicPage, validatePublicUrl } from './providers.js';
+import { searchAllPublic } from './global-search.js';
 
 let running = false;
 const MAX_CASES_PER_CYCLE = 3;
@@ -39,7 +40,7 @@ async function researchInvestigation(investigation) {
   ]);
   const queries = queriesFor(investigation, existing.slice(0, 20), entities);
   if (!queries.length) return { caseId: iid, discovered: 0, saved: 0, scraped: 0 };
-  const settled = await Promise.allSettled(queries.map(query => searchPublic(query)));
+  const settled = await Promise.allSettled(queries.map(query => searchAllPublic(query)));
   const discovered = settled.flatMap((result, index) => result.status === 'fulfilled'
     ? result.value.map(item => ({ ...item, matchedQuery: queries[index] })) : []);
   const existingUrls = new Set(existing.map(item => String(item.url || '').toLowerCase()));
