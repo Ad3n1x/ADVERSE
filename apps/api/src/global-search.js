@@ -49,7 +49,7 @@ export function expandSearchQueries(input, maxQueries = 10) {
     const variants = SYNONYMS.get(word);
     if (variants) {
       for (const variant of variants) {
-        add(raw.replace(new RegExp(word.replace(/[.*+?^${}()|[\\]\\]/g, '\\add(raw.replace(new RegExp('\\\\b' + word.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\b', 'i'), variant), 'related wording');'), 'i'), variant), 'related wording');
+        add(raw + ' ' + variant, 'related wording');
         if (queries.length >= maxQueries) break;
       }
     }
