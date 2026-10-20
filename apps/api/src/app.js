@@ -86,7 +86,7 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
   const terms=[...new Set((q.toLowerCase().match(/[\\p{L}\\p{N}]{2,}/gu)||[]).slice(0,12))];
-  const regex=new RegExp(terms.map(t=>t.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')).join('|'),'i');
+  const regex=new RegExp(terms.join('|'),'i');
   const investigations=isDb()?await Investigation.find({ownerId:req.user.id}).select('_id').lean():[...memory.investigations.values()].filter(item=>item.ownerId===req.user.id).map(item=>({_id:item.id}));
   const caseIds=investigations.map(item=>String(item._id));
   let indexed=[];
