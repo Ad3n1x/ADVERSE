@@ -1,5 +1,22 @@
 {
-  "name":"adverse","private":true,"version":"0.1.0","workspaces":["apps/web","apps/api"],
-  "scripts":{"dev":"concurrently -n web,api \"npm run dev -w @adverse/web\" \"npm run dev -w @adverse/api\"","build":"npm run build -w @adverse/web && npm run check -w @adverse/api","test":"npm run test -w @adverse/api"},
-  "devDependencies":{"concurrently":"^9.1.2"},"engines":{"node":">=20.0.0"}
+  "name": "adverse",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/web",
+    "apps/api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api \"npm run dev -w @adverse/web\" \"npm run dev -w @adverse/api\"",
+    "build": "npm run build -w @adverse/web && npm run check -w @adverse/api",
+    "test": "npm run test -w @adverse/api",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "@playwright/test": "^1.56.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
 }
