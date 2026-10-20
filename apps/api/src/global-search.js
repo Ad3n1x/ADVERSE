@@ -1,4 +1,5 @@
 import { searchPublic } from './providers.js';
+import { searchConfiguredProviders } from './provider-adapters.js';
 
 const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
 const STOP = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website']);
@@ -113,7 +114,8 @@ export async function searchAllPublic(input) {
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
     ['Google News', searchGoogleNews],
-    ['Wikidata Knowledge Graph', searchWikidata]
+    ['Wikidata Knowledge Graph', searchWikidata],
+    ['Additional configured providers', async q => (await searchConfiguredProviders(q)).results]
   ];
   const settled = await Promise.all(queryPlan.flatMap(plan => providers.map(async ([name, run]) => {
     try {
