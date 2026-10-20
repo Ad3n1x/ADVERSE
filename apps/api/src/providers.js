@@ -93,3 +93,80 @@ export async function searchOrganizations(query) {
   const data=await(await timeoutFetch(url,{headers:{'X-API-TOKEN':token,accept:'application/json'},timeout:10000})).json();
   return (data.results?.companies||[]).map(({company})=>({name:company.name,companyNumber:company.company_number,jurisdiction:company.jurisdiction_code,companyType:company.company_type||'',status:company.current_status||'',incorporationDate:company.incorporation_date||null,sourceUrl:company.opencorporates_url,source:'OpenCorporates',retrievedAt:new Date().toISOString()}));
 }
+
+
+/**
+ * Fetch a bounded amount of readable text from a public web page.
+ * This is deliberately conservative: only public DNS destinations, no redirects,
+ * no private network targets, no non-text payloads, and a 1 MB response ceiling.
+ */
+export async function scrapePublicPage(inputUrl) {
+  const parsed = validatePublicUrl(inputUrl);
+  let addresses;
+  try { addresses = await lookup(parsed.hostname, { all: true, verbatim: true }); }
+  catch { throw new Error('The source domain could not be resolved.'); }
+  if (!addresses.length || addresses.some(record => net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address))) {
+    throw new Error('The source resolves to a private or restricted network address.');
+  }
+  const response = await fetch(parsed.href, {
+    redirect: 'manual',
+    signal: AbortSignal.timeout(10000),
+    headers: {
+      'user-agent': 'ADVERSE-Research/0.2 (+public-interest research; bounded text retrieval)',
+      accept: 'text/html, text/plain;q=0.9'
+    }
+  });
+  if (response.status >= 300 && response.status < 400) throw new Error('Redirect not followed; open the original source link to inspect it.');
+  if (!response.ok) throw new Error('Source returned HTTP ' + response.status + '.');
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml+xml')) {
+    throw new Error('Source is not an HTML or plain-text page.');
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('Source response had no readable body.');
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > 1000000) {
+      await reader.cancel();
+      throw new Error('Source exceeds the 1 MB retrieval limit.');
+    }
+    chunks.push(Buffer.from(value));
+  }
+  const raw = Buffer.concat(chunks).toString('utf8');
+  const decode = value => String(value || '')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, (_, n) => { const cp = Number(n); return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : ''; })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => { const cp = parseInt(n, 16); return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : ''; });
+  const title = decode((raw.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [,''])[1].replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, 240);
+  const descriptionMatch = raw.match(/<meta[^>]+(?:name|property)=["'](?:description|og:description)["'][^>]+content=["']([^"']*)["']/i)
+    || raw.match(/<meta[^>]+content=["']([^"']*)["'][^>]+(?:name|property)=["'](?:description|og:description)["']/i);
+  const description = decode(descriptionMatch?.[1] || '').replace(/\s+/g, ' ').trim().slice(0, 800);
+  const text = decode(raw
+    .replace(/<(script|style|noscript|svg|nav|footer|header|form)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<br\s*\/?>|<\/(p|div|article|section|li|h[1-6]|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()).slice(0, 3500);
+  return {
+    url: parsed.href,
+    finalUrl: parsed.href,
+    title: title || parsed.hostname,
+    description,
+    excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
+    retrievedAt: new Date().toISOString(),
+    contentType,
+    contentHash: (await import('node:crypto')).createHash('sha256').update(raw).digest('hex'),
+    method: 'bounded public HTML/text retrieval',
+    note: 'Page text is a retrieval snapshot, not independent verification. Source terms, access restrictions, and robots policies still apply.'
+  };
+}
