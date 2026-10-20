@@ -104,3 +104,49 @@ test('CSV export neutralizes spreadsheet formula-leading evidence values', async
   assert.ok(csv.includes("'=HYPERLINK("));
   assert.ok(csv.includes('""https://attacker.example""'));
 }));
+
+
+test('Gemini review validates the structured response and persists bounded review history',async()=>withServer(async base=>{
+ const originalKey=process.env.GEMINI_API_KEY;
+ const originalModel=process.env.GEMINI_MODEL;
+ const originalFetch=globalThis.fetch;
+ process.env.GEMINI_API_KEY='test-only-gemini-key';
+ process.env.GEMINI_MODEL='gemini-2.5-flash';
+ globalThis.fetch=async(input,init)=>{
+  if(String(input).startsWith('https://generativelanguage.googleapis.com/')){
+   const requestBody=JSON.parse(String(init?.body||'{}'));
+   assert.equal(requestBody.generationConfig.responseMimeType,'application/json');
+   const review={summary:'Two stored sources were compared; verify their original contents.',corroboratedClaims:[],possibleDisagreements:[],gaps:[{question:'Is there an independent primary source? ',whyItMatters:'Independent sourcing has not been established.'}],sourceCautions:[]};
+   return new Response(JSON.stringify({candidates:[{content:{parts:[{text:JSON.stringify(review)}]}}]}),{status:200,headers:{'content-type':'application/json'}});
+  }
+  return originalFetch(input,init);
+ };
+ try{
+  const auth=await register(base,'gemini-review-test@example.org');
+  const created=await originalFetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'Gemini review persistence test'})});
+  assert.equal(created.status,201);
+  const {data:investigation}=await created.json();
+  for(const [title,url,excerpt] of [
+   ['Source one','https://example.org/source-one','A public source reports a dated event.'],
+   ['Source two','https://example.net/source-two','A second public source describes the same event.']
+  ]){
+   const saved=await originalFetch(base+'/api/v1/investigations/'+investigation.id+'/evidence',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title,url,excerpt,publisher:'Test publisher'})});
+   assert.equal(saved.status,201);
+  }
+  const response=await originalFetch(base+'/api/v1/investigations/'+investigation.id+'/ai-review',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:'{}'});
+  assert.equal(response.status,200);
+  const {data}=await response.json();
+  assert.equal(data.provider,'Google Gemini');
+  assert.equal(data.evidenceCount,2);
+  assert.match(data.summary,/stored sources/i);
+  const reread=await originalFetch(base+'/api/v1/investigations/'+investigation.id,{headers:{cookie:auth.cookie}});
+  assert.equal(reread.status,200);
+  const investigationData=(await reread.json()).data;
+  assert.equal(investigationData.aiReviewHistory.length,1);
+  assert.deepEqual(investigationData.aiReviewHistory[0].evidenceIds.length,2);
+ }finally{
+  globalThis.fetch=originalFetch;
+  if(originalKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=originalKey;
+  if(originalModel===undefined)delete process.env.GEMINI_MODEL;else process.env.GEMINI_MODEL=originalModel;
+ }
+}));
