@@ -1,0 +1,33 @@
+name: ADVERSE Automated Discovery
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-automated-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger bounded public-source discovery
+        env:
+          API_URL: ${{ secrets.ADVERSE_API_URL }}
+          DISCOVERY_CRON_SECRET: ${{ secrets.DISCOVERY_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${API_URL}" || -z "${DISCOVERY_CRON_SECRET}" ]]; then
+            echo "Configure ADVERSE_API_URL and DISCOVERY_CRON_SECRET in repository Actions secrets."
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            --request POST "${API_URL%/}/api/v1/internal/discovery/run" \
+            --header "x-discovery-secret: ${DISCOVERY_CRON_SECRET}" \
+            --header "accept: application/json"
