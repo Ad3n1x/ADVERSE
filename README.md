@@ -19,7 +19,7 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
 - JSON investigation export, CSV evidence export, and a print-friendly report that can be saved as PDF from the browser print dialog.
 - Archive monitoring rules, alert review, acknowledgement, and deletion. The worker checks for new Internet Archive captures; it is not a live-page change detector and needs MongoDB plus an awake, running API worker.
-- Optional opt-in transactional email alerts through Resend, with event-based idempotency, bounded retries, and graceful failure when email configuration is absent.
+- Optional transactional email alerts through Brevo, with graceful failure when email configuration is absent.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
 - API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
@@ -90,7 +90,7 @@ The Vercel project builds from the repository root using `vercel.json`. The rewr
 
 ### Secrets
 
-Never commit real credentials. Keep MongoDB and provider tokens on the API service only. AI review uses `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` on the API service only; never expose the API key in the frontend. Optional email alerts use `RESEND_API_KEY`, `ALERT_EMAIL_FROM`, and `ALERT_EMAIL_TO` and send only when all three are configured.
+Never commit real credentials. Keep MongoDB and provider tokens on the API service only. AI review uses `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` on the API service only; never expose the API key in the frontend. Optional email alerts use Brevo's transactional email API and require `BREVO_API_KEY`, `ALERT_EMAIL_FROM` (a verified sender email), and `ALERT_EMAIL_TO`. Keep the API key on the Render API service only; email sends are skipped when any value is missing.
 
 ## Evidence principles
 
