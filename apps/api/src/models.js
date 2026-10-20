@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 
 const { Schema, model, models } = mongoose;
+const userSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, displayName: { type: String, required: true, maxlength: 80 }, passwordHash: { type: String, required: true } }, { timestamps: true, versionKey: false });
+export const User = models.User || model('User', userSchema);
 const stamp = { timestamps: true, versionKey: false };
 const evidenceSchema = new Schema({
   investigationId: { type: String, index: true, required: true }, title: { type: String, required: true, maxlength: 240 },

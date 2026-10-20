@@ -15,12 +15,12 @@ ADVERSE is an evidence-first public-information research workspace. It is design
 - Passive DNS record lookup through Google Public DNS-over-HTTPS.
 - Evidence timeline and source records with separate publication, retrieval, and capture timestamps.
 - JSON investigation export and CSV evidence export.
-- API input validation, Helmet headers, URL scheme checks, private-address checks for DNS lookups, bounded request bodies and timeouts.
+- Email/password registration and login, scrypt password hashing, signed HttpOnly SameSite cookies, seven-day sessions, basic authentication rate limiting, and per-user investigation ownership checks.\n- API input validation, Helmet headers, URL scheme checks, private-address checks for DNS lookups, bounded request bodies and timeouts.
 - API tests and GitHub Actions CI workflow.
 
 ## Not complete
 
-Authentication and server-side per-user authorization, teams, PDF export, background monitoring/notifications, automated claim comparison, AI analysis, full company-record provider, and comprehensive browser/e2e testing are not implemented. Do not expose this build publicly for sensitive data until authentication and authorization exist. The graph is a lightweight SVG view of saved entities/relationships; advanced graph layout, large-graph filtering, path highlighting and saved layouts remain future work.
+Teams, PDF export, background monitoring/notifications, automated claim comparison, AI analysis, full company-record provider, and comprehensive browser/e2e testing are not implemented. Do not expose this build publicly for sensitive data until authentication and authorization exist. The graph is a lightweight SVG view of saved entities/relationships; advanced graph layout, large-graph filtering, path highlighting and saved layouts remain future work.
 
 ## Requirements
 
@@ -75,4 +75,4 @@ Never commit actual credentials. Configure `MONGODB_URI` only on the backend ser
 - Text diffs are heuristic and may include extraction noise.
 - DNS records show observed DNS answers, not ownership or intent.
 - Relationship records require a source evidence reference but remain unverified until a researcher reviews them.
-- The API currently has no authentication. Keep it private until access control is implemented.
+- Registration is open; the API uses signed sessions and filters investigations by owner. Rate limiting is process-local, and the service should still be reviewed before handling sensitive investigations. Provider endpoints are public and should receive production rate limiting.
