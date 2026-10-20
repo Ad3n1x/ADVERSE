@@ -56,17 +56,21 @@ async function deliverAndRecord(alert, watch) {
     return;
   }
   const result = await notifyAlertByEmail(alert, watch);
+  const attempts = Number(alert.emailAttempts || 0) + 1;
+  const delayMinutes = Math.min(60, 5 * (2 ** Math.min(attempts - 1, 4)));
   const update = {
     emailStatus: result.sent ? 'sent' : 'pending',
     emailLastError: result.reason,
-    emailAttempts: Number(alert.emailAttempts || 0) + 1
+    emailAttempts: attempts,
+    emailNextAttemptAt: result.sent ? null : new Date(Date.now() + delayMinutes * 60 * 1000)
   };
   if (result.sent) update.emailSentAt = new Date();
   await Alert.updateOne({ _id: alert._id }, { $set: update });
 }
 
 async function retryPendingEmails() {
-  const pending = await Alert.find({ emailStatus: 'pending' }).sort({ observedAt: 1 }).limit(5).lean();
+  const now = new Date();
+  const pending = await Alert.find({ emailStatus: 'pending', $or: [{ emailNextAttemptAt: null }, { emailNextAttemptAt: { $exists: false } }, { emailNextAttemptAt: { $lte: now } }] }).sort({ emailNextAttemptAt: 1, observedAt: 1 }).limit(5).lean();
   for (const alert of pending) {
     const watch = await Watch.findById(alert.watchId).lean();
     await deliverAndRecord(alert, watch);
