@@ -69,3 +69,15 @@ export async function searchConfiguredProviders(query, limit = 8) {
   });
   return {results:results.slice(0,limit*selected.length),errors,providers:selected.map(p=>({name:p.name,configured:p.configured,requiresKey:!p.configured}))};
 }
+
+export function getProviderCatalog() {
+  return [
+    {name:'Wikipedia',category:'reference',configured:true,access:'public'},
+    {name:'Crossref',category:'research',configured:true,access:'public'},
+    {name:'OpenAlex',category:'research',configured:true,access:'public'},
+    {name:'GDELT Global News',category:'news',configured:true,access:'public'},
+    {name:'Google News RSS',category:'news',configured:true,access:'public'},
+    {name:'Wikidata',category:'knowledge graph',configured:true,access:'public'},
+    ...providers.map(p=>({name:p.name,category:p.name.includes('News')||p.name==='NewsAPI'?'news':p.name.includes('YouTube')?'video':p.name==='Reddit Search'?'community':'web search',configured:p.configured,access:p.configured?'enabled':'requires API key or configuration'}))
+  ];
+}
