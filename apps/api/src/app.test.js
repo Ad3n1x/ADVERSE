@@ -39,3 +39,29 @@ test('monitoring rejects unsafe URLs and unsupported intervals',async()=>withSer
  const interval=await fetch(base+'/api/v1/investigations/'+investigation.id+'/monitoring',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({url:'https://example.org',intervalHours:2})});
  assert.equal(interval.status,400);
 }));
+
+test('cross-source review reports lexical overlap and groups publisher domains without declaring truth',async()=>withServer(async base=>{
+ const auth=await register(base,'cross-review@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title:'Source comparison'})});
+ const {data:investigation}=await created.json();
+ const save=async(title,url,excerpt)=>fetch(base+'/api/v1/investigations/'+investigation.id+'/evidence',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({title,url,excerpt,publisher:'Test Publisher'})});
+ assert.equal((await save('Climate report','https://example.org/report','The climate report documents coastal flooding and rising sea levels across the region.')).status,201);
+ assert.equal((await save('Coastal flooding update','https://news.example.net/coast','The coastal flooding update documents rising sea levels across the region.')).status,201);
+ const review=await fetch(base+'/api/v1/investigations/'+investigation.id+'/cross-source-review',{headers:{cookie:auth.cookie}});
+ assert.equal(review.status,200);
+ const {data}=await review.json();
+ assert.equal(data.evidenceCount,2);
+ assert.equal(data.distinctPublisherDomains,2);
+ assert.equal(data.pairs.length,1);
+ assert.ok(data.pairs[0].lexicalOverlapPercent>0);
+ assert.match(data.pairs[0].interpretation,/vocabulary overlap|manually compare/i);
+ assert.ok(data.limitations.some(x=>x.includes('not semantic entailment')));
+}));
+test('cross-source review cannot expose another user investigation',async()=>withServer(async base=>{
+ const owner=await register(base,'cross-owner@example.org');
+ const outsider=await register(base,'cross-outsider@example.org');
+ const created=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({title:'Private source review'})});
+ const {data}=await created.json();
+ const response=await fetch(base+'/api/v1/investigations/'+data.id+'/cross-source-review',{headers:{cookie:outsider.cookie}});
+ assert.equal(response.status,404);
+}));
