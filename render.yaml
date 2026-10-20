@@ -17,16 +17,3 @@ services:
         generateValue: true
       - key: MONITORING_CRON_SECRET
         sync: false
-  - type: cron
-    name: adverse-monitoring-scheduler
-    runtime: node
-    region: oregon
-    plan: starter
-    schedule: "*/15 * * * *"
-    buildCommand: cd apps/api && npm install
-    startCommand: cd apps/api && node scripts/monitoring-cron.js
-    envVars:
-      - key: API_URL
-        value: https://adverse-api-7yim.onrender.com
-      - key: MONITORING_CRON_SECRET
-        sync: false
