@@ -18,7 +18,7 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 8) {
+export function expandSearchQueries(input, maxQueries = 10) {
   const raw = clean(input, 200);
   if (!raw) return [];
   const queries = [];
@@ -39,19 +39,20 @@ export function expandSearchQueries(input, maxQueries = 8) {
     add(meaningful.join(' '), 'core terms');
     add(meaningful.join(' OR '), 'broad term match');
   }
+  // Search each meaningful token separately before spending the remaining budget on variants.
+  for (const word of meaningful) {
+    if (queries.length >= maxQueries) break;
+    if (word.length >= 2) add(word, 'individual keyword');
+  }
   for (const word of words) {
     if (queries.length >= maxQueries) break;
     const variants = SYNONYMS.get(word);
     if (variants) {
       for (const variant of variants) {
-        add(raw.replace(new RegExp('\\b' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i'), variant), 'related wording');
+        add(raw.replace(new RegExp('\\\\b' + word.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&') + '\\\\b', 'i'), variant), 'related wording');
         if (queries.length >= maxQueries) break;
       }
     }
-  }
-  for (const word of meaningful) {
-    if (queries.length >= maxQueries) break;
-    if (word.length >= 3) add(word, 'individual keyword');
   }
   return queries.slice(0, maxQueries);
 }
