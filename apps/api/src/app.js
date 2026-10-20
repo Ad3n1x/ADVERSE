@@ -131,7 +131,7 @@ app.post('/api/v1/investigations/:id/research',limitProvider,wrap(async(req,res)
   const queries=[title,question,title+' '+question].map(x=>x.trim()).filter((x,i,a)=>x.length>=2&&a.indexOf(x)===i).slice(0,3);
   if(!queries.length)return sendError(res,400,'RESEARCH_QUERY_REQUIRED','Add a case title or research question before discovering sources.');
   const settled=await Promise.allSettled(queries.map(q=>searchAllPublic(q)));
-  const available=settled.flatMap((item,index)=>item.status==='fulfilled'?item.value.map(result=>({...result,matchedQuery:queries[index]})):[]);
+  const available=settled.flatMap((item,index)=>item.status==='fulfilled'?(item.value.results||[]).map(result=>({...result,matchedQuery:queries[index]})):[]);
   if(!available.length)return sendError(res,502,'RESEARCH_UNAVAILABLE','Public search providers returned no results. Try again later.',{queries,providerFailures:settled.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||'provider unavailable'))});
   const seen=new Set();
   const unique=available.filter(item=>{try{const url=validatePublicUrl(item.url).href;const key=url.toLowerCase();if(seen.has(key))return false;seen.add(key);item.url=url;return true;}catch{return false;}}).slice(0,30);
