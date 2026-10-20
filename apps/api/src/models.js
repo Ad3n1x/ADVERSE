@@ -34,3 +34,29 @@ export const Investigation = models.Investigation || model('Investigation', inve
 export const Evidence = models.Evidence || model('Evidence', evidenceSchema);
 export const Entity = models.Entity || model('Entity', entitySchema);
 export const Relationship = models.Relationship || model('Relationship', relationshipSchema);
+
+const watchSchema = new Schema({
+  investigationId: { type: String, index: true, required: true },
+  url: { type: String, required: true, maxlength: 2048 },
+  label: { type: String, maxlength: 160, default: '' },
+  intervalHours: { type: Number, enum: [6, 12, 24], default: 24 },
+  enabled: { type: Boolean, default: true },
+  lastCaptureTimestamp: { type: String, default: '' },
+  lastCheckedAt: { type: Date, default: null },
+  nextCheckAt: { type: Date, default: Date.now },
+  lastError: { type: String, maxlength: 500, default: '' }
+}, stamp);
+watchSchema.index({ enabled: 1, nextCheckAt: 1 });
+const alertSchema = new Schema({
+  investigationId: { type: String, index: true, required: true },
+  watchId: { type: String, required: true },
+  title: { type: String, required: true, maxlength: 240 },
+  message: { type: String, required: true, maxlength: 1000 },
+  url: { type: String, required: true, maxlength: 2048 },
+  captureTimestamp: { type: String, required: true },
+  observedAt: { type: Date, default: Date.now },
+  acknowledgedAt: { type: Date, default: null }
+}, stamp);
+alertSchema.index({ investigationId: 1, observedAt: -1 });
+export const Watch = models.Watch || model('Watch', watchSchema);
+export const Alert = models.Alert || model('Alert', alertSchema);
