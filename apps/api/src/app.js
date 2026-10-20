@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert } from './models.js';
-import { searchPublic, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
+import { searchPublic, scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
 import { runMonitoringCycle } from './monitor.js';
 import { createReportPdf } from './pdf.js';
 
@@ -68,6 +68,67 @@ app.get('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{if(!awa
 app.post('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=relationshipSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','A relationship requires valid entities and at least one evidence reference.',p.error.flatten());const [entities,evidence]=await Promise.all([listFor(Entity,'entities',iid),listFor(Evidence,'evidence',iid)]);const ids=new Set(entities.map(e=>String(e.id||e._id)));const evIds=new Set(evidence.map(e=>String(e.id||e._id)));if(!ids.has(p.data.fromEntityId)||!ids.has(p.data.toEntityId)||p.data.fromEntityId===p.data.toEntityId)return sendError(res,400,'INVALID_RELATIONSHIP','Both endpoints must be distinct entities in this investigation.');if(p.data.evidenceIds.some(x=>!evIds.has(x)))return sendError(res,400,'INVALID_EVIDENCE_REFERENCE','Every supporting evidence record must belong to this investigation.');const record={id:id(),investigationId:iid,...p.data,createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Relationship,'relationships',record);res.status(201).json({data});}));
 app.get('/api/v1/search',limitProvider,wrap(async(req,res)=>{const q=String(req.query.q||'').slice(0,200);try{const results=await searchPublic(q);res.json({data:results,meta:{providers:[...new Set(results.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),coverage:'Federated public-source search across Wikipedia, Crossref and OpenAlex. Coverage varies by provider and search terms; this is not whole-web search.'}});}catch(e){sendError(res,502,'PROVIDER_UNAVAILABLE','Public search is currently unavailable.',{provider:'Wikipedia Search API',reason:e.message});}}));
 app.post('/api/v1/investigations/:id/search/save',wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=z.object({title:z.string().min(1).max(240),url:z.string().url(),excerpt:z.string().max(5000).default(''),publisher:z.string().max(200).default('Wikipedia')}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Invalid search result.');let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const data=await saveRecord(Evidence,'evidence',{id:id(),investigationId:req.params.id,...p.data,url:u.href,sourceType:'web',retrievedAt:new Date(),publishedAt:null,verificationStatus:'unverified',entities:[],captureTimestamp:'',contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',createdAt:new Date(),updatedAt:new Date()});res.status(201).json({data});}));
+
+app.post('/api/v1/investigations/:id/research',limitProvider,wrap(async(req,res)=>{
+  const iid=req.params.id;
+  const investigation=await investigationGet(iid,req.user.id);
+  if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');
+  const title=String(investigation.title||'').trim();
+  const question=String(investigation.question||'').trim();
+  const queries=[title,question,title+' '+question].map(x=>x.trim()).filter((x,i,a)=>x.length>=2&&a.indexOf(x)===i).slice(0,3);
+  if(!queries.length)return sendError(res,400,'RESEARCH_QUERY_REQUIRED','Add a case title or research question before discovering sources.');
+  const settled=await Promise.allSettled(queries.map(q=>searchPublic(q)));
+  const available=settled.flatMap((item,index)=>item.status==='fulfilled'?item.value.map(result=>({...result,matchedQuery:queries[index]})):[]);
+  if(!available.length)return sendError(res,502,'RESEARCH_UNAVAILABLE','Public search providers returned no results. Try again later.',{queries,providerFailures:settled.filter(x=>x.status==='rejected').map(x=>String(x.reason?.message||'provider unavailable'))});
+  const seen=new Set();
+  const unique=available.filter(item=>{try{const url=validatePublicUrl(item.url).href;const key=url.toLowerCase();if(seen.has(key))return false;seen.add(key);item.url=url;return true;}catch{return false;}}).slice(0,30);
+  const existing=await listFor(Evidence,'evidence',iid);
+  const existingUrls=new Set(existing.map(item=>String(item.url||'').toLowerCase()));
+  const pending=unique.filter(item=>!existingUrls.has(item.url.toLowerCase()));
+  const scrapeCandidates=pending.slice(0,12);
+  const scraped=await Promise.all(scrapeCandidates.map(async item=>{
+    try{return {item,page:await scrapePublicPage(item.url),error:''};}
+    catch(error){return {item,page:null,error:String(error?.message||'Page retrieval unavailable').slice(0,240)};}
+  }));
+  const scrapeByUrl=new Map(scraped.map(result=>[result.item.url,result]));
+  const saved=[];
+  for(const item of pending){
+    const retrieval=scrapeByUrl.get(item.url);
+    const page=retrieval?.page;
+    const excerpt=String(page?.excerpt||item.excerpt||'').slice(0,5000);
+    const titleText=String(page?.title&&page.title!==new URL(item.url).hostname?page.title:item.title||'Untitled public source').slice(0,240);
+    const publisher=String(item.publisher||item.provider||new URL(item.url).hostname).slice(0,200);
+    const record={
+      id:id(),investigationId:iid,title:titleText,url:item.url,
+      sourceType:item.sourceType==='document'?'document':'web',
+      publisher,retrievedAt:new Date(page?.retrievedAt||item.retrievedAt||Date.now()),
+      publishedAt:item.publishedAt?new Date(item.publishedAt):null,
+      excerpt,verificationStatus:'unverified',
+      contentHash:excerpt?crypto.createHash('sha256').update(excerpt).digest('hex'):'',
+      entities:[],captureTimestamp:'',createdAt:new Date(),updatedAt:new Date()
+    };
+    try{saved.push(await saveRecord(Evidence,'evidence',record));}catch(error){console.error('ADVERSE research save failed',String(error?.message||error));}
+  }
+  const providers=[...new Set(available.map(item=>item.provider).filter(Boolean))];
+  const failures=settled.filter(item=>item.status==='rejected').length;
+  res.json({data:{
+    investigationId:iid,queryCount:queries.length,queries,providers,
+    discoveredCount:unique.length,alreadyStoredCount:unique.length-pending.length,
+    savedCount:saved.length,scrapeAttempted:scrapeCandidates.length,
+    scrapedCount:scraped.filter(item=>item.page).length,
+    scrapeFailures:scraped.filter(item=>item.error).map(item=>({url:item.item.url,reason:item.error})).slice(0,12),
+    providerFailures:failures,results:saved.map(item=>({id:String(item.id||item._id),title:item.title,url:item.url,publisher:item.publisher,sourceType:item.sourceType,verificationStatus:item.verificationStatus})),
+    retrievedAt:new Date().toISOString(),
+    coverage:'Automated discovery across Wikipedia, Crossref, and OpenAlex. Up to 12 candidate pages are fetched as bounded public HTML/text; other saved records retain provider-provided snippets or abstracts. This is not exhaustive whole-web crawling.',
+    limitations:[
+      'Every new record is marked unverified. Retrieval is not proof that a claim is true.',
+      'Only publicly reachable HTML/text pages are retrieved; redirects, private-network destinations, unsupported content types, and pages over 1 MB are skipped.',
+      'Provider coverage varies. Search results are not exhaustive, and sites may block automated requests or impose access restrictions.',
+      'Review original pages, publication dates, provenance, and contradictory evidence before drawing conclusions.'
+    ]
+  }});
+}));
+
 app.get('/api/v1/organizations/search',limitProvider,wrap(async(req,res)=>{const q=String(req.query.q||'').slice(0,200);try{const data=await searchOrganizations(q);res.json({data,meta:{provider:'OpenCorporates API',query:q,retrievedAt:new Date().toISOString(),coverage:'Provider coverage and licensing restrictions apply.'}});}catch(e){sendError(res,process.env.OPENCORPORATES_API_TOKEN?502:503,'ORGANIZATION_PROVIDER_UNAVAILABLE','Organization records are unavailable.',{reason:e.message});}}));
 app.get('/api/v1/archives',limitProvider,wrap(async(req,res)=>{const url=String(req.query.url||'');try{res.json({data:await waybackCaptures(url)});}catch(e){sendError(res,502,'ARCHIVE_UNAVAILABLE','Historical captures could not be retrieved.',{reason:e.message});}}));
 app.get('/api/v1/archives/compare',limitProvider,wrap(async(req,res)=>{const url=String(req.query.url||'');const from=String(req.query.from||'');const to=String(req.query.to||'');try{const target=validatePublicUrl(url);if(!/^\\d{14}$/.test(from)||!/^\\d{14}$/.test(to))return sendError(res,400,'INVALID_CAPTURE_TIME','Capture timestamps must be 14 digits (YYYYMMDDhhmmss).');const get=async(ts)=>{const snapshot=new URL('https://web.archive.org/web/'+ts+'id_/'+target.href);const r=await fetch(snapshot,{redirect:'manual',signal:AbortSignal.timeout(12000),headers:{'user-agent':'ADVERSE-Research/0.1'}});if(r.status>=300&&r.status<400)throw new Error('Archive returned a redirect. Open the capture directly in the archive; this comparison does not follow redirects.');if(!r.ok)throw new Error('Archive snapshot returned HTTP '+r.status);const type=r.headers.get('content-type')||'';if(!type.includes('text/html')&&!type.includes('text/plain'))throw new Error('Snapshot is not a text document.');const reader=r.body.getReader();let bytes=0;const chunks=[];while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>1000000){await reader.cancel();throw new Error('Snapshot exceeds the 1 MB comparison limit.');}chunks.push(value);}return new TextDecoder().decode(Buffer.concat(chunks));};const [before,after]=await Promise.all([get(from),get(to)]);res.json({data:await compareArchivedText(before,after),meta:{url:target.href,from,to,provider:'Internet Archive Wayback Machine',retrievedAt:new Date().toISOString()}});}catch(e){sendError(res,502,'ARCHIVE_COMPARE_FAILED','Could not compare the requested archived captures.',{reason:e.message});}}));
