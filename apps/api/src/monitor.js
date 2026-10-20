@@ -81,12 +81,18 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
         const result = await waybackCaptures(watch.url);
         const latest = (result.captures || []).slice().sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))[0];
         const latestTimestamp = latest?.timestamp || '';
-        if (watch.lastCaptureTimestamp && latestTimestamp && latestTimestamp > watch.lastCaptureTimestamp) {
+        const newerCapture = Boolean(watch.lastCaptureTimestamp && latestTimestamp && latestTimestamp > watch.lastCaptureTimestamp);
+        const changedFingerprint = Boolean(latest?.digest && watch.lastCaptureDigest && latest.digest !== watch.lastCaptureDigest);
+        const shouldAlert = newerCapture && (latest?.digest && watch.lastCaptureDigest ? changedFingerprint : true);
+        if (shouldAlert) {
+          const hasFingerprint = Boolean(latest?.digest && watch.lastCaptureDigest);
           const alert = await Alert.create({
             investigationId: watch.investigationId,
             watchId: String(watch._id),
-            title: 'New archive capture detected',
-            message: 'The Internet Archive returned a capture newer than the last recorded observation. Review the archived source before drawing conclusions.',
+            title: hasFingerprint ? 'Archive content fingerprint changed' : 'New archive capture detected',
+            message: hasFingerprint
+              ? 'A newer Internet Archive capture has a different archive digest from the last recorded observation. Compare the archived versions; digest differences do not establish why a change occurred.'
+              : 'The Internet Archive returned a newer capture, but a comparable digest was unavailable. Review the archived source before drawing conclusions.',
             url: watch.url,
             captureTimestamp: latestTimestamp,
             observedAt: now,
@@ -97,6 +103,7 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
         }
         await Watch.updateOne({ _id: watch._id }, { $set: {
           lastCaptureTimestamp: latestTimestamp || watch.lastCaptureTimestamp || '',
+          lastCaptureDigest: latest?.digest || watch.lastCaptureDigest || '',
           lastCheckedAt: now,
           nextCheckAt,
           lastError: ''
