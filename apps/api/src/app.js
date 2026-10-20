@@ -85,8 +85,8 @@ app.post('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{const 
 app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
-  const terms=[...new Set((q.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu)||[]).slice(0,12))];
-  const regex=new RegExp(terms.join('|'),'i');
+  const terms=[...new Set((q.toLowerCase().match(/[\\p{L}\\p{N}]{2,}/gu)||[]).slice(0,12))];
+  const regex=new RegExp(terms.map(t=>t.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&')).join('|'),'i');
   const investigations=isDb()?await Investigation.find({ownerId:req.user.id}).select('_id').lean():[...memory.investigations.values()].filter(item=>item.ownerId===req.user.id).map(item=>({_id:item.id}));
   const caseIds=investigations.map(item=>String(item._id));
   let indexed=[];
@@ -98,17 +98,25 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
     const hay=[item.title,item.excerpt,item.publisher,item.url].join(' ').toLowerCase();
     const hits=terms.reduce((n,term)=>n+(hay.includes(term)?1:0),0);
     const titleHits=terms.reduce((n,term)=>n+(String(item.title||'').toLowerCase().includes(term)?1:0),0);
-    const age=Math.max(0,Date.now()-new Date(item.retrievedAt||item.createdAt||0).getTime());
+    const queryHits=(item.matchedQueries||[]).reduce((n,variant)=>n+(hay.includes(String(variant).replace(/"/g,'').toLowerCase())?1:0),0);
+    const age=Math.max(0,Date.now()-new Date(item.publishedAt||item.retrievedAt||item.createdAt||0).getTime());
     const freshness=Number.isFinite(age)?Math.max(0,10-age/(1000*60*60*24*30)):0;
-    return hits*4+titleHits*5+freshness;
+    return hits*4+titleHits*5+queryHits*3+Math.min((item.matchedQueries||[]).length,5)*2+freshness;
   };
-  const stored=indexed.map(item=>({title:item.title,url:item.url,excerpt:item.excerpt||'',publisher:item.publisher||'Saved source',retrievedAt:item.retrievedAt||item.createdAt||new Date().toISOString(),publishedAt:item.publishedAt||null,sourceType:item.sourceType||'web',provider:'ADVERSE Index',verificationStatus:item.verificationStatus||'unverified',investigationId:String(item.investigationId),rank:rank(item),indexed:true}));
-  const live=await searchAllPublic(q).catch(error=>({error:String(error?.message||'Public providers unavailable')}));
-  const liveResults=Array.isArray(live)?live:[];
+  const stored=indexed.map(item=>({title:item.title,url:item.url,excerpt:item.excerpt||'',publisher:item.publisher||'Saved source',retrievedAt:item.retrievedAt||item.createdAt||new Date().toISOString(),publishedAt:item.publishedAt||null,sourceType:item.sourceType||'web',provider:'ADVERSE Index',verificationStatus:item.verificationStatus||'unverified',investigationId:String(item.investigationId),rank:rank(item),indexed:true,matchedQueries:[q]}));
+  const live=await searchAllPublic(q).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
+  const liveResults=Array.isArray(live.results)?live.results:[];
   const seen=new Set(stored.map(item=>String(item.url||'').toLowerCase()));
   const merged=[...stored,...liveResults.filter(item=>{const key=String(item.url||'').toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).map(item=>({...item,rank:rank(item),indexed:false}))];
   merged.sort((a,b)=>b.rank-a.rank);
-  res.json({data:merged.slice(0,60).map(({rank:_rank,...item})=>item),meta:{providers:[...new Set(merged.map(item=>item.provider).filter(Boolean))],query:q,retrievedAt:new Date().toISOString(),indexedCount:stored.length,liveCount:liveResults.length,providerUnavailable:!Array.isArray(live),providerError:Array.isArray(live)?'':live.error,providerErrors:[...new Set(liveResults.flatMap(item=>item.providerErrors||[]))],coverage:'Federated search across the signed-in user’s saved ADVERSE evidence index, Wikipedia, Crossref, OpenAlex, GDELT Global News, Google News, and Wikidata when available. Ranking combines query-term overlap, title matches, and freshness. Provider failures are isolated and reported; this is broad public-source search, not exhaustive whole-web crawling.'}});
+  res.json({data:merged.slice(0,100).map(({rank:_rank,...item})=>item),meta:{
+    providers:[...new Set(merged.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],
+    query:q,queryPlan:live.queryPlan||[],retrievedAt:new Date().toISOString(),indexedCount:stored.length,liveCount:liveResults.length,
+    providerUnavailable:!liveResults.length,providerError:live.error||'',
+    providerErrors:[...new Set(liveResults.flatMap(item=>item.providerErrors||[]))],
+    successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0,
+    coverage:live.meta?.coverage||'Bounded keyword-expanded public-source search. This is not exhaustive whole-web crawling.'
+  }});
 }));
 app.post('/api/v1/investigations/:id/search/save',wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=z.object({title:z.string().min(1).max(240),url:z.string().url(),excerpt:z.string().max(5000).default(''),publisher:z.string().max(200).default('Wikipedia')}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Invalid search result.');let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const data=await saveRecord(Evidence,'evidence',{id:id(),investigationId:req.params.id,...p.data,url:u.href,sourceType:'web',retrievedAt:new Date(),publishedAt:null,verificationStatus:'unverified',entities:[],captureTimestamp:'',contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',createdAt:new Date(),updatedAt:new Date()});res.status(201).json({data});}));
 
