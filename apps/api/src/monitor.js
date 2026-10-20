@@ -5,22 +5,18 @@ let running = false;
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 async function notifyAlertByEmail(alert, watch) {
-  const apiKey=String(process.env.RESEND_API_KEY||'').trim();
+  const apiKey=String(process.env.BREVO_API_KEY||'').trim();
   const from=String(process.env.ALERT_EMAIL_FROM||'').trim();
   const to=String(process.env.ALERT_EMAIL_TO||'').trim();
   if(!apiKey||!from||!to)return;
   const id=String(alert.id||alert._id||'');
   const url=String(watch.url||'');
   const label=String(watch.label||url);
-  const body={from,to:[to],subject:'ADVERSE archive alert: '+label,html:'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#1d2925"><h2>ADVERSE archive observation</h2><p>A newer Internet Archive capture was detected for <strong>'+escapeHtml(label)+'</strong>.</p><p><a href="'+escapeHtml(url)+'">Open watched public URL</a></p><p>'+escapeHtml(alert.message||'Review the archived source before drawing conclusions.')+'</p><p style="color:#66736d;font-size:12px">This alert reflects archive index availability, not proof of a live-page change or wrongdoing.</p></div>'};
-  for(let attempt=0;attempt<3;attempt++){
-    try{
-      const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{authorization:'Bearer '+apiKey,'content-type':'application/json','Idempotency-Key':'adverse-archive-alert-'+id},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
-      if(response.ok)return;
-      if(response.status<500&&response.status!==429){console.warn('ADVERSE email alert rejected with HTTP '+response.status);return;}
-    }catch(error){if(attempt===2){console.warn('ADVERSE email alert delivery failed:',String(error?.message||'network error').slice(0,160));return;}}
-    if(attempt<2)await new Promise(resolve=>setTimeout(resolve,500*(2**attempt)));
-  }
+  const body={sender:{email:from,name:'ADVERSE'},to:[{email:to}],subject:'ADVERSE archive alert: '+label,htmlContent:'<div style="font-family:Arial,sans-serif;line-height:1.6;color:#1d2925"><h2>ADVERSE archive observation</h2><p>A newer Internet Archive capture was detected for <strong>'+escapeHtml(label)+'</strong>.</p><p><a href="'+escapeHtml(url)+'">Open watched public URL</a></p><p>'+escapeHtml(alert.message||'Review the archived source before drawing conclusions.')+'</p><p style="color:#66736d;font-size:12px">This alert reflects archive index availability, not proof of a live-page change or wrongdoing.</p></div>'};
+  try{
+    const response=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers:{'api-key':apiKey,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)});
+    if(!response.ok)console.warn('ADVERSE Brevo email alert rejected with HTTP '+response.status);
+  }catch(error){console.warn('ADVERSE Brevo email alert delivery failed:',String(error?.message||'network error').slice(0,160));}
 }
 
 export async function runMonitoringCycle() {
