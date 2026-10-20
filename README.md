@@ -9,13 +9,14 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
 - MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
-- Federated public-source search across Wikipedia, Crossref scholarly works, and OpenAlex research metadata. Provider coverage is bounded and is not whole-web search.
+- Federated public-source search across Wikipedia, Crossref scholarly works, OpenAlex research metadata, GDELT Global News, Google News RSS, and Wikidata. Providers run independently so one outage need not cancel the whole query; coverage remains bounded and is not whole-web search or a universal web crawler.
 - Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
 - Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
 - Optional OpenCorporates lookup when a server-side API token and suitable provider access are configured.
 - Evidence chronology that keeps publication, capture, and retrieval dates distinct.
 - Searchable interactive force-directed entity graph with draggable nodes, pan/zoom, fit-to-view, local layout save/restore/reset, relationship-type filters, node inspection, relationship details, evidence references, and verification-status styling. Graph edges are investigative navigation aids, not proof.
 - Cross-source lexical-overlap analysis with publisher-domain clustering, shared terms, provenance cautions, and privacy-scoped API tests.
+- Evidence-linked claim triage: extracts candidate factual sentences from stored titles/excerpts, groups lexically similar statements, flags selected numeric or negation differences for human review, and links every candidate back to source records. It is deliberately a triage aid, not a truth detector.
 - Optional AI-assisted evidence review through an administrator-configured OpenAI-compatible chat-completions endpoint. It only receives stored titles/excerpts and validates returned evidence IDs; all output remains a provisional draft requiring human review.
 - JSON and CSV exports plus a server-generated multi-page PDF investigation report with evidence, entities, relationships, source dates, and explicit limitations.
 - Archive monitoring rules, alert review, acknowledgement, and deletion. An authenticated internal scheduler endpoint and a Node cron-runner script are included. Durable scheduled execution requires a scheduler such as a Render Cron service plus the same strong `MONITORING_CRON_SECRET` on both services. A billable cron resource is not provisioned automatically. Manual owner-scoped checks remain available.
@@ -26,9 +27,9 @@ ADVERSE is an evidence-first public-information research workspace. It helps res
 
 ## Known limitations
 
-- Federated search covers Wikipedia, Crossref, and OpenAlex only; it is not a general web index and provider failures may reduce coverage.
+- Federated search covers the providers listed above when reachable; it is not a general web index, does not crawl the entire internet, and provider failures may reduce coverage.
 - AI review is disabled until `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, and `AI_PROVIDER_MODEL` are configured on the API service. Provider compatibility varies; AI review does not browse or independently verify original URLs.
-- Cross-source lexical overlap is not semantic entailment or contradiction detection. Domain clustering cannot establish common ownership or editorial independence.
+- Cross-source lexical overlap and extractive claim triage are not semantic entailment, comprehensive contradiction detection, or fact-checking. Similarity can group unrelated claims; numeric differences can reflect units or context. Domain clustering cannot establish common ownership or editorial independence.
 - Archived text comparison is heuristic and may contain extraction noise.
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
 - DNS observations do not establish ownership, control, or intent.
@@ -69,6 +70,7 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 - `GET /api/v1/archives/compare?url=...&from=YYYYMMDDhhmmss&to=YYYYMMDDhhmmss`
 - `GET /api/v1/domains?url=...`
 - `GET /api/v1/investigations/:id/cross-source-review`
+- `GET /api/v1/investigations/:id/claim-map`
 - `POST /api/v1/investigations/:id/ai-review`
 - `GET /api/v1/investigations/:id/history/graph?asOf=ISO_DATE`
 - `GET /api/v1/investigations/:id/timeline`
