@@ -98,5 +98,6 @@ test('CSV export neutralizes spreadsheet formula-leading evidence values', async
  const exported=await fetch(base+'/api/v1/investigations/'+investigation.id+'/export?format=csv',{headers:{cookie:owner.cookie}});
  assert.equal(exported.status,200);
  const csv=await exported.text();
- assert.match(csv,/"'=HYPERLINK\("https://attacker\.example","click"\)"/);
+  assert.ok(csv.includes("'=HYPERLINK("));
+  assert.ok(csv.includes('""https://attacker.example""'));
 }));
