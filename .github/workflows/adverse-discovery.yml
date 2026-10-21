@@ -32,7 +32,9 @@ jobs:
             echo "Configure DISCOVERY_CRON_SECRET in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
+          echo "Triggering bounded discovery against the configured production API."
           curl --fail-with-body --silent --show-error --max-time 60 \
             --request POST "${API_URL%/}/api/v1/internal/discovery/run" \
             --header "x-discovery-secret: ${DISCOVERY_CRON_SECRET}" \
-            --header "accept: application/json"
+            --header "accept: application/json" \
+            --write-out "\nHTTP status: %{http_code}\n"
