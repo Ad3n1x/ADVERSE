@@ -13,14 +13,14 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByLabel('Password').fill('browser-test-password-123');
   await page.locator('button.auth-submit').click();
 
-  await expect(page.getByRole('button', { name: /New investigation/ })).toBeVisible();
-  await page.getByRole('button', { name: /New investigation/ }).click();
-  await page.getByLabel('Investigation title').fill('E2E Public History Case');
-  await page.getByLabel('Research question').fill('Can the source history be reconstructed?');
-  await page.getByRole('button', { name: /Create case/ }).click();
+  await expect(page.getByRole('button', { name: /New collection/ })).toBeVisible();
+  await page.getByRole('button', { name: /New collection/ }).click();
+  await page.getByLabel('Collection name').fill('E2E Public History Case');
+  await page.getByLabel(/What are you looking for/).fill('Can the source history be reconstructed?');
+  await page.getByRole('button', { name: /Create collection/ }).click();
   await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Evidence graph' }).click();
+  await page.getByRole('button', { name: 'Connections' }).click();
   await page.getByRole('button', { name: /Add entity/ }).click();
   await page.getByLabel('Entity name').fill('Example Corporation');
   await page.getByLabel('Canonical public URL').fill('https://example.org');
