@@ -303,3 +303,30 @@ test('public Find Anything search uses per-user provider keys with Bearer authen
  }
 }));
 
+test('provider credentials never leak between authenticated users',async()=>withServer(async base=>{
+ const originalFetch=globalThis.fetch;
+ const owner=await register(base,'credential-owner@example.org');
+ const other=await register(base,'credential-other@example.org');
+ const saved=await originalFetch(base+'/api/v1/search/provider-credentials',{method:'PUT',headers:{'content-type':'application/json',cookie:owner.cookie},body:JSON.stringify({TAVILY_API_KEY:'owner-only-secret-key'})});
+ assert.equal(saved.status,200);
+ const otherToken=decodeURIComponent(other.cookie.slice('adverse_session='.length));
+ let tavilyCalls=0;
+ globalThis.fetch=async(input,init)=>{
+  const url=String(input);
+  if(url==='https://api.tavily.com/search'){
+   tavilyCalls++;
+   const request=JSON.parse(String(init?.body||'{}'));
+   assert.notEqual(request.api_key,'owner-only-secret-key','a different account must never use this provider key');
+   return new Response(JSON.stringify({results:[]}),{status:200,headers:{'content-type':'application/json'}});
+  }
+  return new Response('provider unavailable',{status:503,headers:{'content-type':'text/plain'}});
+ };
+ try{
+  const response=await originalFetch(base+'/api/v1/public-search?q=credential%20isolation',{headers:{authorization:'Bearer '+otherToken}});
+  assert.equal(response.status,200);
+  assert.equal(tavilyCalls,0,'a user without a Tavily key must not call Tavily with another user\'s key');
+ }finally{
+  globalThis.fetch=originalFetch;
+ }
+}));
+
