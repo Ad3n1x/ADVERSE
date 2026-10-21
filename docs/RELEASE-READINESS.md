@@ -7,8 +7,9 @@
 **Production API:** https://adverse-api-7yim.onrender.com/  
 **Record updated:** 2026-10-21
 
-**Verified CI commit:** `0fddd7b1d82461766d7aa546569139242b569abd`  
-**CI run:** [Run 39670265665 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670265665)
+**Last fully verified CI commit:** `8a40f2db2e6442e073f7f3ca21ffdea9220a9fcc`  
+**CI run:** [Run 39670739177 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670739177)  
+**Current main commit:** `777be681c8718ead445153a98effd61d3030bd2d` (adds live public-search contract check; verification pending)
 
 ## What this record means
 
@@ -29,15 +30,15 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 | Gate | Evidence required | Status in this record |
 |---|---|---|
 | API deploy | Render shows the target commit live and startup logs are healthy | A successful Render API deployment and MongoDB connection were observed on 2026-10-21 |
-| CI API checks | Latest main-branch GitHub Actions API job passes | **Passed** on commit `0fddd7b`; run 39670265665 completed successfully |
-| Frontend build | Type-check and production build pass | **Passed** on commit `0fddd7b`; type-check and production build steps succeeded |
-| Browser smoke tests | Playwright run passes against the real frontend entry page | **Passed** on commit `0fddd7b`; both public search smoke tests succeeded |
-| Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | **Health and readiness passed** in production-smoke job in run 39670265665; public-search response is not covered by this check |
+| CI API checks | Latest main-branch GitHub Actions API job passes | **Last passed** on commit `8a40f2d`; run 39670739177. Current main commit awaits CI. |
+| Frontend build | Type-check and production build pass | **Last passed** on commit `8a40f2d`; current main commit awaits CI. |
+| Browser smoke tests | Playwright run passes against the real frontend entry page | **Last passed** on commit `8a40f2d`; current main commit awaits CI. |
+| Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | **Health and readiness passed** in run 39670739177. New public-search contract check was added on current commit and awaits CI. |
 | Health-check configuration | Render service dashboard health path matches `/api/v1/ready` | Repository declares it; live Render service setting was observed empty |
-| Scheduled monitoring | Recent successful archive and cyber-monitoring scheduled jobs, with no secrets exposed | Must be checked in GitHub Actions and Render |
+| Scheduled monitoring | Recent successful archive and cyber-monitoring scheduled jobs, with no secrets exposed | Not verified; confirm secrets exist and both scheduled jobs return success. |
 | Privacy/authorization | Tests demonstrate cross-account access is denied for each private resource family | Needs ongoing review and complete regression coverage |
-| Operational resilience | Rate limits, provider failures, database outages, alert delivery, and recovery tested | Not certified by this record |
-| Independent security review | External reviewer documents findings and remediation | Not performed |
+| Operational resilience | Rate limits, provider failures, database outages, alert delivery, and recovery tested | Partial controls/tests exist; full failure/recovery exercise remains outstanding. |
+| Database backups and restore | Automated backups enabled and a restore drill completed | Not verified; confirm MongoDB backup policy and test restoring a backup before relying on user data. |\n| Environment configuration | Production `WEB_ORIGIN`, `JWT_SECRET`, `MONGODB_URI`, and all required scheduler secrets are present and correctly scoped | Presence of all values is not independently verified here; never share the values themselves. |\n| Independent security review | External reviewer documents findings and remediation | Not performed |
 
 ## How to make a release claim
 
@@ -45,8 +46,8 @@ Only mark a gate passed when the linked CI run, deployment record, or test evide
 
 ## Reproducible verification
 
-1. The [verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670265665) passed API syntax/regression tests, frontend typecheck/build, Playwright browser smoke tests, and live API health/readiness checks for `main` commit `0fddd7b1d82461766d7aa546569139242b569abd`.
-2. Recheck GitHub Actions after any new commit; a passing run only verifies the exact commit tested.
+1. The [last fully verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670739177) passed API syntax/regression tests, frontend typecheck/build, Playwright browser smoke tests, and live API health/readiness checks for commit `8a40f2db2e6442e073f7f3ca21ffdea9220a9fcc`.
+2. The current main commit `777be681c8718ead445153a98effd61d3030bd2d` adds a live public-search response-contract check. Do not call that change verified until its CI run passes.
 3. Inspect [Render API service settings](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0) and configure the health-check path as `/api/v1/ready`.
 4. Confirm the live API is connected to persistent MongoDB and test public search from the deployed website.
 5. Review the scheduled monitoring workflow runs and confirm both monitoring secrets exist in GitHub Actions and match the Render service values. Never publish secret values.
