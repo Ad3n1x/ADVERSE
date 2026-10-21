@@ -20,7 +20,7 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 10) {
+export function expandSearchQueries(input, maxQueries = 5) {
   const raw = clean(input, 200);
   if (!raw) return [];
   const queries = [];
@@ -162,7 +162,7 @@ export function rankPublicResults(items, query) {
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 export async function searchAllPublic(input) {
   const queryPlan = Array.isArray(input)
-    ? input.slice(0, 8).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
+    ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input);
   const providers = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
