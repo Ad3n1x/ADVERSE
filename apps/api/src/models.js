@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const { Schema, model, models } = mongoose;
-const userSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, displayName: { type: String, required: true, maxlength: 80 }, passwordHash: { type: String, required: true }, passwordResetTokenHash: { type: String, default: '', index: true }, passwordResetExpiresAt: { type: Date, default: null } }, { timestamps: true, versionKey: false });
+const userSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, displayName: { type: String, required: true, maxlength: 80 }, passwordHash: { type: String, required: true }, passwordResetTokenHash: { type: String, default: '', index: true }, passwordResetExpiresAt: { type: Date, default: null }, providerCredentialsEncrypted: { type: String, default: '' } }, { timestamps: true, versionKey: false });
 export const User = models.User || model('User', userSchema);
 const stamp = { timestamps: true, versionKey: false };
 const evidenceSchema = new Schema({
