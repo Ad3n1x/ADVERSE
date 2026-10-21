@@ -40,7 +40,7 @@ export function expandSearchQueries(input, maxQueries = 5) {
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
   // Prefer useful related wording before broad OR queries and individual tokens.
   for (const word of words) {
-    if (queries.length >= maxQueries) break;
+    if (queries.length >= maxQueries || queries.some(item => item.reason === 'related wording')) break;
     const variants = SYNONYMS.get(word);
     if (variants) {
       for (const variant of variants) {
