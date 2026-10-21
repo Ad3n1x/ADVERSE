@@ -20,7 +20,7 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 5) {
+export function expandSearchQueries(input, maxQueries = 8) {
   const raw = clean(input, 200);
   if (!raw) return [];
   const queries = [];
