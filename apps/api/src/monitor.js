@@ -14,7 +14,7 @@ export function hasMaterialArchiveChange(watch, latest) {
 
 async function fetchArchivedText(url, timestamp) {
   const target = validatePublicUrl(url);
-  if (!/^\\d{14}$/.test(String(timestamp || ''))) throw new Error('Invalid archive timestamp.');
+  if (!/^\d{14}$/.test(String(timestamp || ''))) throw new Error('Invalid archive timestamp.');
   const snapshot = new URL('https://web.archive.org/web/' + timestamp + 'id_/' + target.href);
   const response = await fetch(snapshot, {
     redirect: 'manual',
