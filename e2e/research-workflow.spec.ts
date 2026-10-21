@@ -29,7 +29,8 @@ test('researcher can register, create an investigation, and inspect the evidence
   const filter = page.getByPlaceholder('Filter by entity name, type, or description');
   await expect(filter).toBeVisible();
   await filter.fill('Example Corporation');
-  await expect(page.getByRole('button', { name: 'Inspect entity Example Corporation' })).toBeVisible();
-  await page.getByRole('button', { name: 'Inspect entity Example Corporation' }).click();
+  const entityOption = page.locator('.graph-entity-option').filter({ hasText: 'Example Corporation' });
+  await expect(entityOption).toBeVisible();
+  await entityOption.click();
   await expect(page.getByText('SELECTED ENTITY')).toBeVisible();
 });
