@@ -1,4 +1,4 @@
-name: ADVERSE Encrypted Database Backup
+name: ADVERSE Encrypted Database Backup and Recovery Test
 
 on:
   schedule:
@@ -46,11 +46,10 @@ jobs:
           openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/adverse-backup.archive.gz" -out "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
           test -s "$RUNNER_TEMP/adverse-backup.archive.gz.enc"
           rm -f "$RUNNER_TEMP/adverse-backup.archive.gz" "$RUNNER_TEMP/mongodb-tools.tgz"
-          # Confirm the encrypted archive decrypts successfully before uploading it.
           openssl enc -d -aes-256-cbc -pbkdf2 -in "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -out "$RUNNER_TEMP/backup-verification.archive.gz" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
           gzip -t "$RUNNER_TEMP/backup-verification.archive.gz"
           rm -f "$RUNNER_TEMP/backup-verification.archive.gz"
-          echo "Encrypted backup archive created and cryptographically/decompression checked. The encryption passphrase is never printed."
+          echo "Encrypted backup archive created and verified without printing secrets."
 
       - name: Store encrypted backup artifact
         uses: actions/upload-artifact@v4
@@ -59,3 +58,111 @@ jobs:
           path: ${{ runner.temp }}/adverse-backup.archive.gz.enc
           if-no-files-found: error
           retention-days: 90
+
+  restore-test:
+    name: Restore backup into isolated test cluster
+    needs: backup
+    if: ${{ vars.ADVERSE_BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require isolated restore-test credentials
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          MONGODB_RESTORE_TEST_URI: ${{ secrets.MONGODB_RESTORE_TEST_URI }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$MONGODB_BACKUP_URI" || { echo "::error::Missing MONGODB_BACKUP_URI."; exit 1; }
+          test -n "$MONGODB_RESTORE_TEST_URI" || { echo "::error::Set MONGODB_RESTORE_TEST_URI to a dedicated, isolated MongoDB test cluster. Never use the production URI."; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::Missing BACKUP_ENCRYPTION_PASSPHRASE."; exit 1; }
+
+      - name: Download encrypted backup artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: adverse-mongodb-encrypted-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/restore-input
+
+      - name: Install MongoDB Database Tools and PyMongo
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.12.2.tgz -o "$RUNNER_TEMP/mongodb-tools.tgz"
+          tar -xzf "$RUNNER_TEMP/mongodb-tools.tgz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/mongodb-database-tools-ubuntu2204-x86_64-100.12.2/bin" >> "$GITHUB_PATH"
+          python -m pip install --disable-pip-version-check --no-input 'pymongo>=4.6,<5'
+
+      - name: Decrypt, restore, verify, and clean up isolated test database
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          MONGODB_RESTORE_TEST_URI: ${{ secrets.MONGODB_RESTORE_TEST_URI }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+          RESTORE_DB: adverse_restore_test_${{ github.run_id }}
+          ENCRYPTED_ARCHIVE: ${{ runner.temp }}/restore-input/adverse-backup.archive.gz.enc
+          DECRYPTED_ARCHIVE: ${{ runner.temp }}/restore-input/adverse-backup.archive.gz
+        run: |
+          set -euo pipefail
+          umask 077
+          openssl enc -d -aes-256-cbc -pbkdf2 -in "$ENCRYPTED_ARCHIVE" -out "$DECRYPTED_ARCHIVE" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          gzip -t "$DECRYPTED_ARCHIVE"
+          python <<'PY'
+          import os
+          import subprocess
+          import sys
+          from pymongo import MongoClient
+          from pymongo.uri_parser import parse_uri
+
+          backup_uri = os.environ["MONGODB_BACKUP_URI"]
+          test_uri = os.environ["MONGODB_RESTORE_TEST_URI"]
+          restore_db = os.environ["RESTORE_DB"]
+          archive = os.environ["DECRYPTED_ARCHIVE"]
+
+          def hosts(uri):
+              parsed = parse_uri(uri, validate=True)
+              # SRV URIs expose their DNS seed name; standard URIs expose node lists.
+              return {
+                  "srv": (parsed.get("fqdn") or "").lower(),
+                  "nodes": tuple(sorted((host.lower(), port) for host, port in (parsed.get("nodelist") or []))),
+              }
+
+          production_hosts = hosts(backup_uri)
+          test_hosts = hosts(test_uri)
+          if production_hosts == test_hosts:
+              raise SystemExit("Refusing restore: test URI resolves to the same URI host identity as production. Use a dedicated isolated cluster.")
+
+          client = MongoClient(test_uri, serverSelectionTimeoutMS=15000)
+          created_test_db = False
+          try:
+              client.admin.command("ping")
+              restore_cmd = [
+                  "mongorestore",
+                  f"--uri={test_uri}",
+                  f"--nsFrom=adverse.*",
+                  f"--nsTo={restore_db}.*",
+                  f"--archive={archive}",
+                  "--gzip",
+              ]
+              subprocess.run(restore_cmd, check=True)
+              created_test_db = True
+
+              database = client[restore_db]
+              collections = database.list_collection_names()
+              if not collections:
+                  raise RuntimeError("Restore completed but the test database contains no collections.")
+
+              document_count = sum(database[name].count_documents({}) for name in collections)
+              if document_count < 1:
+                  raise RuntimeError("Restore completed but no documents were found; refusing to mark recovery test successful.")
+
+              print(f"Restore verification passed: {len(collections)} collections and {document_count} documents recovered in the isolated test database.")
+          finally:
+              # Always remove only this run's uniquely named test database.
+              try:
+                  client.drop_database(restore_db)
+                  print("Temporary restore-test database cleanup completed.")
+              except Exception as cleanup_error:
+                  print(f"::warning::Could not clean up temporary restore-test database: {type(cleanup_error).__name__}")
+                  if sys.exc_info()[0] is None:
+                      raise
+              client.close()
+          PY
+          rm -f "$DECRYPTED_ARCHIVE" "$RUNNER_TEMP/mongodb-tools.tgz"
