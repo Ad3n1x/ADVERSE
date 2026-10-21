@@ -4,6 +4,10 @@
 
 ADVERSE is a public-first search product that helps people find useful webpages, official resources, tools, guides, and answers faster. It searches available public sources, deduplicates results, and checks a selection of destinations for readable public-page access. Reachability is not a guarantee that content is true, safe, current, or endorsed. The private research workspace remains available for users who want to save and analyze sources.
 
+## Engineering transparency
+
+ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
+
 ## Public search experience
 
 - Public search without an account through `/api/v1/public-search`.
