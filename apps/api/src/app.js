@@ -75,6 +75,34 @@ function applyRateLimit(limiter, req, res, next, maximum, label) {
 function limitAuth(req,res,next){return applyRateLimit(authLimiter,req,res,next,12,'Too many authentication attempts. Try again in one minute.');}
 
 /** Advisory URL signals for readers; these are warnings, never a verdict that a site is malicious. */
+/** Source-context heuristics explain provenance; they never certify truth or safety. */
+export function assessSourceContext(input, item = {}) {
+  let parsed;
+  try { parsed = new URL(input); } catch {
+    return { category:'unknown', label:'Unknown source', reason:'The source URL could not be parsed.', signals:[] };
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^www\./,'');
+  const institutional = /(?:^|\.)(?:gov|gov\.ng|gov\.uk|gov\.au|edu|edu\.ng|ac\.uk|ac\.ng|edu\.au|mil|int)$/.test(host);
+  const scholarly = /(?:^|\.)(?:doi\.org|crossref\.org|openalex\.org|arxiv\.org|pubmed\.ncbi\.nlm\.nih\.gov|nature\.com|science\.org|who\.int|un\.org|unesco\.org)$/.test(host);
+  const reference = /(?:^|\.)(?:wikipedia\.org|wikidata\.org|britannica\.com)$/.test(host);
+  const category = institutional ? 'institutional-domain' : scholarly ? 'scholarly-or-international' : reference ? 'reference-work' : 'publisher-or-website';
+  const label = institutional ? 'Institutional domain' : scholarly ? 'Scholarly / international source' : reference ? 'Reference source' : 'Website / publisher';
+  const signals = [];
+  if (parsed.protocol === 'https:') signals.push('Uses HTTPS');
+  else signals.push('Uses unencrypted HTTP');
+  if (item.provider) signals.push('Discovered via ' + String(item.provider).slice(0,80));
+  if (item.publisher && String(item.publisher).toLowerCase() !== host) signals.push('Publisher label: ' + String(item.publisher).slice(0,100));
+  return { host, category, label, reason: institutional ? 'The hostname uses a government, education, military, or international institutional suffix.' : scholarly ? 'The hostname matches a recognized scholarly index, publisher, DOI, or international organization domain.' : reference ? 'The hostname matches a general reference-work domain.' : 'No special publisher category could be inferred from the hostname alone.', signals };
+}
+function normalizedTitleTokens(title) {
+  return new Set(String(title || '').toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu,' ').trim().split(/\s+/).filter(token=>token.length>2));
+}
+function titleSimilarity(a,b) {
+  const left=normalizedTitleTokens(a), right=normalizedTitleTokens(b);
+  if(!left.size||!right.size)return 0;
+  let common=0;for(const token of left)if(right.has(token))common++;
+  return common/(left.size+right.size-common);
+}
 export function inspectPublicLink(input) {
   let parsed;
   try { parsed = new URL(input); } catch { return { transport:'unknown', hostname:'', signals:['URL could not be parsed'] }; }
@@ -275,8 +303,14 @@ app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
     catch(error){return {...item,linkCheck:{status:'not_confirmed',checkedAt,note:'ADVERSE could not confirm readable page access. The link may redirect, block automated access, or be temporarily unavailable; inspect it directly before relying on it.'}};}
   }));
   const checkedUrls=new Set(checked.map(item=>item.url));
-  const results=[...checked,...unique.filter(item=>!checkedUrls.has(item.url)).map(item=>({...item,linkCheck:{status:'not_checked',checkedAt:null,note:'This result was not link-checked in this search.'}}))];
-  res.json({data:results.slice(0,24),meta:{query:q,retrievedAt:new Date().toISOString(),queryPlan:live.queryPlan||[],providers:[...new Set(results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0,coverage:live.meta?.coverage||'Search across a limited set of public sources; not exhaustive whole-web search.',linkChecks:checked.length,providerError:live.error||'',notice:'A reachable link is not proof that its content is true, safe, current, or endorsed by ADVERSE.'}});
+  const rawResults=[...checked,...unique.filter(item=>!checkedUrls.has(item.url)).map(item=>({...item,linkCheck:{status:'not_checked',checkedAt:null,note:'This result was not link-checked in this search.'}}))];
+  const results=rawResults.slice(0,24).map(item=>{
+    const host=new URL(item.url).hostname.toLowerCase().replace(/^www\./,'');
+    const corroborating=[...new Map(rawResults.filter(other=>other.url!==item.url&&new URL(other.url).hostname.toLowerCase().replace(/^www\./,'')!==host&&titleSimilarity(item.title,other.title)>=0.55).map(other=>[new URL(other.url).hostname.toLowerCase().replace(/^www\./,''),other])).values()];
+    const corroboratingDomains=corroborating.slice(0,4).map(other=>new URL(other.url).hostname.toLowerCase().replace(/^www\./,''));
+    return {...item,sourceContext:assessSourceContext(item.url,item),corroboration:{independentMatches:corroborating.length,domains:corroboratingDomains,method:'Similar result titles from distinct hostnames in this search result set; not independent fact verification.'}};
+  });
+  res.json({data:results,meta:{query:q,retrievedAt:new Date().toISOString(),queryPlan:live.queryPlan||[],providers:[...new Set(results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0,coverage:live.meta?.coverage||'Search across a limited set of public sources; not exhaustive whole-web search.',linkChecks:checked.length,providerError:live.error||'',notice:'Link reachability, hostname categories, and title similarity are advisory signals. They do not prove that a page or its claims are true, safe, current, or endorsed by ADVERSE.'}});
 }));
 app.get('/api/v1/search/providers',requireAuth,wrap(async(req,res)=>{res.json({data:getProviderCatalog(),meta:{configured:getProviderCatalog().filter(p=>p.configured).length,total:getProviderCatalog().length,notice:'Provider access depends on public availability, credentials, terms, rate limits, and region. A catalog entry is not a guarantee of access to all indexed content.'}});}));
 app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
