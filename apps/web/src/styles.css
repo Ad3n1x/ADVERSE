@@ -362,3 +362,8 @@ button.graph-relationship-option{text-align:left;font-family:inherit;cursor:poin
 .cyber-event small{display:block;margin-top:6px;color:#637a70;font:9px var(--mono)}
 @media(max-width:900px){.cyber-form{grid-template-columns:repeat(2,minmax(0,1fr))}.cyber-form .primary-button{min-height:38px}.cyber-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.cyber-form{grid-template-columns:minmax(0,1fr)}.cyber-form .primary-button{width:100%}.cyber-authorize{grid-column:1}.cyber-metrics{gap:7px;padding:12px}.cyber-metrics>div{padding:10px}.cyber-metrics b{font-size:20px}.cyber-event-top{align-items:flex-start;flex-direction:column;gap:5px}.cyber-event-top span{text-align:left}}
+
+
+.auth-link-button{align-self:flex-end;margin-top:-7px;padding:4px 0;border:0;background:transparent;color:#8bdcc9;font-size:11px;cursor:pointer}
+.auth-link-button:hover,.auth-toggle button:hover{text-decoration:underline}
+.success-notice{border:1px solid #315a4c;background:#10251f;color:#a9e8d6;padding:11px 12px;border-radius:6px;font-size:11px;line-height:1.6}
