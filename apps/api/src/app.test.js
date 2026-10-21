@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { app } from './app.js';
 import { validatePublicUrl } from './providers.js';
+import { rankPublicResults } from './global-search.js';
 async function withServer(fn){const server=app.listen(0);try{await fn('http://127.0.0.1:'+server.address().port);}finally{await new Promise(resolve=>server.close(resolve));}}
 let testClientIp=10;
 async function register(base,email='researcher@example.org'){const clientIp='198.51.100.'+(testClientIp++);const r=await fetch(base+'/api/v1/auth/register',{method:'POST',headers:{'content-type':'application/json','x-forwarded-for':clientIp},body:JSON.stringify({email,password:'long-enough-password-123',displayName:'Test Researcher'})});const body=await r.json();return {response:r,body,cookie:(r.headers.get('set-cookie')||'').split(';')[0]};}
@@ -158,3 +159,20 @@ test('public Find Anything search validates queries without requiring an account
  const body=await response.json();
  assert.equal(body.error.code,'QUERY_REQUIRED');
 }));
+
+test('Find Anything ranking prioritizes exact subject and title matches',()=>{
+ const results=rankPublicResults([
+  {title:'Old version discussion',url:'https://forum.example/old-version',excerpt:'A conversation about old versions',publisher:'Forum'},
+  {title:'Python official documentation',url:'https://docs.python.org/3/',excerpt:'Python language docs',publisher:'Python.org'},
+  {title:'Learn to code online',url:'https://example.org/courses',excerpt:'Python and JavaScript lessons',publisher:'Learning site'}
+ ],'Python');
+ assert.equal(results[0].title,'Python official documentation');
+ assert.ok(results[0]._searchScore>results[1]._searchScore);
+});
+test('Find Anything ranking rewards multiple subject terms over incidental snippet mentions',()=>{
+ const results=rankPublicResults([
+  {title:'MovieBox APK download',url:'https://example.org/moviebox-apk',excerpt:'Download the Android app',publisher:'App site'},
+  {title:'Old version help thread',url:'https://forum.example/old',excerpt:'MovieBox mentioned in a long discussion',publisher:'Forum'}
+ ],'MovieBox old version APK');
+ assert.equal(results[0].title,'MovieBox APK download');
+});
