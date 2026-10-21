@@ -494,3 +494,10 @@ button.graph-relationship-option{text-align:left;font-family:inherit;cursor:poin
 .provider-credential-card label{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:11px}.provider-credential-card input{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;color:var(--text);font:inherit;font-size:12px}.provider-credential-card input:focus{outline:1px solid var(--mint);border-color:var(--mint)}
 .provider-credential-card .secondary-button{align-self:flex-start;font-size:11px;padding:7px 9px}
 @media(max-width:700px){.provider-credentials-grid{grid-template-columns:1fr}.provider-credential-heading{flex-wrap:wrap}}
+
+
+/* Destructive bulk actions */
+.danger-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,117,117,.38);border-radius:9px;padding:10px 13px;background:rgba(112,34,40,.2);color:#ffaaaa;font:inherit;font-size:12px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+.danger-button:hover:not(:disabled){border-color:rgba(255,117,117,.7);background:rgba(145,39,48,.3);transform:translateY(-1px)}
+.danger-button:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){.panel-tools .danger-button{flex:1}}
