@@ -202,16 +202,17 @@ export async function searchAllPublic(input, providerKeys = {}) {
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input);
-  const providers = [
+  const publicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
     ['Google News', searchGoogleNews],
     ['Wikidata Knowledge Graph', searchWikidata],
     ['Purili Web Search', searchPurili],
-    ['Truegle Web Search', searchTruegle],
-    ['Additional configured providers', async q => (await searchConfiguredProviders(q, 8, providerKeys)).results]
+    ['Truegle Web Search', searchTruegle]
   ];
-  const settled = await Promise.all(queryPlan.flatMap(plan => providers.map(async ([name, run]) => {
+  // Public indexes get bounded query variants; user-connected API keys are only
+  // called once per search to avoid multiplying quota usage by every variant.
+  const publicSettledPromise = Promise.all(queryPlan.flatMap(plan => publicProviders.map(async ([name, run]) => {
     try {
       const results = await run(plan.query);
       return { name, plan, results: results.map(item => ({ ...item, matchedQueries: [plan.query], queryReasons: [plan.reason] })) };
@@ -219,11 +220,29 @@ export async function searchAllPublic(input, providerKeys = {}) {
       return { name, plan, results: [], failure: name + ' unavailable for query variant: ' + plan.query };
     }
   })));
+  const configuredPlan = queryPlan.find(item => item.reason === 'natural-language query') || queryPlan[0];
+  const configuredSettledPromise = (async () => {
+    if (!configuredPlan) return { name: 'Additional configured providers', plan: { query: '', reason: 'skipped' }, results: [] };
+    try {
+      const response = await searchConfiguredProviders(configuredPlan.query, 8, providerKeys);
+      return {
+        name: 'Additional configured providers',
+        plan: configuredPlan,
+        results: response.results.map(item => ({ ...item, matchedQueries: [configuredPlan.query], queryReasons: [configuredPlan.reason] })),
+        providerFailures: (response.errors || []).map(item => item.provider + ' unavailable: ' + item.error)
+      };
+    } catch {
+      return { name: 'Additional configured providers', plan: configuredPlan, results: [], failure: 'Additional configured providers unavailable for the natural-language query.' };
+    }
+  })();
+  const [publicSettled, configuredSettled] = await Promise.all([publicSettledPromise, configuredSettledPromise]);
+  const settled = [...publicSettled, configuredSettled];
   const merged = new Map();
   const failures = [];
   for (const result of settled) {
-    if (result.failure) { failures.push(result.failure); continue; }
-    for (const item of result.results) {
+    if (result.failure) failures.push(result.failure);
+    if (result.providerFailures) failures.push(...result.providerFailures);
+    for (const item of result.results || []) {
       try {
         const url = new URL(item.url);
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) continue;
@@ -247,11 +266,12 @@ export async function searchAllPublic(input, providerKeys = {}) {
     results,
     queryPlan,
     meta: {
-      providerNames: providers.map(([name]) => name),
+      providerNames: [...new Set([...publicProviders.map(([name]) => name), 'Additional configured providers'])],
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,
       resultCount: results.length,
-      coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional configured providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
+      providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
+      coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
   };
 }
