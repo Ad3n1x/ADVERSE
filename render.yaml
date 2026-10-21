@@ -17,3 +17,20 @@ services:
         generateValue: true
       - key: MONITORING_CRON_SECRET
         sync: false
+      - key: CYBER_MONITORING_CRON_SECRET
+        sync: false
+
+  - type: cron
+    name: adverse-cyber-monitoring
+    runtime: node
+    rootDir: apps/api
+    schedule: "*/15 * * * *"
+    buildCommand: npm install
+    startCommand: node scripts/cyber-monitoring-cron.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_URL
+        sync: false
+      - key: CYBER_MONITORING_CRON_SECRET
+        sync: false
