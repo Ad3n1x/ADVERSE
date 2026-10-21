@@ -367,3 +367,76 @@ button.graph-relationship-option{text-align:left;font-family:inherit;cursor:poin
 .auth-link-button{align-self:flex-end;margin-top:-7px;padding:4px 0;border:0;background:transparent;color:#8bdcc9;font-size:11px;cursor:pointer}
 .auth-link-button:hover,.auth-toggle button:hover{text-decoration:underline}
 .success-notice{border:1px solid #315a4c;background:#10251f;color:#a9e8d6;padding:11px 12px;border-radius:6px;font-size:11px;line-height:1.6}
+
+
+
+/* Find Anything: saved items, filters and mobile-first interaction surfaces */
+.find-personal-tools{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:12px 0 2px;flex-wrap:wrap}
+.find-personal-tools>button{display:inline-flex;align-items:center;gap:7px;padding:8px 11px;border:1px solid rgba(133,226,206,.16);border-radius:7px;background:rgba(17,30,27,.72);color:#a9c8bd;font-size:11px;cursor:pointer}
+.find-personal-tools>button:hover,.find-personal-tools>button[aria-expanded=true]{border-color:#4c8b79;background:#172c26;color:#d5f9ed}
+.find-personal-tools>button>span{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#203c33;color:#bff3e3;font:10px 'DM Mono',monospace}
+.find-local-panel{margin:12px 0 20px;padding:15px;border:1px solid #293d37;border-radius:10px;background:rgba(13,22,21,.96);box-shadow:0 14px 36px #0002}
+.find-local-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:9px;color:#dceae4;font-size:12px}
+.find-local-panel-head>button,.find-local-panel-head>span{border:0;background:transparent;color:#88b5a5;font-size:10px}
+.find-local-panel-head>button{cursor:pointer}
+.find-local-panel-head>button:disabled{opacity:.4;cursor:default}
+.find-local-panel>p{margin:8px 0;color:#84978e;font-size:11px}
+.find-history-item{display:flex;align-items:center;gap:10px;width:100%;padding:11px 4px;border:0;border-top:1px solid #202e2a;background:transparent;color:#c6d8cf;text-align:left;cursor:pointer}
+.find-history-item>span{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;overflow-wrap:anywhere}
+.find-history-item small,.find-saved-item small{color:#758b80;font-size:10px}
+.find-history-item:hover{color:#a8f1df}
+.find-saved-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #202e2a}
+.find-saved-item>div{display:flex;flex-direction:column;gap:5px;min-width:0}
+.find-saved-item a{display:flex;align-items:center;gap:5px;overflow-wrap:anywhere;color:#b8efdf;font-size:12px;text-decoration:none}
+.find-saved-item>button{display:grid;place-items:center;flex:0 0 auto;width:31px;height:31px;border:1px solid #35463f;border-radius:6px;background:#111b18;color:#9bb6aa;cursor:pointer}
+.find-quick-summary{display:flex;align-items:flex-start;gap:7px;margin-top:12px;padding:10px 11px;border:1px solid rgba(120,190,170,.13);border-radius:7px;background:rgba(19,37,31,.55);color:#9eb9ad;font-size:11px;line-height:1.65;overflow-wrap:anywhere}
+.find-quick-summary>svg{flex:0 0 auto;margin-top:3px;color:#82d7c0}
+.find-quick-summary b{color:#c0e7d8;font-weight:600}
+.find-result-filters{display:flex;align-items:flex-end;gap:11px;flex-wrap:wrap;margin:16px 0 9px;padding:12px;border:1px solid rgba(135,166,154,.14);border-radius:8px;background:rgba(15,23,22,.66)}
+.find-result-filters>label{display:flex;flex-direction:column;gap:5px;min-width:145px;color:#7e9b8e;font-size:10px}
+.find-result-filters select{max-width:100%;padding:9px 11px;border:1px solid #33443d;border-radius:6px;background:#111b18;color:#d4e5dc;font-size:11px}
+.find-result-filters>span{margin-left:auto;padding-bottom:9px;color:#8ca99b;font:10px 'DM Mono',monospace}
+.find-save-button{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 9px;border:1px solid #35483f;border-radius:6px;background:#121d19;color:#a8c6b8;font-size:10px;cursor:pointer;white-space:nowrap}
+.find-save-button:hover,.find-save-button.saved{border-color:#4c8f79;background:#17352b;color:#b9f4e2}
+.find-no-filter-results{padding:26px 15px;border:1px dashed #34463f;border-radius:8px;color:#9aaca2;text-align:center;font-size:12px}
+.find-result-foot .find-save-button{justify-self:start}
+@media(max-width:760px){
+ .find-hero{width:100%;max-width:100%;padding-left:clamp(16px,4vw,28px);padding-right:clamp(16px,4vw,28px)}
+ .find-results-head{gap:12px}
+ .find-results-head>div{min-width:0}
+ .find-results-head h2{overflow-wrap:anywhere}
+ .find-result-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+ .find-result-filters>label{min-width:0}
+ .find-result-filters select{width:100%;min-width:0}
+ .find-result-filters>span{grid-column:1/-1;margin:0;padding:0}
+ .find-result-foot{display:flex;align-items:flex-start;flex-wrap:wrap}
+ .find-result-foot>span:nth-child(2){flex-basis:100%;order:2}
+ .find-result-foot .find-save-button{order:3}
+ .find-result-foot>a{order:4;margin-left:auto}
+ .find-quick-summary{font-size:10px}
+}
+@media(max-width:420px){
+ .find-topbar{gap:10px;padding:14px 13px}
+ .find-brand{gap:8px}
+ .find-brand>span:last-child{font-size:14px}
+ .find-brand small{font-size:8px}
+ .find-top-links button{padding:8px 10px}
+ .find-hero{padding-top:44px}
+ .find-hero>h1{font-size:clamp(37px,11vw,48px);letter-spacing:-1.6px}
+ .find-search-form{grid-template-columns:17px minmax(0,1fr) auto;gap:7px;padding:7px}
+ .find-search-form>svg{width:17px}
+ .find-search-form input{width:100%;min-width:0;font-size:12px}
+ .find-search-form button{padding:11px 10px}
+ .find-personal-tools{justify-content:stretch}
+ .find-personal-tools>button{flex:1;justify-content:center;padding:9px 7px;font-size:10px}
+ .find-local-panel{padding:12px}
+ .find-results-head{flex-direction:column;align-items:flex-start}
+ .find-count{align-self:flex-start}
+ .find-result-filters{grid-template-columns:minmax(0,1fr)}
+ .find-result-filters>span{grid-column:1}
+ .find-result-card{grid-template-columns:20px minmax(0,1fr);gap:8px;padding:14px 10px}
+ .find-result-number{font-size:10px}
+ .find-result-body h3 a{overflow-wrap:anywhere}
+ .find-result-foot>a{margin-left:0}
+ .find-footer{padding-left:13px;padding-right:13px}
+}
