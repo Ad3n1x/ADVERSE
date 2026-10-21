@@ -3,6 +3,45 @@ import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
 
 const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
+
+const TRACKING_PARAMS = /^(utm_[^=]+|gclid|dclid|fbclid|msclkid|mc_cid|mc_eid|ref_src|igshid|yclid|vero_id)$/i;
+
+/** Normalize URLs for deduplication without lowercasing case-sensitive paths or dropping meaningful query parameters. */
+export function normalizeResultUrl(value) {
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+    throw new Error('Only public HTTP(S) URLs are supported.');
+  }
+  url.hash = '';
+  for (const key of [...url.searchParams.keys()]) {
+    if (TRACKING_PARAMS.test(key)) url.searchParams.delete(key);
+  }
+  const pairs = [...url.searchParams.entries()].sort(([ak, av], [bk, bv]) =>
+    ak.localeCompare(bk) || av.localeCompare(bv)
+  );
+  url.search = '';
+  for (const [key, val] of pairs) url.searchParams.append(key, val);
+  if ((url.protocol === 'https:' && url.port === '443') || (url.protocol === 'http:' && url.port === '80')) url.port = '';
+  return url.href;
+}
+
+/** Re-rank while preventing one host from crowding out every other useful source. */
+export function diversifyPublicResults(items, query, { limit = 120, maxPerDomain = 3 } = {}) {
+  const ranked = rankPublicResults(items, query);
+  const selected = [];
+  const deferred = [];
+  const counts = new Map();
+  for (const item of ranked) {
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
+    const count = counts.get(host) || 0;
+    if (count < maxPerDomain) {
+      selected.push(item);
+      counts.set(host, count + 1);
+    } else deferred.push(item);
+  }
+  return [...selected, ...deferred].slice(0, Math.max(0, limit));
+}
 const STOP = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website']);
 const SYNONYMS = new Map([
   ['old', ['older','previous','earlier','legacy','past']],
@@ -188,7 +227,7 @@ export async function searchAllPublic(input, providerKeys = {}) {
       try {
         const url = new URL(item.url);
         if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) continue;
-        const normalized = url.href.replace(/#.*$/, '').replace(/[?&](utm_[^=]+|gclid|fbclid)=[^&]*/gi, '').replace(/[?&]$/, '').replace(/\/$/, '').toLowerCase();
+        const normalized = normalizeResultUrl(url.href);
         const old = merged.get(normalized);
         if (old) {
           old.matchedQueries = [...new Set([...(old.matchedQueries || []), ...(item.matchedQueries || [])])];
@@ -202,8 +241,8 @@ export async function searchAllPublic(input, providerKeys = {}) {
   const originalQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
-  const rankedResults = rankPublicResults([...merged.values()], originalQuery);
-  const results = rankedResults.slice(0, 120).map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
+  const rankedResults = diversifyPublicResults([...merged.values()], originalQuery, { limit: 120, maxPerDomain: 3 });
+  const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
