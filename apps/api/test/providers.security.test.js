@@ -23,6 +23,11 @@ test('rejects literal loopback and unique-local IPv6 destinations', async () => 
     'http://[::1]/',
     'http://[fc00::1]/',
     'http://[fe80::1]/',
+    'http://[0:0:0:0:0:0:0:1]/',
+    'http://[0:0:0:0:0:0:0:0]/',
+    'http://[0:0:0:0:0:ffff:c0a8:0101]/',
+    'http://[64:ff9b::7f00:1]/',
+    'http://[2002:7f00:1::]/',
   ]) {
     await assert.rejects(validatePublicUrlResolution(url), /Private network destinations are blocked/);
   }
