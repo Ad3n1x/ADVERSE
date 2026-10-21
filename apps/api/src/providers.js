@@ -104,7 +104,10 @@ export function validatePublicUrl(input) {
 export async function validatePublicUrlResolution(input) {
   const url = validatePublicUrl(input);
   const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (net.isIP(host)) return url;
+  const literalFamily = net.isIP(host);
+  if (literalFamily === 4 && isPrivateIPv4(host)) throw new Error('Private network destinations are blocked.');
+  if (literalFamily === 6 && isPrivateIPv6(host)) throw new Error('Private network destinations are blocked.');
+  if (literalFamily) return url;
   let addresses;
   try {
     addresses = await lookup(host, { all: true, verbatim: true });
@@ -114,7 +117,7 @@ export async function validatePublicUrlResolution(input) {
   if (!addresses.length || addresses.some(record =>
     net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address)
   )) {
-    throw new Error('Private or restricted network destinations are blocked.');
+    throw new Error('Private network destinations are blocked.');
   }
   return url;
 }
