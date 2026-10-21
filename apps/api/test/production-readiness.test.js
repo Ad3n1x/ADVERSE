@@ -40,13 +40,16 @@ test('private research routes reject requests without a session', async () => {
   const requests = [
     ['GET', '/api/v1/investigations'],
     ['POST', '/api/v1/investigations', { title: 'Should not be created' }],
+    ['POST', '/api/v1/internal/discovery/run', {}, 'CRON_AUTH_REQUIRED'],
+    ['POST', '/api/v1/internal/monitoring/run', {}, 'CRON_AUTH_REQUIRED'],
+    ['POST', '/api/v1/internal/cyber-monitoring/run', {}, 'CRON_AUTH_REQUIRED'],
     ['GET', '/api/v1/investigations/fake-id/evidence'],
     ['POST', '/api/v1/investigations/fake-id/research', { query: 'test' }],
     ['GET', '/api/v1/investigations/fake-id/monitoring'],
     ['POST', '/api/v1/investigations/fake-id/ai-review', {}],
   ];
 
-  for (const [method, path, payload] of requests) {
+  for (const [method, path, payload, expectedCode] of requests) {
     const response = await fetch(`${baseUrl}${path}`, {
       method,
       headers: payload ? { 'content-type': 'application/json' } : {},
@@ -54,6 +57,6 @@ test('private research routes reject requests without a session', async () => {
     });
     assert.equal(response.status, 401, `${method} ${path} must require authentication`);
     const body = await response.json();
-    assert.equal(body.error?.code, 'AUTH_REQUIRED');
+    assert.equal(body.error?.code, expectedCode || 'AUTH_REQUIRED');
   }
 });
