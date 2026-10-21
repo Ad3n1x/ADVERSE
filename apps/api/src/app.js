@@ -167,7 +167,7 @@ app.post('/api/v1/investigations/:id/ai-review',wrap(async(req,res)=>{
   const providerCode=typeof providerError?.status==='string'?providerError.status:typeof providerError?.code==='string'?providerError.code:null;
   let providerMessage=typeof providerError==='string'?providerError:typeof providerError?.message==='string'?providerError.message:'Provider returned a non-JSON error response.';
   if(geminiKey)providerMessage=providerMessage.split(geminiKey).join('[REDACTED]');
-  providerMessage=providerMessage.replace(/AIza[\\w-]{20,}/g,'[REDACTED]').replace(/Bearer\\s+\\S+/gi,'Bearer [REDACTED]').replace(/[\\r\\n\\t]+/g,' ').slice(0,600);
+  providerMessage=providerMessage.split(String.fromCharCode(13)).join(' ').split(String.fromCharCode(10)).join(' ').split(String.fromCharCode(9)).join(' ').slice(0,600);
   console.error(JSON.stringify({event:'ai_provider_http_error',provider:geminiKey?'google-gemini':'openai-compatible',model:geminiKey?geminiModel:model,httpStatus:response.status,providerCode,providerMessage,requestId:response.headers.get('x-request-id')||response.headers.get('x-goog-request-id')||null}));
   let code='AI_PROVIDER_ERROR';let message='The configured AI provider returned an error.';
   if(response.status===401||response.status===403){code='AI_AUTH_FAILED';message='The AI provider rejected this request. Check API key validity and project access.';}
