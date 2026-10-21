@@ -215,6 +215,48 @@ test('public link safety signals are descriptive and do not label URLs as malici
 });
 
 
+test('archive-monitoring scheduler rejects missing or invalid secrets before database access',async()=>withServer(async base=>{
+ const previousSecret=process.env.MONITORING_CRON_SECRET;
+ const previousDb=globalThis.__ADVERSE_MONGO_READY__;
+ process.env.MONITORING_CRON_SECRET='test-monitoring-secret';
+ globalThis.__ADVERSE_MONGO_READY__=false;
+ try{
+  const missing=await fetch(base+'/api/v1/internal/monitoring/run',{method:'POST'});
+  assert.equal(missing.status,401);
+  assert.equal((await missing.json()).error.code,'CRON_AUTH_REQUIRED');
+  const invalid=await fetch(base+'/api/v1/internal/monitoring/run',{method:'POST',headers:{'x-monitoring-secret':'wrong-secret'}});
+  assert.equal(invalid.status,401);
+  assert.equal((await invalid.json()).error.code,'CRON_AUTH_INVALID');
+  const valid=await fetch(base+'/api/v1/internal/monitoring/run',{method:'POST',headers:{'x-monitoring-secret':'test-monitoring-secret'}});
+  assert.equal(valid.status,503);
+  assert.equal((await valid.json()).error.code,'DATABASE_REQUIRED');
+ }finally{
+  if(previousSecret===undefined)delete process.env.MONITORING_CRON_SECRET;else process.env.MONITORING_CRON_SECRET=previousSecret;
+  if(previousDb===undefined)delete globalThis.__ADVERSE_MONGO_READY__;else globalThis.__ADVERSE_MONGO_READY__=previousDb;
+ }
+}));
+
+test('discovery scheduler rejects missing or invalid secrets before database access',async()=>withServer(async base=>{
+ const previousSecret=process.env.DISCOVERY_CRON_SECRET;
+ const previousDb=globalThis.__ADVERSE_MONGO_READY__;
+ process.env.DISCOVERY_CRON_SECRET='test-discovery-secret';
+ globalThis.__ADVERSE_MONGO_READY__=false;
+ try{
+  const missing=await fetch(base+'/api/v1/internal/discovery/run',{method:'POST'});
+  assert.equal(missing.status,401);
+  assert.equal((await missing.json()).error.code,'CRON_AUTH_REQUIRED');
+  const invalid=await fetch(base+'/api/v1/internal/discovery/run',{method:'POST',headers:{'x-discovery-secret':'wrong-secret'}});
+  assert.equal(invalid.status,401);
+  assert.equal((await invalid.json()).error.code,'CRON_AUTH_INVALID');
+  const valid=await fetch(base+'/api/v1/internal/discovery/run',{method:'POST',headers:{'x-discovery-secret':'test-discovery-secret'}});
+  assert.equal(valid.status,503);
+  assert.equal((await valid.json()).error.code,'DATABASE_REQUIRED');
+ }finally{
+  if(previousSecret===undefined)delete process.env.DISCOVERY_CRON_SECRET;else process.env.DISCOVERY_CRON_SECRET=previousSecret;
+  if(previousDb===undefined)delete globalThis.__ADVERSE_MONGO_READY__;else globalThis.__ADVERSE_MONGO_READY__=previousDb;
+ }
+}));
+
 test('cyber-monitoring scheduler requires the configured secret and persistent storage',async()=>withServer(async base=>{
  const previousSecret=process.env.CYBER_MONITORING_CRON_SECRET;
  const previousDb=globalThis.__ADVERSE_MONGO_READY__;
