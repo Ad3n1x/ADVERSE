@@ -1,0 +1,39 @@
+name: Configure ADVERSE Render health check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/configure-render-health-check-auto.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set and verify the live Render health-check path
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_ID: srv-dbbqbq2fngtc73a716b0
+        run: |
+          node <<'NODE'
+          const key = process.env.RENDER_API_KEY;
+          const service = process.env.SERVICE_ID;
+          if (!key) throw new Error('RENDER_API_KEY repository secret is missing.');
+          const base = `https://api.render.com/v1/services/${service}`;
+          const headers = { Authorization: `Bearer ${key}`, Accept: 'application/json', 'Content-Type': 'application/json' };
+          const patch = await fetch(base, { method: 'PATCH', headers, body: JSON.stringify({ serviceDetails: { healthCheckPath: '/api/v1/ready' } }) });
+          if (!patch.ok) throw new Error(`Render update failed (${patch.status}): ${await patch.text()}`);
+          const verify = await fetch(base, { headers });
+          if (!verify.ok) throw new Error(`Render verification failed (${verify.status}): ${await verify.text()}`);
+          const data = await verify.json();
+          const actual = data.serviceDetails?.healthCheckPath;
+          if (actual !== '/api/v1/ready') throw new Error(`Health check path was not saved. Actual value: ${actual ?? '(empty)'}`);
+          console.log(`Verified healthCheckPath=${actual}`);
+          const deploy = await fetch(`${base}/deploys`, { method: 'POST', headers, body: JSON.stringify({}) });
+          if (!deploy.ok) throw new Error(`Render deploy request failed (${deploy.status}): ${await deploy.text()}`);
+          console.log('Render accepted a deployment with the verified health-check configuration.');
+          NODE
