@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { hasMaterialArchiveChange, notifyAlertByEmail } from './monitor.js';
 
 const originalFetch = globalThis.fetch;
-const envKeys = ['BREVO_API_KEY', 'ALERT_EMAIL_FROM', 'ALERT_EMAIL_TO'];
+const envKeys = ['BREVO_API_KEY', 'ALERT_EMAIL_FROM', 'ALERT_EMAIL_TO', 'BREVO_FROM_EMAIL'];
 const originalEnv = Object.fromEntries(envKeys.map(key => [key, process.env[key]]));
 
 function setEmailEnv() {
@@ -73,6 +73,32 @@ test('Brevo alert email reports missing configuration without attempting a send'
     assert.equal(result.sent, false);
     assert.match(result.reason, /configuration is incomplete/);
     assert.equal(called, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const key of envKeys) {
+      if (originalEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = originalEnv[key];
+    }
+  }
+});
+
+test('archive alerts fall back to the configured Brevo sender', async () => {
+  process.env.BREVO_API_KEY = 'test-key';
+  delete process.env.ALERT_EMAIL_FROM;
+  process.env.BREVO_FROM_EMAIL = 'sender@example.org';
+  process.env.ALERT_EMAIL_TO = 'researcher@example.org';
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url, options };
+    return new Response(null, { status: 204 });
+  };
+  try {
+    const result = await notifyAlertByEmail(
+      { message: 'Review this archived source.' },
+      { url: 'https://example.org/page', label: 'Example' }
+    );
+    assert.deepEqual(result, { sent: true, reason: '' });
+    assert.equal(JSON.parse(request.options.body).sender.email, 'sender@example.org');
   } finally {
     globalThis.fetch = originalFetch;
     for (const key of envKeys) {
