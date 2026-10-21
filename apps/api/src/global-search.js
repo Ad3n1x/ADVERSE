@@ -193,6 +193,18 @@ export function rankPublicResults(items, query) {
     if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
         !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
     if (/\b(404|page not found|not found)\b/i.test(title)) score -= 8;
+    // Freshness only affects ranking when the user explicitly asks for current information.
+    if (/\b(latest|today|current|recent|newest|this week|this month|breaking|202[4-9])\b/i.test(String(query || '')) && item.publishedAt) {
+      const publishedTime = Date.parse(item.publishedAt);
+      if (Number.isFinite(publishedTime)) {
+        const ageDays = Math.max(0, (Date.now() - publishedTime) / 86400000);
+        if (ageDays <= 1) score += 10;
+        else if (ageDays <= 7) score += 7;
+        else if (ageDays <= 30) score += 4;
+        else if (ageDays <= 180) score += 1;
+        else score -= Math.min(6, Math.ceil((ageDays - 180) / 90));
+      }
+    }
     return { ...item, _searchScore: score, _searchOrder: index };
   }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
 }
@@ -253,7 +265,7 @@ export async function searchAllPublic(input, providerKeys = {}) {
           old.queryReasons = [...new Set([...(old.queryReasons || []), ...(item.queryReasons || [])])];
           old.providers = [...new Set([...(old.providers || [old.provider]).filter(Boolean), item.provider].filter(Boolean))];
           if ((item.excerpt || '').length > (old.excerpt || '').length) old.excerpt = item.excerpt;
-        } else merged.set(normalized, { ...item, providers: item.provider ? [item.provider] : [] });
+        } else merged.set(normalized, { ...item, url: normalized, providers: item.provider ? [item.provider] : [] });
       } catch {}
     }
   }
