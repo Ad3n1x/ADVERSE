@@ -4,7 +4,7 @@ test('researcher can register, create an investigation, and inspect the evidence
   const email = 'e2e-' + Date.now() + '@example.org';
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible();
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.locator('.find-top-links').getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
 
   await page.locator('.auth-toggle button').click();
