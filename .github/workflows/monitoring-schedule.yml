@@ -1,0 +1,64 @@
+name: ADVERSE scheduled monitoring
+
+on:
+  schedule:
+    # GitHub-hosted scheduling; runs can be delayed during high platform load.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-scheduled-monitoring
+  cancel-in-progress: false
+
+jobs:
+  cyber-monitoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Validate scheduler configuration
+        env:
+          API_URL: https://adverse-api-7yim.onrender.com
+          CYBER_MONITORING_CRON_SECRET: ${{ secrets.CYBER_MONITORING_CRON_SECRET }}
+        run: |
+          test -n "$API_URL" || { echo "::error::API_URL is missing"; exit 1; }
+          test -n "$CYBER_MONITORING_CRON_SECRET" || {
+            echo "::error::Add the CYBER_MONITORING_CRON_SECRET repository secret in Settings > Secrets and variables > Actions."
+            exit 1
+          }
+
+      - name: Run authorized cyber-monitoring checks
+        env:
+          API_URL: https://adverse-api-7yim.onrender.com
+          CYBER_MONITORING_CRON_SECRET: ${{ secrets.CYBER_MONITORING_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            --max-time 55 \
+            --request POST \
+            --header "x-cyber-monitoring-secret: ${CYBER_MONITORING_CRON_SECRET}" \
+            --header "accept: application/json" \
+            "${API_URL}/api/v1/internal/cyber-monitoring/run"
+
+  archive-monitoring:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Run archive monitoring checks
+        env:
+          API_URL: https://adverse-api-7yim.onrender.com
+          MONITORING_CRON_SECRET: ${{ secrets.MONITORING_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          test -n "$MONITORING_CRON_SECRET" || {
+            echo "::error::Add the MONITORING_CRON_SECRET repository secret in Settings > Secrets and variables > Actions."
+            exit 1
+          }
+          curl --fail-with-body --silent --show-error \
+            --max-time 25 \
+            --request POST \
+            --header "x-monitoring-secret: ${MONITORING_CRON_SECRET}" \
+            --header "accept: application/json" \
+            "${API_URL}/api/v1/internal/monitoring/run"
