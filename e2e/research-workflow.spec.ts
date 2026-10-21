@@ -22,8 +22,8 @@ test('researcher can register, create an investigation, and inspect the evidence
 
   await page.getByRole('button', { name: 'Connections' }).click();
   await page.getByRole('button', { name: /Add entity/ }).click();
-  await page.getByLabel('Entity name').fill('Example Corporation');
-  await page.getByLabel('Canonical public URL').fill('https://example.org');
+  await page.getByLabel('Name').fill('Example Corporation');
+  await page.getByLabel('Public link (optional)').fill('https://example.org');
   await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
 
   const filter = page.getByPlaceholder('Filter by entity name, type, or description');
