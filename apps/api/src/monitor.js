@@ -47,6 +47,9 @@ async function fetchArchivedText(url, timestamp) {
 }
 
 export async function compareArchiveSnapshots(url, from, to) {
+  if (!/^\d{14}$/.test(String(from || '')) || !/^\d{14}$/.test(String(to || ''))) {
+    throw new Error('Invalid archive timestamp.');
+  }
   const [before, after] = await Promise.all([
     fetchArchivedText(url, from),
     fetchArchivedText(url, to)
