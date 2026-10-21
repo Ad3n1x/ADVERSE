@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { app, inspectPublicLink } from './app.js';
+import { app, inspectPublicLink, assessSourceContext } from './app.js';
 
 async function withServer(fn) {
   const server = app.listen(0);
@@ -9,6 +9,16 @@ async function withServer(fn) {
 }
 
 let sequence = 40;
+
+test('source context classifies domain patterns as hints, not verification', () => {
+  const institutional = assessSourceContext('https://data.gov.ng/report', { provider:'Test provider' });
+  assert.equal(institutional.category, 'institutional-domain');
+  assert.match(institutional.reason, /hostname/);
+  const unknown = assessSourceContext('https://example.com/page');
+  assert.equal(unknown.category, 'publisher-or-website');
+  assert.doesNotMatch(unknown.label, /verified|trusted/i);
+});
+
 async function register(base, label) {
   const response = await fetch(base + '/api/v1/auth/register', {
     method: 'POST',
