@@ -1,0 +1,51 @@
+name: ADVERSE Production Monitor
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/production-monitor.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-production-monitor
+  cancel-in-progress: true
+
+jobs:
+  public-production-smoke:
+    name: Check live website and API
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check website availability
+        run: |
+          set -euo pipefail
+          code="$(curl --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 45 --output /tmp/web.html --write-out '%{http_code}' https://adverse-web.onrender.com/)"
+          test "$code" = "200"
+          grep -qi '<html' /tmp/web.html
+          echo "Website returned HTTP $code and an HTML document."
+
+      - name: Check API liveness
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 45 https://adverse-api-7yim.onrender.com/api/v1/health -o /tmp/health.json
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/health.json","utf8")); if(r.ok!==true || r.service!=="adverse-api") process.exit(1); console.log("API liveness passed.")'
+
+      - name: Check API readiness
+        run: |
+          set -euo pipefail
+          code="$(curl --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 45 --output /tmp/ready.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/ready)"
+          test "$code" = "200"
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/ready.json","utf8")); if(r.ok!==true) { console.error("API readiness did not report ok=true"); process.exit(1); } console.log("API readiness passed.")'
+
+      - name: Check public Find Anything search contract
+        run: |
+          set -euo pipefail
+          code="$(curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --max-time 90 --get --data-urlencode 'q=OpenAI' --output /tmp/search.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/public-search)"
+          test "$code" = "200"
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/search.json","utf8")); if(!Array.isArray(r.data)||!r.meta||r.meta.query!=="OpenAI"||typeof r.meta.notice!=="string") { console.error("Public search response contract failed"); process.exit(1); } console.log(JSON.stringify({ok:true,resultCount:r.data.length,query:r.meta.query}));'
