@@ -1,10 +1,10 @@
 # ADVERSE
 
-**Discover connections. Reconstruct history. Verify the evidence.**
+**ADVERSE — Find Anything. In Minutes.**
 
-ADVERSE is an evidence-first public-information research workspace. It helps researchers collect source records, map documented relationships, reconstruct website history, and export a traceable investigation report without presenting unverified claims as facts.
+ADVERSE is a public-first search product that helps people find useful webpages, official resources, tools, guides, and answers faster. It searches available public sources, deduplicates results, and checks a selection of destinations for readable public-page access. Reachability is not a guarantee that content is true, safe, current, or endorsed. The private research workspace remains available for users who want to save and analyze sources.
 
-## Implemented
+## Public search experience\n\n- Public search without an account through `/api/v1/public-search`.\n- Federated search across configured and keyless public providers; coverage is bounded and is not the entire web.\n- Duplicate URL removal and a limited live accessibility check for selected result links.\n- Clear status for reachable, unconfirmed, and unchecked links. Redirects, bot restrictions, and transient outages can prevent confirmation without proving a URL is fake.\n- No invented URLs or false claims of verification; the interface explains what each check does and does not establish.\n- Existing private research tools remain behind authentication.\n\n## Existing private research workspace
 
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
