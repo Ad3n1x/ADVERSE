@@ -210,7 +210,7 @@ export function rankPublicResults(items, query) {
 }
 
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
-export async function searchAllPublic(input, providerKeys = {}) {
+async function performSearchAllPublic(input, providerKeys = {}) {
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input);
@@ -286,4 +286,55 @@ export async function searchAllPublic(input, providerKeys = {}) {
       coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
   };
+}
+
+
+const PUBLIC_SEARCH_CACHE_TTL_MS = 45_000;
+const PUBLIC_SEARCH_CACHE_MAX = 100;
+const publicSearchCache = new Map();
+const publicSearchInflight = new Map();
+
+function publicSearchCacheKey(input) {
+  const normalized = Array.isArray(input)
+    ? JSON.stringify(input.slice(0, 5).map(item => typeof item === 'string' ? item : { query: item?.query, reason: item?.reason }))
+    : clean(input, 200).normalize('NFKC').toLocaleLowerCase();
+  return normalized;
+}
+
+/**
+ * Short-lived cache for public/default searches. Searches using per-user API
+ * credentials bypass it so one user's provider configuration never affects another.
+ * Concurrent identical anonymous searches share one provider fan-out.
+ */
+export async function searchAllPublic(input, providerKeys = {}) {
+  if (Object.keys(providerKeys || {}).length > 0) return performSearchAllPublic(input, providerKeys);
+  const key = publicSearchCacheKey(input);
+  const now = Date.now();
+  const cached = publicSearchCache.get(key);
+  if (cached && cached.expiresAt > now) return structuredClone(cached.value);
+  if (cached) publicSearchCache.delete(key);
+
+  const pending = publicSearchInflight.get(key);
+  if (pending) return structuredClone(await pending);
+
+  const task = performSearchAllPublic(input, providerKeys);
+  publicSearchInflight.set(key, task);
+  try {
+    const result = await task;
+    // Do not cache total failures; a retry should be able to recover immediately.
+    if ((result.results || []).length > 0 || !(result.meta?.failedSearches > 0)) {
+      for (const [cacheKey, value] of publicSearchCache) {
+        if (value.expiresAt <= Date.now()) publicSearchCache.delete(cacheKey);
+      }
+      while (publicSearchCache.size >= PUBLIC_SEARCH_CACHE_MAX) {
+        const oldest = publicSearchCache.keys().next().value;
+        if (oldest === undefined) break;
+        publicSearchCache.delete(oldest);
+      }
+      publicSearchCache.set(key, { expiresAt: Date.now() + PUBLIC_SEARCH_CACHE_TTL_MS, value: result });
+    }
+    return structuredClone(result);
+  } finally {
+    publicSearchInflight.delete(key);
+  }
 }
