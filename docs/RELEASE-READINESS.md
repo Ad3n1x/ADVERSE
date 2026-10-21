@@ -7,10 +7,10 @@
 **Production API:** https://adverse-api-7yim.onrender.com/  
 **Record updated:** 2026-10-21
 
-**Verified main commit:** `e3159d5478c8c39b7cf7f49d1b26b0e84da33796`  
-**CI run:** [Run 39673616692 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616692)  
+**Latest verified code commit:** `2b870aac271da09b9e3533ef204764fda6c676ee`  
+**Latest CI run:** [Run 39676092662 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39676092662)  
 **Render health-check workflow:** [Run 39673616808 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808)  
-**Live API deployment:** `dep-dbcict7b9u1s73bnl3m0` — Render reported status `live`.  
+**Live API deployment:** `dep-dbciiq4dthfc73ddt1h0` — Render confirmed status `live`.  
 **Live health-check path:** `/api/v1/ready`, confirmed in Render service configuration.
 
 ## What this record means
@@ -19,12 +19,13 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 
 ## Verified now
 
-- API syntax checks and regression tests passed in the current-main CI run.
+- API syntax checks and regression tests passed in CI for commit `2b870aac271da09b9e3533ef204764fda6c676ee`, including a regression test for Bearer-authenticated public search with per-user provider keys.
 - Frontend type-check and production build passed in the current-main CI run.
 - Playwright browser smoke tests passed in the current-main CI run.
 - Live API liveness, readiness, and public-search response-contract checks passed in the current-main CI run.
 - Render service configuration now reports `healthCheckPath: /api/v1/ready`; the configuration workflow verified the saved value and the resulting Render deployment is live.
-- Render application logs show successful MongoDB connection and a completed automated discovery cycle that processed two jobs, saved 12 results, and recorded zero provider failures in that cycle.
+- Render application logs for the live deployment show successful MongoDB connection and a completed automated discovery cycle that processed two jobs, saved 12 results, and recorded zero provider failures in that cycle.
+- The latest API deployment is confirmed `live` on commit `2b870aac271da09b9e3533ef204764fda6c676ee`.
 - Scheduled archive and cyber-monitoring jobs both passed in [run 39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
 - Automated discovery workflow succeeded in [run 39671815718](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
 
