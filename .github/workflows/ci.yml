@@ -60,6 +60,12 @@ jobs:
           response="$(curl --silent --show-error --retry 3 --retry-all-errors --retry-delay 5 --output /tmp/adverse-ready.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/ready)"
           cat /tmp/adverse-ready.json
           test "$response" = "200"
+      - name: Verify public search API contract
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --max-time 90 --get --data-urlencode 'q=OpenAI' --output /tmp/adverse-search.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/public-search)"
+          test "$response" = "200"
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/adverse-search.json","utf8")); if (!Array.isArray(r.data) || !r.meta || r.meta.query !== "OpenAI" || typeof r.meta.notice !== "string") { console.error("Public search response contract failed"); process.exit(1); } console.log(JSON.stringify({ok:true,resultCount:r.data.length,query:r.meta.query,notice:r.meta.notice}));'
 
   browser-e2e:
     name: Browser smoke tests
