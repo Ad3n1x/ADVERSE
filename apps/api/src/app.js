@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
+import dns from 'node:dns/promises';
 import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
@@ -434,7 +435,7 @@ app.get('/api/v1/investigations/:id/history/graph',wrap(async(req,res)=>{const i
 app.get('/api/v1/investigations/:id/export',wrap(async(req,res)=>{const iid=req.params.id;const investigation=await investigationGet(iid,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');const [evidence,entities,relationships]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid)]);const report={product:'ADVERSE',generatedAt:new Date().toISOString(),investigation,summary:{evidenceCount:evidence.length,entityCount:entities.length,relationshipCount:relationships.length},findings:[],evidence,entities,relationships,limitations:['This export includes stored records only. It does not imply independent verification.','Source dates and retrieval dates are preserved separately.']};const format=String(req.query.format||'json');if(format==='pdf'){const pdf=createReportPdf(report);res.type('application/pdf').attachment('adverse-investigation-report.pdf');return res.send(pdf);}if(format==='csv'){res.type('text/csv').attachment('adverse-evidence.csv');const rows=[['title','url','sourceType','publisher','publishedAt','retrievedAt','verificationStatus','excerpt'],...evidence.map(e=>[e.title,e.url,e.sourceType,e.publisher,e.publishedAt||'',e.retrievedAt||'',e.verificationStatus,e.excerpt])];return res.send(rows.map(row=>row.map(csvCell).join(',')).join('\r\n'));}res.type('application/json').attachment('adverse-investigation.json').send(JSON.stringify(report,null,2));}));
 
 
-const cyberAssetSchema=z.object({url:z.string().url().max(2048),label:z.string().trim().max(160).default(''),intervalHours:z.union([z.literal(1),z.literal(6),z.literal(12),z.literal(24)]).default(6),authorized:z.literal(true)});
+const cyberAssetSchema=z.object({url:z.string().url().max(2048),label:z.string().trim().max(160).default(''),intervalHours:z.union([z.literal(1),z.literal(6),z.literal(12),z.literal(24)]).default(6)});
 async function runCyberAssetCheck(asset) {
  const now=new Date(),nextCheckAt=new Date(now.getTime()+Number(asset.intervalHours||6)*3600000),db=isDb();
  const assetId=String(asset.id||asset._id);
@@ -478,23 +479,38 @@ app.delete('/api/v1/alerts/:id',requireAuth,wrap(async(req,res)=>{const alert=is
 
 app.get('/api/v1/investigations/:id/cyber-assets',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
- const assets=isDb()?await CyberAsset.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory.cyberAssets.values()].filter(x=>x.investigationId===iid);
+ let assets=isDb()?await CyberAsset.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory.cyberAssets.values()].filter(x=>x.investigationId===iid);
+ assets=await Promise.all(assets.map(async asset=>{if(asset.verificationToken)return asset;const token=crypto.randomBytes(18).toString('hex');const update={verificationToken:token,verificationStatus:'pending',enabled:false};if(isDb())return await CyberAsset.findByIdAndUpdate(asset._id,{$set:update},{new:true}).lean();Object.assign(asset,update);return asset;}));
  const events=isDb()?await CyberEvent.find({investigationId:iid}).sort({observedAt:-1}).limit(100).lean():[...memory.cyberEvents.values()].filter(x=>x.investigationId===iid).sort((a,b)=>new Date(b.observedAt)-new Date(a.observedAt)).slice(0,100);
  res.json({data:{assets:assets.map(x=>({...x,id:String(x.id||x._id)})),events:events.map(x=>({...x,id:String(x.id||x._id)})),meta:{scope:'Only explicitly authorized public HTTP(S) assets. Checks use public DNS, bounded page retrieval, and Certificate Transparency records; no packet capture or private-device monitoring.',persistence:isDb()?'mongodb':'ephemeral-memory',scheduler:'Recurring checks require a protected external scheduler configured with CYBER_MONITORING_CRON_SECRET; GitHub Actions is supported.'}}});
 }));
 app.post('/api/v1/investigations/:id/cyber-assets',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
- const p=cyberAssetSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Provide an HTTP(S) URL, interval, and confirm authorization.',p.error.flatten());
+ const p=cyberAssetSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid public website and choose a check interval.',p.error.flatten());
  let parsed;try{parsed=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL','Only public HTTP(S) targets can be monitored.',{reason:e.message});}
  const existing=isDb()?await CyberAsset.countDocuments({investigationId:iid}):[...memory.cyberAssets.values()].filter(x=>x.investigationId===iid).length;
  if(existing>=25)return sendError(res,409,'ASSET_LIMIT','An investigation can monitor up to 25 authorized assets.');
- const record={id:id(),investigationId:iid,url:parsed.href,hostname:parsed.hostname,label:p.data.label||parsed.hostname,authorizedByUser:true,intervalHours:p.data.intervalHours,enabled:true,lastCheckedAt:null,nextCheckAt:new Date(),lastSnapshotHash:'',lastDnsFingerprint:'',lastCertificateFingerprint:'',lastHttpStatus:null,lastError:'',createdAt:new Date(),updatedAt:new Date()};
+ const record={id:id(),investigationId:iid,url:parsed.href,hostname:parsed.hostname,label:p.data.label||parsed.hostname,authorizedByUser:false,verificationToken:crypto.randomBytes(18).toString('hex'),verificationStatus:'pending',verifiedAt:null,intervalHours:p.data.intervalHours,enabled:false,lastCheckedAt:null,nextCheckAt:new Date(),lastSnapshotHash:'',lastDnsFingerprint:'',lastCertificateFingerprint:'',lastHttpStatus:null,lastError:'',createdAt:new Date(),updatedAt:new Date()};
  let saved;if(isDb()){const doc=await CyberAsset.create(record);saved={...doc.toObject(),id:String(doc._id)};}else{memory.cyberAssets.set(record.id,record);saved=record;}
- res.status(201).json({data:saved,meta:{notice:'Target registered with explicit authorization attestation. Registration is not evidence that the target is safe or compromised.'}});
+ res.status(201).json({data:saved,meta:{notice:'Website added. Verify control of its domain before monitoring can begin.'}});
+}));
+app.post('/api/v1/cyber-assets/:id/verify-domain',requireAuth,wrap(async(req,res)=>{
+ const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
+ if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Website not found.');
+ if(asset.verificationStatus==='verified')return res.json({data:{id:String(asset.id||asset._id),verificationStatus:'verified',verifiedAt:asset.verifiedAt||null,message:'Domain control is already verified.'}});
+ const hostname=String(asset.hostname||new URL(asset.url).hostname).replace(/^www\./i,'');
+ const recordName='_adverse-verification.'+hostname;
+ let records=[];try{records=await dns.resolveTxt(recordName);}catch(error){return sendError(res,400,'DOMAIN_NOT_VERIFIED','We could not find the verification record yet. Check the record name and try again after DNS updates.',{recordName,reason:String(error.code||'DNS_LOOKUP_FAILED')});}
+ const expected='adverse-verification='+String(asset.verificationToken||'');
+ if(!records.some(parts=>parts.join('').trim()===expected))return sendError(res,400,'DOMAIN_NOT_VERIFIED','The TXT record was found, but its value does not match. Copy the value shown below exactly.',{recordName});
+ const update={verificationStatus:'verified',verifiedAt:new Date(),enabled:true,authorizedByUser:true,nextCheckAt:new Date()};
+ let saved;if(isDb())saved=await CyberAsset.findByIdAndUpdate(asset._id,{$set:update},{new:true}).lean();else{Object.assign(asset,update);saved=asset;}
+ res.json({data:{id:String(saved.id||saved._id),verificationStatus:'verified',verifiedAt:saved.verifiedAt,message:'Domain control verified. Website checks are now enabled. This confirms DNS control, not legal ownership or permission on behalf of another person.'}});
 }));
 app.post('/api/v1/cyber-assets/:id/check',requireAuth,limitProvider,wrap(async(req,res)=>{
  const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
- if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Authorized monitoring asset not found.');
+ if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Website not found.');
+ if(asset.verificationStatus!=='verified')return sendError(res,403,'DOMAIN_VERIFICATION_REQUIRED','Verify control of this domain before running checks.');
  res.json({data:await runCyberAssetCheck(asset)});
 }));
 app.delete('/api/v1/cyber-assets/:id',requireAuth,wrap(async(req,res)=>{
