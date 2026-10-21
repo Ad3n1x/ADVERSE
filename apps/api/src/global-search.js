@@ -99,7 +99,7 @@ async function searchGoogleNews(query) {
   const xml = await response.text();
   return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 10).map(match => {
     const block = match[1];
-    const field = name => clean((block.match(new RegExp('<' + name + '(?:\\s[^>]*)?>([\\s\\S]*?)<\\/' + name + '>', 'i')) || [,''])[1], name === 'description' ? 1200 : 500);
+    const field = name => clean((block.match(new RegExp('<' + name + '(?:\s[^>]*)?>([\s\\S]*?)<\\/' + name + '>', 'i')) || [,''])[1], name === 'description' ? 1200 : 500);
     const rawUrl = field('link');
     const date = field('pubDate');
     return { title: field('title'), url: rawUrl, excerpt: clean(field('description'), 1000), publisher: clean(field('source') || 'Google News indexed publisher', 200), retrievedAt: new Date().toISOString(), publishedAt: date && !Number.isNaN(Date.parse(date)) ? new Date(date).toISOString() : null, sourceType: 'web', provider: 'Google News' };
@@ -154,8 +154,8 @@ export async function searchAllPublic(input) {
   const originalQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
-  const normalizedQuery = originalQuery.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
-  const allTerms = [...new Set(normalizedQuery.split(/\\s+/).filter(Boolean))];
+  const normalizedQuery = originalQuery.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const allTerms = [...new Set(normalizedQuery.split(/\s+/).filter(Boolean))];
   const genericTerms = new Set(['old','new','version','latest','best','find','search','about','page','site','website','please','for','the','a','an','of','to','app']);
   const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
   const rankedResults = [...merged.values()].map((item, index) => {
@@ -179,7 +179,7 @@ export async function searchAllPublic(input) {
       if (subjectHits === 0) score -= 24;
       else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 6;
     }
-    if (/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title) &&
+    if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
         !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
     return { ...item, _searchScore: score, _searchOrder: index };
   });
