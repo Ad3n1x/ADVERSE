@@ -150,3 +150,11 @@ test('Gemini review validates the structured response and persists bounded revie
   if(originalModel===undefined)delete process.env.GEMINI_MODEL;else process.env.GEMINI_MODEL=originalModel;
  }
 }));
+
+
+test('public Find Anything search validates queries without requiring an account',async()=>withServer(async base=>{
+ const response=await fetch(base+'/api/v1/public-search?q=x');
+ assert.equal(response.status,400);
+ const body=await response.json();
+ assert.equal(body.error.code,'QUERY_REQUIRED');
+}));
