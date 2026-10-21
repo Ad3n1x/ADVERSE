@@ -15,7 +15,7 @@ export function hasMaterialArchiveChange(watch, latest) {
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const emailConfig = () => ({
   apiKey: String(process.env.BREVO_API_KEY || '').trim(),
-  from: String(process.env.ALERT_EMAIL_FROM || '').trim(),
+  from: String(process.env.ALERT_EMAIL_FROM || process.env.BREVO_FROM_EMAIL || '').trim(),
   to: String(process.env.ALERT_EMAIL_TO || '').trim()
 });
 
