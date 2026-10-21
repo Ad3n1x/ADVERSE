@@ -36,7 +36,7 @@ const csvCell=(value)=>{const text=String(value??'');const safe=/^[=+\-@\t\r]/.t
 const jwtSecret=()=>process.env.JWT_SECRET||(process.env.NODE_ENV==='production'?'': 'adverse-local-development-secret-change-before-deploy');
 function tokenFor(user){const secret=jwtSecret();if(!secret)throw new Error('JWT_SECRET must be configured.');const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');const body=Buffer.from(JSON.stringify({sub:String(user.id||user._id),email:user.email,exp:Math.floor(Date.now()/1000)+604800})).toString('base64url');const sig=createHmac('sha256',secret).update(head+'.'+body).digest('base64url');return head+'.'+body+'.'+sig;}
 function verifyToken(token){try{const [head,body,sig]=token.split('.');const expected=createHmac('sha256',jwtSecret()).update(head+'.'+body).digest();const supplied=Buffer.from(sig,'base64url');if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return null;const p=JSON.parse(Buffer.from(body,'base64url').toString());if(!p.sub||p.exp<Math.floor(Date.now()/1000))return null;return {id:p.sub,email:p.email};}catch{return null;}}
-function cookieToken(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('adverse_session='));return raw?decodeURIComponent(raw.slice('adverse_session='.length)):'';}
+function cookieToken(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('adverse_session='));if(!raw)return '';try{return decodeURIComponent(raw.slice('adverse_session='.length));}catch{return '';}}
 function setSession(res,token){res.setHeader('Set-Cookie',`adverse_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=604800${process.env.NODE_ENV==='production'?'; Secure':''}`);}
 function requireAuth(req,res,next){
   const cookie = cookieToken(req);
@@ -47,7 +47,7 @@ function requireAuth(req,res,next){
   if (cookie && unsafeMethod && origin && !allowedWebOrigins().includes(origin)) {
     return sendError(res, 403, 'ORIGIN_NOT_ALLOWED', 'This request origin is not allowed to modify the workspace.');
   }
-  const bearer = String(req.headers.authorization || '').replace(/^Bearer\\s+/i, '');
+  const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const user = verifyToken(cookie || bearer);
   if (!user) return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');
   req.user=user;
@@ -55,8 +55,24 @@ function requireAuth(req,res,next){
 }
 const authSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(12).max(128),displayName:z.string().trim().min(1).max(80).optional()});
 const authLimiter=new Map();
-function limitAuth(req,res,next){const ip=req.ip||'unknown',now=Date.now(),old=authLimiter.get(ip)||{start:now,count:0};if(now-old.start>60000){old.start=now;old.count=0;}old.count++;authLimiter.set(ip,old);if(old.count>12)return sendError(res,429,'RATE_LIMITED','Too many authentication attempts. Try again in one minute.');next();}
 const providerLimiter=new Map();
+function pruneLimiter(limiter, now) {
+  if (limiter.size < 10000) return;
+  for (const [key, entry] of limiter) {
+    if (now - entry.start > 60000) limiter.delete(key);
+  }
+  while (limiter.size > 8000) limiter.delete(limiter.keys().next().value);
+}
+function applyRateLimit(limiter, req, res, next, maximum, label) {
+  const ip=req.ip||'unknown',now=Date.now();
+  pruneLimiter(limiter, now);
+  const old=limiter.get(ip)||{start:now,count:0};
+  if(now-old.start>60000){old.start=now;old.count=0;}
+  old.count++;limiter.set(ip,old);
+  if(old.count>maximum)return sendError(res,429,'RATE_LIMITED',label);
+  next();
+}
+function limitAuth(req,res,next){return applyRateLimit(authLimiter,req,res,next,12,'Too many authentication attempts. Try again in one minute.');}
 
 /** Advisory URL signals for readers; these are warnings, never a verdict that a site is malicious. */
 export function inspectPublicLink(input) {
@@ -73,7 +89,7 @@ export function inspectPublicLink(input) {
   if (parsed.port && !['80','443'].includes(parsed.port)) signals.push('Uses a non-standard web port');
   return { transport: parsed.protocol === 'https:' ? 'HTTPS' : parsed.protocol === 'http:' ? 'HTTP' : 'unknown', hostname, signals };
 }
-function limitProvider(req,res,next){const ip=req.ip||'unknown',now=Date.now(),old=providerLimiter.get(ip)||{start:now,count:0};if(now-old.start>60000){old.start=now;old.count=0;}old.count++;providerLimiter.set(ip,old);if(old.count>40)return sendError(res,429,'RATE_LIMITED','Too many provider requests. Try again in one minute.');next();}
+function limitProvider(req,res,next){return applyRateLimit(providerLimiter,req,res,next,40,'Too many provider requests. Try again in one minute.');}
 
 const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({_id:iid,ownerId:uid}).lean();const record=memory.investigations.get(iid);return record&&record.ownerId===uid?record:null;};
 const listFor=async(Model,collection,iid)=>isDb()?Model.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory[collection].values()].filter(x=>x.investigationId===iid);
