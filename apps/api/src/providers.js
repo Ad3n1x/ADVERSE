@@ -45,7 +45,7 @@ function isPrivateIPv4(ip) {
   return a[0]===0||a[0]===10||a[0]===127||a[0]>=224||(a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||(a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127)||(a[0]===192&&(a[1]===0||a[1]===88&&a[2]===99||a[1]===0&&a[2]===2))||(a[0]===198&&(a[1]===18||a[1]===19||a[1]===51&&a[2]===100))||(a[0]===203&&a[1]===0&&a[2]===113)||(a[0]===255);
 }
 function ipv6Words(ip) {
-  let value=String(ip).toLowerCase().replace(/^\\[|\\]$/g,'');
+  let value=String(ip).toLowerCase().replace(/^\[|\]$/g,'');
   if (value.includes('.')) {
     const index=value.lastIndexOf(':');
     const v4=value.slice(index+1);
