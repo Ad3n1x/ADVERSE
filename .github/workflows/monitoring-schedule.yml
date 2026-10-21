@@ -16,7 +16,7 @@ concurrency:
 jobs:
   cyber-monitoring:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 4
     steps:
       - name: Validate scheduler configuration
         env:
@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error \
-            --max-time 55 \
+            --max-time 150 \
             --request POST \
             --header "x-cyber-monitoring-secret: ${CYBER_MONITORING_CRON_SECRET}" \
             --header "accept: application/json" \
@@ -44,7 +44,7 @@ jobs:
 
   archive-monitoring:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 4
     steps:
       - name: Run archive monitoring checks
         env:
@@ -57,7 +57,7 @@ jobs:
             exit 1
           }
           curl --fail-with-body --silent --show-error \
-            --max-time 25 \
+            --max-time 150 \
             --request POST \
             --header "x-monitoring-secret: ${MONITORING_CRON_SECRET}" \
             --header "accept: application/json" \
