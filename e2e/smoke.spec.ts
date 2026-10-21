@@ -2,16 +2,16 @@ import { test, expect } from '@playwright/test';
 
 test('public search page loads with an accessible search field', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /find anything.*skip the dead ends/i })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('textbox', { name: 'Search public information' })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^search$/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('textbox', { name: 'Search anything online' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /find it/i })).toBeVisible();
 });
 
-test('public discovery modes are available before signing in', async ({ page }) => {
+test('public search exposes recent searches and saved links before sign-in', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /everything/i })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('button', { name: /images/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /videos/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /people/i })).toBeVisible();
-  await expect(page.getByText(/source-linked results/i)).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: /recent searches/i }).click();
+  await expect(page.getByText('Your searches will appear here on this device.')).toBeVisible();
+  await page.getByRole('button', { name: /saved links/i }).click();
+  await expect(page.getByText('Save a result to keep it handy on this device.')).toBeVisible();
 });
