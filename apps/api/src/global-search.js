@@ -113,8 +113,8 @@ async function searchGoogleNews(query) {
  */
 export function rankPublicResults(items, query) {
   const normalize = value => clean(value, 2000).toLocaleLowerCase().normalize('NFKC')
-    .replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
-  const tokens = value => normalize(value).split(/\\s+/).filter(Boolean);
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const tokens = value => normalize(value).split(/\s+/).filter(Boolean);
   const normalizedQuery = normalize(query);
   const allTerms = [...new Set(tokens(query))];
   const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app']);
@@ -152,9 +152,9 @@ export function rankPublicResults(items, query) {
       else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 8;
       if (titleHits === 0) score -= 5;
     }
-    if (/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title) &&
+    if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
         !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
-    if (/\\b(404|page not found|not found)\\b/i.test(title)) score -= 8;
+    if (/\b(404|page not found|not found)\b/i.test(title)) score -= 8;
     return { ...item, _searchScore: score, _searchOrder: index };
   }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
 }
