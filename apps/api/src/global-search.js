@@ -159,7 +159,7 @@ export function rankPublicResults(items, query) {
 }
 
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
-export async function searchAllPublic(input) {
+export async function searchAllPublic(input, providerKeys = {}) {
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input);
@@ -170,7 +170,7 @@ export async function searchAllPublic(input) {
     ['Wikidata Knowledge Graph', searchWikidata],
     ['Purili Web Search', searchPurili],
     ['Truegle Web Search', searchTruegle],
-    ['Additional configured providers', async q => (await searchConfiguredProviders(q)).results]
+    ['Additional configured providers', async q => (await searchConfiguredProviders(q, 8, providerKeys)).results]
   ];
   const settled = await Promise.all(queryPlan.flatMap(plan => providers.map(async ([name, run]) => {
     try {
