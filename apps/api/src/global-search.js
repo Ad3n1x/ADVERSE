@@ -106,6 +106,59 @@ async function searchGoogleNews(query) {
   }).filter(item => item.title && /^https?:\/\//i.test(item.url || ''));
 }
 
+/**
+ * Rank results against the whole query using token boundaries and weighted field matches.
+ * Exact subject matches in titles/URLs outrank incidental mentions in snippets.
+ * The score is only a relevance heuristic; it is not a truth, safety, or source-quality rating.
+ */
+export function rankPublicResults(items, query) {
+  const normalize = value => clean(value, 2000).toLocaleLowerCase().normalize('NFKC')
+    .replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
+  const tokens = value => normalize(value).split(/\\s+/).filter(Boolean);
+  const normalizedQuery = normalize(query);
+  const allTerms = [...new Set(tokens(query))];
+  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app']);
+  const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
+  const phrase = value => normalizedQuery.length >= 3 && (' ' + normalize(value) + ' ').includes(' ' + normalizedQuery + ' ');
+  const hasTerm = (field, term) => (' ' + normalize(field) + ' ').includes(' ' + term + ' ');
+  return items.map((item, index) => {
+    const title = normalize(item.title);
+    const url = normalize(item.url);
+    const excerpt = normalize(item.excerpt);
+    const publisher = normalize(item.publisher);
+    let score = 0;
+    if (phrase(item.title)) score += 34;
+    else if (normalizedQuery && title.includes(normalizedQuery)) score += 26;
+    if (phrase(item.url)) score += 22;
+    if (phrase(item.excerpt)) score += 7;
+    let titleHits = 0;
+    let subjectHits = 0;
+    for (const term of allTerms) {
+      const isGeneric = genericTerms.has(term);
+      const titleMatch = hasTerm(title, term);
+      const urlMatch = hasTerm(url, term);
+      const excerptMatch = hasTerm(excerpt, term);
+      if (titleMatch) score += isGeneric ? 1 : 12;
+      else if (urlMatch) score += isGeneric ? 1 : 8;
+      else if (excerptMatch) score += isGeneric ? 0 : 2;
+      else if (hasTerm(publisher, term)) score += 1;
+      if (titleMatch) titleHits++;
+      if (!isGeneric && (titleMatch || urlMatch)) subjectHits++;
+    }
+    if (subjectTerms.length) {
+      score += subjectHits * 4;
+      score += Math.round((subjectHits / subjectTerms.length) * 12);
+      if (subjectHits === 0) score -= 28;
+      else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 8;
+      if (titleHits === 0) score -= 5;
+    }
+    if (/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title) &&
+        !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
+    if (/\\b(404|page not found|not found)\\b/i.test(title)) score -= 8;
+    return { ...item, _searchScore: score, _searchOrder: index };
+  }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
+}
+
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 export async function searchAllPublic(input) {
   const queryPlan = Array.isArray(input)
@@ -147,43 +200,10 @@ export async function searchAllPublic(input) {
       } catch {}
     }
   }
-  // Rank the complete merged candidate pool before applying the result cap.
-  // This prevents generic results from early provider/query variants (for example,
-  // pages about an "old version" with no mention of MovieBox) from crowding out
-  // subject-matching results returned by later providers.
   const originalQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
-  const normalizedQuery = originalQuery.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  const allTerms = [...new Set(normalizedQuery.split(/\s+/).filter(Boolean))];
-  const genericTerms = new Set(['old','new','version','latest','best','find','search','about','page','site','website','please','for','the','a','an','of','to','app']);
-  const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
-  const rankedResults = [...merged.values()].map((item, index) => {
-    const title = clean(item.title, 500).toLocaleLowerCase();
-    const url = clean(item.url, 2000).toLocaleLowerCase();
-    const excerpt = clean(item.excerpt, 1600).toLocaleLowerCase();
-    const publisher = clean(item.publisher, 300).toLocaleLowerCase();
-    const titleUrl = title + ' ' + url;
-    let score = 0;
-    if (normalizedQuery && title.includes(normalizedQuery)) score += 30;
-    if (normalizedQuery && (titleUrl.includes(normalizedQuery) || excerpt.includes(normalizedQuery))) score += 12;
-    for (const term of allTerms) {
-      if (title.includes(term)) score += genericTerms.has(term) ? 1 : 10;
-      else if (url.includes(term)) score += genericTerms.has(term) ? 1 : 7;
-      else if (excerpt.includes(term)) score += genericTerms.has(term) ? 0 : 2;
-      else if (publisher.includes(term)) score += 1;
-    }
-    const subjectHits = subjectTerms.filter(term => titleUrl.includes(term)).length;
-    if (subjectTerms.length) {
-      score += subjectHits * 5;
-      if (subjectHits === 0) score -= 24;
-      else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 6;
-    }
-    if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
-        !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
-    return { ...item, _searchScore: score, _searchOrder: index };
-  });
-  rankedResults.sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
+  const rankedResults = rankPublicResults([...merged.values()], originalQuery);
   const results = rankedResults.slice(0, 120).map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
