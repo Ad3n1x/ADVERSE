@@ -147,7 +147,44 @@ export async function searchAllPublic(input) {
       } catch {}
     }
   }
-  const results = [...merged.values()].slice(0, 120).map(item => ({ ...item, providerErrors: failures }));
+  // Rank the complete merged candidate pool before applying the result cap.
+  // This prevents generic results from early provider/query variants (for example,
+  // pages about an "old version" with no mention of MovieBox) from crowding out
+  // subject-matching results returned by later providers.
+  const originalQuery = typeof input === 'string'
+    ? clean(input, 200)
+    : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
+  const normalizedQuery = originalQuery.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, ' ').trim();
+  const allTerms = [...new Set(normalizedQuery.split(/\\s+/).filter(Boolean))];
+  const genericTerms = new Set(['old','new','version','latest','best','find','search','about','page','site','website','please','for','the','a','an','of','to','app']);
+  const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
+  const rankedResults = [...merged.values()].map((item, index) => {
+    const title = clean(item.title, 500).toLocaleLowerCase();
+    const url = clean(item.url, 2000).toLocaleLowerCase();
+    const excerpt = clean(item.excerpt, 1600).toLocaleLowerCase();
+    const publisher = clean(item.publisher, 300).toLocaleLowerCase();
+    const titleUrl = title + ' ' + url;
+    let score = 0;
+    if (normalizedQuery && title.includes(normalizedQuery)) score += 30;
+    if (normalizedQuery && (titleUrl.includes(normalizedQuery) || excerpt.includes(normalizedQuery))) score += 12;
+    for (const term of allTerms) {
+      if (title.includes(term)) score += genericTerms.has(term) ? 1 : 10;
+      else if (url.includes(term)) score += genericTerms.has(term) ? 1 : 7;
+      else if (excerpt.includes(term)) score += genericTerms.has(term) ? 0 : 2;
+      else if (publisher.includes(term)) score += 1;
+    }
+    const subjectHits = subjectTerms.filter(term => titleUrl.includes(term)).length;
+    if (subjectTerms.length) {
+      score += subjectHits * 5;
+      if (subjectHits === 0) score -= 24;
+      else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 6;
+    }
+    if (/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title) &&
+        !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
+    return { ...item, _searchScore: score, _searchOrder: index };
+  });
+  rankedResults.sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
+  const results = rankedResults.slice(0, 120).map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
