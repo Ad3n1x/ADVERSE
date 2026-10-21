@@ -19,7 +19,10 @@ ADVERSE is a public-first search product that helps people find useful webpages,
 - Evidence-linked claim triage: extracts candidate factual sentences from stored titles/excerpts, groups lexically similar statements, flags selected numeric or negation differences for human review, and links every candidate back to source records. It is deliberately a triage aid, not a truth detector.
 - AI-assisted evidence review through server-side Google Gemini configuration (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) with an OpenAI-compatible fallback. Reviews use only stored evidence metadata and excerpts, validate referenced evidence IDs, preserve a bounded history of the latest 10 reviews per investigation, and remain provisional drafts requiring human review.
 - JSON and CSV exports plus a server-generated multi-page PDF investigation report with evidence, entities, relationships, source dates, and explicit limitations.
-- Archive monitoring rules, alert review, acknowledgement, and deletion. An authenticated internal scheduler endpoint and a Node cron-runner script are included. Durable scheduled execution requires a scheduler such as a Render Cron service plus the same strong `MONITORING_CRON_SECRET` on both services. A billable cron resource is not provisioned automatically. Manual owner-scoped checks remain available.
+- Archive monitoring rules, alert review, acknowledgement, and deletion. An authenticated internal scheduler endpoint and a Node cron-runner script are included.
+- **Authorized cyber-intelligence monitoring:** register public HTTP(S) assets only after explicitly confirming ownership or permission; collect timestamped public DNS records, bounded HTML/text retrieval snapshots, response status, and Certificate Transparency observations; hash observations and emit provenance-labeled baseline, content-change, DNS-change, certificate-observation, and failed-check events.
+- Cyber monitoring records are private to the investigation owner, capped at 25 assets per investigation, and checked against public-only URL/DNS safeguards. The feature does not scan private networks, inspect packets, install endpoint agents, or infer compromise from an anomaly.
+- Manual cyber checks are available from the Cyber Intelligence workspace. A protected `/api/v1/internal/cyber-monitoring/run` endpoint and `apps/api/scripts/cyber-monitoring-cron.js` support scheduled checks when MongoDB is configured and a Render Cron service is provisioned. Durable scheduled execution requires a scheduler such as a Render Cron service plus the same strong `MONITORING_CRON_SECRET` on both services. A billable cron resource is not provisioned automatically. Manual owner-scoped checks remain available.
 - Brevo transactional alerts track delivery attempts and retain failed sends as pending with bounded exponential retry backoff. A Brevo API acceptance test passed; an end-to-end test that observes a genuinely newer archive capture and confirms delivery to the configured inbox is still required. The UI shows sent/pending/disabled status and the latest delivery error.
 - Monitoring checks compare Internet Archive capture timestamps and, when available, CDX content digests to avoid alerting on identical-content recaptures. They do not fetch/compare full page text or continuously inspect live pages; a digest change does not explain why content changed. The in-process worker is only a fallback; the Render Cron runner is the durable scheduling path once provisioned.
 - Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
@@ -33,7 +36,7 @@ ADVERSE is a public-first search product that helps people find useful webpages,
 - Archived text comparison is heuristic and may contain extraction noise.
 - Internet Archive coverage is incomplete; no capture does not prove a page never existed.
 - DNS observations do not establish ownership, control, or intent.
-- Monitoring depends on the Internet Archive provider, MongoDB, and a scheduled runner. The scheduler endpoint and runner script are in source, but scheduled execution is not active until an external cron resource is provisioned and its secret is configured. Brevo email delivery is implemented when configured; push notifications are not implemented.
+- Monitoring depends on the Internet Archive provider, MongoDB, and a scheduled runner. Cyber monitoring additionally depends on public DNS/HTTP and Certificate Transparency provider availability; the scheduled Cron service is optional and must be provisioned/configured separately. The scheduler endpoint and runner script are in source, but scheduled execution is not active until an external cron resource is provisioned and its secret is configured. Brevo email delivery is implemented when configured; push notifications are not implemented.
 - The graph uses a lightweight force-directed 2D layout with pan/zoom and locally saved node positions. Very large graph performance still needs profiling; saved positions remain browser-local rather than synced across devices. Historical graph view reconstructs which records were known by a date; it cannot prove objective historical state.
 - Browser end-to-end testing is not yet comprehensive. Security tests cover representative URL restrictions and cross-user access, but do not constitute a full SSRF/DNS-rebinding, redirect-chain, CSP, accessibility, or penetration audit.
 - Registration is open. Do not treat this research build as a substitute for legal, journalistic, or security review before storing sensitive investigations.
@@ -78,6 +81,10 @@ The Vite development server proxies `/api` to `http://localhost:4000`.
 - `GET /api/v1/investigations/:id/export?format=json|csv|pdf`
 - `POST /api/v1/internal/monitoring/run` (requires `x-monitoring-secret`)
 - `GET/POST /api/v1/investigations/:id/monitoring`
+- `GET/POST /api/v1/investigations/:id/cyber-assets`
+- `POST /api/v1/cyber-assets/:id/check`
+- `DELETE /api/v1/cyber-assets/:id`
+- `POST /api/v1/internal/cyber-monitoring/run` (requires `x-cyber-monitoring-secret`)
 - `DELETE /api/v1/monitoring/:id`
 - `POST /api/v1/alerts/:id/acknowledge`
 - `GET /api/v1/health`
