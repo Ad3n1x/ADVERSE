@@ -296,8 +296,10 @@ async function runCyberAssetCheck(asset) {
  try{
   const parsed=validatePublicUrl(asset.url);
   const [dns,page]=await Promise.all([publicDns(parsed.href),scrapePublicPage(parsed.href)]);
-  const dnsFingerprint=crypto.createHash('sha256').update(JSON.stringify(dns.records)).digest('hex');
-  const certificateFingerprint=crypto.createHash('sha256').update(JSON.stringify((dns.certificateTransparency?.records||[]).map(x=>({id:x.id,names:x.names,notAfter:x.notAfter,issuer:x.issuer})))).digest('hex');
+  const stableRecords=Object.fromEntries(Object.entries(dns.records||{}).map(([type,records])=>[type,(records||[]).map(x=>({type:x.type,data:x.data})).sort((a,b)=>(String(a.type)+'|'+String(a.data)).localeCompare(String(b.type)+'|'+String(b.data)))]));
+  const dnsFingerprint=crypto.createHash('sha256').update(JSON.stringify(stableRecords)).digest('hex');
+  const stableCertificates=(dns.certificateTransparency?.records||[]).map(x=>({id:x.id,names:[...(x.names||[])].sort(),notAfter:x.notAfter,issuer:x.issuer})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  const certificateFingerprint=crypto.createHash('sha256').update(JSON.stringify(stableCertificates)).digest('hex');
   const previousHash=String(asset.lastSnapshotHash||''),previousDns=String(asset.lastDnsFingerprint||''),previousCert=String(asset.lastCertificateFingerprint||''),previousStatus=asset.lastHttpStatus==null?null:Number(asset.lastHttpStatus),currentStatus=Number(page.httpStatus||200);
   const events=[];
   if(!previousHash&&!previousDns)events.push({type:'baseline',severity:'info',title:'Initial baseline recorded',message:'Initial public page snapshot, DNS records, and available certificate-transparency observations were recorded. This baseline is not a security verdict.',details:{httpStatus:currentStatus,contentHash:page.contentHash,dnsFingerprint,certificateFingerprint}});
