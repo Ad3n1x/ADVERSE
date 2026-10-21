@@ -25,6 +25,10 @@ services:
         value: adenix271@gmail.com
       - key: BREVO_FROM_NAME
         value: ADVERSE
+      - key: ALERT_EMAIL_FROM
+        sync: false
+      - key: ALERT_EMAIL_TO
+        sync: false
 
   - type: cron
     name: adverse-cyber-monitoring
