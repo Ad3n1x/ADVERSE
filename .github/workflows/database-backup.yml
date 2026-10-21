@@ -107,7 +107,6 @@ jobs:
           python <<'PY'
           import os
           import subprocess
-          import sys
           from pymongo import MongoClient
           from pymongo.uri_parser import parse_uri
 
@@ -130,7 +129,6 @@ jobs:
               raise SystemExit("Refusing restore: test URI resolves to the same URI host identity as production. Use a dedicated isolated cluster.")
 
           client = MongoClient(test_uri, serverSelectionTimeoutMS=15000)
-          created_test_db = False
           try:
               client.admin.command("ping")
               restore_cmd = [
@@ -142,7 +140,6 @@ jobs:
                   "--gzip",
               ]
               subprocess.run(restore_cmd, check=True)
-              created_test_db = True
 
               database = client[restore_db]
               collections = database.list_collection_names()
@@ -159,10 +156,7 @@ jobs:
               try:
                   client.drop_database(restore_db)
                   print("Temporary restore-test database cleanup completed.")
-              except Exception as cleanup_error:
-                  print(f"::warning::Could not clean up temporary restore-test database: {type(cleanup_error).__name__}")
-                  if sys.exc_info()[0] is None:
-                      raise
-              client.close()
+              finally:
+                  client.close()
           PY
           rm -f "$DECRYPTED_ARCHIVE" "$RUNNER_TEMP/mongodb-tools.tgz"
