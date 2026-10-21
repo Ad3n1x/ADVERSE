@@ -451,3 +451,23 @@ button.graph-relationship-option{text-align:left;font-family:inherit;cursor:poin
 .find-link-warnings>svg{flex:0 0 auto;margin-top:2px;color:#d4b978}
 .find-link-warnings b{color:#e2cf9f}
 @media(max-width:420px){.find-domain-line{font-size:9px}.find-link-warnings{font-size:9px;padding:8px}}
+
+/* ADVERSE Trust Layer: transparent source context, link health and result-set corroboration */
+.trust-layer{display:flex;flex-direction:column;gap:11px;margin:14px 0 12px;padding:13px;border:1px solid #2c4248;border-radius:8px;background:linear-gradient(145deg,#0d1b21,#101719 70%);color:#b6c8c9}
+.trust-layer-heading{display:flex;align-items:center;gap:7px;min-width:0;color:#7fded1}
+.trust-layer-heading b{font:9px var(--mono);letter-spacing:.8px}
+.trust-layer-heading>span{margin-left:auto;color:#748e91;font-size:9px}
+.trust-signal-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.trust-signal{display:flex;flex-direction:column;gap:5px;min-width:0;padding:10px;border:1px solid #273a40;border-radius:6px;background:#101c21}
+.trust-signal small{font:8px var(--mono);letter-spacing:.6px;color:#7d9ca0}
+.trust-signal strong{font-size:11px;line-height:1.4;color:#d8e7e5;overflow-wrap:anywhere}
+.trust-signal>span{font-size:9px;line-height:1.55;color:#91a7a7;overflow-wrap:anywhere}
+.trust-signal.trust-positive{border-color:#2b5a4e;background:#10231f}
+.trust-signal.trust-positive strong{color:#9de8d1}
+.trust-signal.trust-caution{border-color:#5b4b31;background:#211d15}
+.trust-signal.trust-caution strong{color:#e2c58a}
+.trust-advisories{display:flex;align-items:flex-start;gap:6px;flex-wrap:wrap}
+.trust-advisories b{margin-right:3px;color:#c4b17f;font-size:9px}
+.trust-advisories span{padding:4px 6px;border:1px solid #50452e;border-radius:4px;background:#211e16;color:#c5b889;font-size:9px;line-height:1.4}
+.trust-disclaimer{margin:0;color:#718b8e;font-size:9px;line-height:1.6}
+@media(max-width:640px){.trust-layer{padding:10px}.trust-signal-grid{grid-template-columns:1fr}.trust-signal{padding:9px}.trust-layer-heading>span{font-size:8px}}
