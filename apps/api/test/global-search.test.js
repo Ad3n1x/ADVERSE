@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { expandSearchQueries } from '../src/global-search.js';
 
 test('expands a phrase into exact, natural-language, and individual keyword searches', () => {
-  const plan = expandSearchQueries('MovieBox old version');
+  const plan = expandSearchQueries('MovieBox old version', 8);
   const queries = plan.map(item => item.query.toLowerCase());
   assert.ok(queries.some(q => q.includes('moviebox old version')));
   assert.ok(queries.some(q => q === 'moviebox'));
