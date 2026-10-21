@@ -42,11 +42,15 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          mongodump --uri="$MONGODB_BACKUP_URI" --archive="$RUNNER_TEMP/adverse-backup.archive.gz" --gzip
+          mongodump --uri="$MONGODB_BACKUP_URI" --db=adverse --archive="$RUNNER_TEMP/adverse-backup.archive.gz" --gzip
           openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/adverse-backup.archive.gz" -out "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
           test -s "$RUNNER_TEMP/adverse-backup.archive.gz.enc"
           rm -f "$RUNNER_TEMP/adverse-backup.archive.gz" "$RUNNER_TEMP/mongodb-tools.tgz"
-          echo "Encrypted backup archive created. The encryption passphrase is never printed."
+          # Confirm the encrypted archive decrypts successfully before uploading it.
+          openssl enc -d -aes-256-cbc -pbkdf2 -in "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -out "$RUNNER_TEMP/backup-verification.archive.gz" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          gzip -t "$RUNNER_TEMP/backup-verification.archive.gz"
+          rm -f "$RUNNER_TEMP/backup-verification.archive.gz"
+          echo "Encrypted backup archive created and cryptographically/decompression checked. The encryption passphrase is never printed."
 
       - name: Store encrypted backup artifact
         uses: actions/upload-artifact@v4
