@@ -60,7 +60,7 @@ function requireAuth(req,res,next){
   req.user=user;
   next();
 }
-function optionalAuth(req,res,next){const token=cookieToken(req)||String(req.headers.authorization||'').replace(/^Bearer\\s+/i,'');const user=token?verifyToken(token):null;if(user)req.user=user;next();}
+function optionalAuth(req,res,next){const token=cookieToken(req)||String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const user=token?verifyToken(token):null;if(user)req.user=user;next();}
 const authSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(12).max(128),displayName:z.string().trim().min(1).max(80).optional()});
 const authLimiter=new Map();
 const providerLimiter=new Map();
