@@ -47,6 +47,20 @@ jobs:
       - name: Build production frontend
         run: npm run build -w @adverse/web
 
+
+  production-smoke:
+    name: Live API health and readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wait for live API health endpoint
+        run: curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 https://adverse-api-7yim.onrender.com/api/v1/health
+      - name: Verify API readiness
+        run: |
+          response="$(curl --silent --show-error --retry 3 --retry-all-errors --retry-delay 5 --output /tmp/adverse-ready.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/ready)"
+          cat /tmp/adverse-ready.json
+          test "$response" = "200"
+
   browser-e2e:
     name: Browser smoke tests
     runs-on: ubuntu-latest
