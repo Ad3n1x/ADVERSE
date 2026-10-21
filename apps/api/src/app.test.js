@@ -277,3 +277,29 @@ test('cyber-monitoring scheduler requires the configured secret and persistent s
   if(previousDb===undefined)delete globalThis.__ADVERSE_MONGO_READY__;else globalThis.__ADVERSE_MONGO_READY__=previousDb;
  }
 }));
+
+test('public Find Anything search uses per-user provider keys with Bearer authentication',async()=>withServer(async base=>{
+ const originalFetch=globalThis.fetch;
+ const auth=await register(base,'public-bearer-provider@example.org');
+ const token=decodeURIComponent(auth.cookie.slice('adverse_session='.length));
+ const saved=await originalFetch(base+'/api/v1/search/provider-credentials',{method:'PUT',headers:{'content-type':'application/json',cookie:auth.cookie},body:JSON.stringify({TAVILY_API_KEY:'test-user-tavily-key'})});
+ assert.equal(saved.status,200);
+ globalThis.fetch=async(input,init)=>{
+  const url=String(input);
+  if(url==='https://api.tavily.com/search'){
+   const request=JSON.parse(String(init?.body||'{}'));
+   assert.equal(request.api_key,'test-user-tavily-key');
+   return new Response(JSON.stringify({results:[{title:'Personalized provider result',url:'https://results.example/tavily',content:'Returned by the user-configured search provider.'}]}),{status:200,headers:{'content-type':'application/json'}});
+  }
+  return new Response('provider unavailable',{status:503,headers:{'content-type':'text/plain'}});
+ };
+ try{
+  const response=await originalFetch(base+'/api/v1/public-search?q=public%20bearer%20provider%20test',{headers:{authorization:'Bearer '+token}});
+  assert.equal(response.status,200);
+  const body=await response.json();
+  assert.ok(body.data.some(item=>item.provider==='Tavily Search'&&item.url==='https://results.example/tavily'));
+ }finally{
+  globalThis.fetch=originalFetch;
+ }
+}));
+
