@@ -7,7 +7,7 @@ import dns from 'node:dns/promises';
 import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
-import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
+import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
 import { searchAllPublic, rankPublicResults, diversifyPublicResults, normalizeResultUrl } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
 import { getProviderCatalog } from './provider-adapters.js';
@@ -525,10 +525,16 @@ app.post('/api/v1/cyber-assets/:id/verify-http',requireAuth,wrap(async(req,res)=
  const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
  if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Website not found.');
  if(asset.verificationStatus==='verified')return res.json({data:{verificationStatus:'verified',verifiedAt:asset.verifiedAt||null,message:'Domain control is already verified.'}});
- let target;try{target=validatePublicUrl('https://'+String(asset.hostname||new URL(asset.url).hostname)+'/adverse-verify.txt');}catch(error){return sendError(res,400,'UNSAFE_URL','Could not safely check the website verification file.');}
+ let target;try{target=await validatePublicUrlResolution('https://'+String(asset.hostname||new URL(asset.url).hostname)+'/adverse-verify.txt');}catch(error){return sendError(res,400,'UNSAFE_URL','Could not safely check this website. Make sure it uses a public domain and try again.');}
  let response;try{response=await fetch(target.href,{redirect:'manual',signal:AbortSignal.timeout(6000),headers:{'user-agent':'ADVERSE-Domain-Verification/1.0','accept':'text/plain'}});}catch(error){return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','We could not reach the verification file yet. Upload it to the exact path shown in ADVERSE and try again.');}
  if(!response.ok||response.status>=300)return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','The verification file was not found at the expected path. Make sure it is deployed and publicly accessible.');
- const body=(await response.text()).slice(0,500).trim();
+ const contentType=String(response.headers.get('content-type')||'').toLowerCase();
+ if(contentType && !contentType.includes('text/plain') && !contentType.includes('text/'))return sendError(res,400,'HTTP_VERIFICATION_INVALID_TYPE','The verification file must be served as plain text.');
+ const reader=response.body?.getReader();if(!reader)return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','The verification file returned no readable content.');
+ let total=0;const chunks=[];
+ try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>256){await reader.cancel();return sendError(res,400,'HTTP_VERIFICATION_TOO_LARGE','The verification file must contain only the short code shown in ADVERSE.');}chunks.push(Buffer.from(value));}}catch(error){return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','The verification file could not be read completely. Please try again.');
+ }
+ const body=Buffer.concat(chunks).toString('utf8').trim();
  if(body!=='adverse-verification='+String(asset.verificationToken||''))return sendError(res,400,'HTTP_VERIFICATION_MISMATCH','The file is reachable, but its content does not match the code shown in ADVERSE.');
  const update={verificationStatus:'verified',verifiedAt:new Date(),enabled:true,authorizedByUser:true,nextCheckAt:new Date()};
  let saved;if(isDb())saved=await CyberAsset.findByIdAndUpdate(asset._id,{$set:update},{new:true}).lean();else{Object.assign(asset,update);saved=asset;}
