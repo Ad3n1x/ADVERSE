@@ -165,6 +165,7 @@ export async function scrapePublicPage(inputUrl) {
     excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
     retrievedAt: new Date().toISOString(),
     contentType,
+    httpStatus: response.status,
     contentHash: (await import('node:crypto')).createHash('sha256').update(raw).digest('hex'),
     method: 'bounded public HTML/text retrieval',
     note: 'Page text is a retrieval snapshot, not independent verification. Source terms, access restrictions, and robots policies still apply.'
