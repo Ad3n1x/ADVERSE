@@ -511,7 +511,7 @@ app.post('/api/v1/cyber-assets/:id/verify-http',requireAuth,wrap(async(req,res)=
  const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
  if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Website not found.');
  if(asset.verificationStatus==='verified')return res.json({data:{verificationStatus:'verified',verifiedAt:asset.verifiedAt||null,message:'Domain control is already verified.'}});
- let target;try{target=validatePublicUrl('https://'+String(asset.hostname||new URL(asset.url).hostname)+'/.well-known/adverse-verification.txt');}catch(error){return sendError(res,400,'UNSAFE_URL','Could not safely check the website verification file.');}
+ let target;try{target=validatePublicUrl('https://'+String(asset.hostname||new URL(asset.url).hostname)+'/adverse-verify.txt');}catch(error){return sendError(res,400,'UNSAFE_URL','Could not safely check the website verification file.');}
  let response;try{response=await fetch(target.href,{redirect:'manual',signal:AbortSignal.timeout(6000),headers:{'user-agent':'ADVERSE-Domain-Verification/1.0','accept':'text/plain'}});}catch(error){return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','We could not reach the verification file yet. Upload it to the exact path shown in ADVERSE and try again.');}
  if(!response.ok||response.status>=300)return sendError(res,400,'HTTP_VERIFICATION_NOT_FOUND','The verification file was not found at the expected path. Make sure it is deployed and publicly accessible.');
  const body=(await response.text()).slice(0,500).trim();
