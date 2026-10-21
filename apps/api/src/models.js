@@ -67,3 +67,38 @@ const alertSchema = new Schema({
 alertSchema.index({ investigationId: 1, observedAt: -1 });
 export const Watch = models.Watch || model('Watch', watchSchema);
 export const Alert = models.Alert || model('Alert', alertSchema);
+
+const cyberAssetSchema = new Schema({
+  investigationId: { type: String, index: true, required: true },
+  url: { type: String, required: true, maxlength: 2048 },
+  hostname: { type: String, required: true, maxlength: 253 },
+  label: { type: String, maxlength: 160, default: '' },
+  authorizedByUser: { type: Boolean, required: true, default: false },
+  intervalHours: { type: Number, enum: [1, 6, 12, 24], default: 6 },
+  enabled: { type: Boolean, default: true },
+  lastCheckedAt: { type: Date, default: null },
+  nextCheckAt: { type: Date, default: Date.now, index: true },
+  lastSnapshotHash: { type: String, default: '' },
+  lastDnsFingerprint: { type: String, default: '' },
+  lastHttpStatus: { type: Number, default: null },
+  lastCertificateFingerprint: { type: String, default: '' },
+  lastError: { type: String, maxlength: 500, default: '' }
+}, stamp);
+cyberAssetSchema.index({ investigationId: 1, createdAt: -1 });
+cyberAssetSchema.index({ enabled: 1, nextCheckAt: 1 });
+const cyberEventSchema = new Schema({
+  investigationId: { type: String, index: true, required: true },
+  assetId: { type: String, required: true, index: true },
+  type: { type: String, enum: ['baseline','availability','content-change','dns-change','certificate-observation','check-failed'], required: true },
+  severity: { type: String, enum: ['info','low','medium','high'], default: 'info' },
+  title: { type: String, required: true, maxlength: 240 },
+  message: { type: String, required: true, maxlength: 1200 },
+  url: { type: String, required: true, maxlength: 2048 },
+  observedAt: { type: Date, default: Date.now },
+  details: { type: Schema.Types.Mixed, default: {} },
+  acknowledgedAt: { type: Date, default: null }
+}, stamp);
+cyberEventSchema.index({ investigationId: 1, observedAt: -1 });
+export const CyberAsset = models.CyberAsset || model('CyberAsset', cyberAssetSchema);
+export const CyberEvent = models.CyberEvent || model('CyberEvent', cyberEventSchema);
+
