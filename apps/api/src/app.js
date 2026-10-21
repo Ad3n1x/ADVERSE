@@ -153,7 +153,7 @@ app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
     if(/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title)&&!queryTerms.some(term=>['chat','chatroom','conversation','forum'].includes(term)))score-=8;
     return {...item,_relevanceScore:score,_providerOrder:index};
   }).sort((a,b)=>b._relevanceScore-a._relevanceScore||a._providerOrder-b._providerOrder);
-  const candidates=ranked.slice(0,30);
+  const candidates=ranked.slice(0,30).map(({_relevanceScore,_providerOrder,...item})=>item);
   const unique=[];const seen=new Set();
   for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const key=parsed.href.toLowerCase();if(seen.has(key))continue;seen.add(key);unique.push({...item,url:parsed.href});}catch{}}
   const checked=await Promise.all(unique.slice(0,8).map(async item=>{
