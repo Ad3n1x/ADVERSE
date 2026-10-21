@@ -29,6 +29,16 @@ A healthy liveness response means the process responds. A successful readiness r
 
 ## 4. MongoDB backup and recovery — required before broad launch
 
+A guarded encrypted-backup workflow is now available at `.github/workflows/database-backup.yml`. It is deliberately opt-in; it will not connect to a database until the repository owner configures all required settings.
+
+1. In GitHub repository Settings → Secrets and variables → Actions, add secret `MONGODB_BACKUP_URI` pointing to the confirmed production database (never paste it into chat or commit it).
+2. Add secret `BACKUP_ENCRYPTION_PASSPHRASE` with a strong, unique passphrase. Store that passphrase securely outside GitHub; losing it makes the encrypted archive unrecoverable.
+3. Add repository Actions variable `ADVERSE_BACKUP_ENABLED` with value `true` only after verifying the URI points at the intended production cluster and the database user's privileges are least-privilege.
+4. Run the workflow manually once and confirm the encrypted artifact exists. After that, the workflow runs daily. Artifacts are encrypted and retained for up to 90 days, subject to repository policy.
+5. This GitHub artifact is a temporary recovery copy, **not a durable independent backup service**. Before broad launch, configure a separate protected/off-site backup destination and complete a restore drill into an isolated non-production database.
+
+
+
 MongoDB connectivity has been observed in production logs, but backup policy and a restore drill have not been verified.
 
 1. Identify the actual MongoDB provider and production cluster using the provider dashboard, without exposing the connection URI.
