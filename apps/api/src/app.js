@@ -38,6 +38,11 @@ function tokenFor(user){const secret=jwtSecret();if(!secret)throw new Error('JWT
 function verifyToken(token){try{const [head,body,sig]=token.split('.');const expected=createHmac('sha256',jwtSecret()).update(head+'.'+body).digest();const supplied=Buffer.from(sig,'base64url');if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return null;const p=JSON.parse(Buffer.from(body,'base64url').toString());if(!p.sub||p.exp<Math.floor(Date.now()/1000))return null;return {id:p.sub,email:p.email};}catch{return null;}}
 function cookieToken(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('adverse_session='));if(!raw)return '';try{return decodeURIComponent(raw.slice('adverse_session='.length));}catch{return '';}}
 function setSession(res,token){res.setHeader('Set-Cookie',`adverse_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=604800${process.env.NODE_ENV==='production'?'; Secure':''}`);}
+const providerKeyNames=['BRAVE_SEARCH_API_KEY','TAVILY_API_KEY','EXA_API_KEY','GOOGLE_CSE_API_KEY','GOOGLE_CSE_CX','BING_SEARCH_API_KEY','SERPAPI_API_KEY','NEWSAPI_API_KEY','YOUTUBE_API_KEY'];
+function providerEncryptionKey(){const secret=jwtSecret();if(!secret)throw new Error('JWT_SECRET must be configured before saving provider credentials.');return crypto.createHash('sha256').update('ADVERSE-provider-credentials-v1:'+secret).digest();}
+function encryptProviderKeys(keys){const iv=crypto.randomBytes(12);const cipher=crypto.createCipheriv('aes-256-gcm',providerEncryptionKey(),iv);const encrypted=Buffer.concat([cipher.update(JSON.stringify(keys),'utf8'),cipher.final()]);return [iv.toString('base64'),cipher.getAuthTag().toString('base64'),encrypted.toString('base64')].join('.');}
+function decryptProviderKeys(value){if(!value)return {};try{const [iv,tag,data]=String(value).split('.');const decipher=crypto.createDecipheriv('aes-256-gcm',providerEncryptionKey(),Buffer.from(iv,'base64'));decipher.setAuthTag(Buffer.from(tag,'base64'));return JSON.parse(Buffer.concat([decipher.update(Buffer.from(data,'base64')),decipher.final()]).toString('utf8'));}catch{return {};}}
+async function getUserProviderKeys(userId){const user=isDb()?await User.findById(userId).select('providerCredentialsEncrypted').lean():memory.users.get(userId);return decryptProviderKeys(user?.providerCredentialsEncrypted||'');}
 function requireAuth(req,res,next){
   const cookie = cookieToken(req);
   const unsafeMethod = !['GET','HEAD','OPTIONS'].includes(req.method.toUpperCase());
@@ -53,6 +58,7 @@ function requireAuth(req,res,next){
   req.user=user;
   next();
 }
+function optionalAuth(req,res,next){const token=cookieToken(req)||String(req.headers.authorization||'').replace(/^Bearer\\s+/i,'');const user=token?verifyToken(token):null;if(user)req.user=user;next();}
 const authSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(12).max(128),displayName:z.string().trim().min(1).max(80).optional()});
 const authLimiter=new Map();
 const providerLimiter=new Map();
@@ -292,10 +298,11 @@ app.get('/api/v1/public-search/media',limitProvider,wrap(async(req,res)=>{
   const results=settled.flatMap(item=>item.results).slice(0,40);
   res.json({data:results,meta:{query:q,type,providers:tasks.map(item=>item[0]),failedProviders:settled.filter(item=>item.error).map(item=>({provider:item.name,error:item.error})),resultCount:results.length,notice:'Results come from public third-party indexes. Image rights, identity matches, accuracy, and content safety are not guaranteed; open the original source and check its terms.'}});
 }));
-app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
+app.get('/api/v1/public-search',optionalAuth,limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
-  const live=await searchAllPublic(q).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
+  const providerKeys=req.user?await getUserProviderKeys(req.user.id):{};
+  const live=await searchAllPublic(q,providerKeys).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
   const ranked=rankPublicResults(Array.isArray(live.results)?live.results:[],q);
   const candidates=ranked.slice(0,30).map(({_searchScore,_searchOrder,...item})=>item);
   const unique=[];const seen=new Set();
@@ -315,7 +322,9 @@ app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
   });
   res.json({data:results,meta:{query:q,retrievedAt:new Date().toISOString(),queryPlan:live.queryPlan||[],providers:[...new Set(results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0,coverage:live.meta?.coverage||'Search across a limited set of public sources; not exhaustive whole-web search.',linkChecks:checked.length,providerError:live.error||'',notice:'Link reachability, hostname categories, and title similarity are advisory signals. They do not prove that a page or its claims are true, safe, current, or endorsed by ADVERSE.'}});
 }));
-app.get('/api/v1/search/providers',requireAuth,wrap(async(req,res)=>{res.json({data:getProviderCatalog(),meta:{configured:getProviderCatalog().filter(p=>p.configured).length,total:getProviderCatalog().length,notice:'Provider access depends on public availability, credentials, terms, rate limits, and region. A catalog entry is not a guarantee of access to all indexed content.'}});}));
+app.get('/api/v1/search/providers',requireAuth,wrap(async(req,res)=>{const keys=await getUserProviderKeys(req.user.id);const catalog=getProviderCatalog(keys);res.json({data:catalog.filter(p=>p.configured||p.access==='public'),meta:{configured:catalog.filter(p=>p.configured).length,total:catalog.length,notice:'Only connected providers and public providers are shown. Availability, quota, region, and terms still apply.'}});}));
+app.get('/api/v1/search/provider-credentials',requireAuth,wrap(async(req,res)=>{const keys=await getUserProviderKeys(req.user.id);const catalog=getProviderCatalog(keys);res.json({data:{configured:providerKeyNames.filter(k=>Boolean(keys[k]||process.env[k])),userConfigured:providerKeyNames.filter(k=>Boolean(keys[k])),providers:catalog.filter(p=>p.configured||p.access==='public')}});}));
+app.put('/api/v1/search/provider-credentials',requireAuth,wrap(async(req,res)=>{const body=req.body||{};const keys=await getUserProviderKeys(req.user.id);for(const name of providerKeyNames){if(Object.prototype.hasOwnProperty.call(body,name)){const value=String(body[name]||'').trim();if(value.length>1000)return sendError(res,400,'INVALID_PROVIDER_KEY','A provider credential is too long.');if(value)keys[name]=value;else delete keys[name];}}if(Boolean(keys.GOOGLE_CSE_API_KEY)!==Boolean(keys.GOOGLE_CSE_CX))return sendError(res,400,'GOOGLE_CSE_PAIR_REQUIRED','Google Programmable Search requires both the API key and Search Engine ID (cx).');const encrypted=Object.keys(keys).length?encryptProviderKeys(keys):'';if(isDb()){await User.updateOne({_id:req.user.id},{$set:{providerCredentialsEncrypted:encrypted}});}else{const user=memory.users.get(req.user.id);if(!user)return sendError(res,401,'SESSION_EXPIRED','Please sign in again.');user.providerCredentialsEncrypted=encrypted;memory.users.set(req.user.id,user);}const catalog=getProviderCatalog(keys);res.json({data:{configured:providerKeyNames.filter(k=>Boolean(keys[k]||process.env[k])),userConfigured:providerKeyNames.filter(k=>Boolean(keys[k])),providers:catalog.filter(p=>p.configured||p.access==='public')},message:'Search provider settings saved securely.'}});}));
 app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
@@ -338,7 +347,8 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
     return hits*4+titleHits*5+queryHits*3+Math.min((item.matchedQueries||[]).length,5)*2+freshness;
   };
   const stored=indexed.map(item=>({title:item.title,url:item.url,excerpt:item.excerpt||'',publisher:item.publisher||'Saved source',retrievedAt:item.retrievedAt||item.createdAt||new Date().toISOString(),publishedAt:item.publishedAt||null,sourceType:item.sourceType||'web',provider:'ADVERSE Index',verificationStatus:item.verificationStatus||'unverified',investigationId:String(item.investigationId),rank:rank(item),indexed:true,matchedQueries:[q]}));
-  const live=await searchAllPublic(q).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
+  const providerKeys=await getUserProviderKeys(req.user.id);
+  const live=await searchAllPublic(q,providerKeys).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
   const liveResults=Array.isArray(live.results)?live.results:[];
   const seen=new Set(stored.map(item=>String(item.url||'').toLowerCase()));
   const merged=[...stored,...liveResults.filter(item=>{const key=String(item.url||'').toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).map(item=>({...item,rank:rank(item),indexed:false}))];
