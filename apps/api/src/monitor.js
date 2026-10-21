@@ -1,5 +1,5 @@
 import { Watch, Alert } from './models.js';
-import { waybackCaptures } from './providers.js';
+import { waybackCaptures, compareArchivedText, validatePublicUrl } from './providers.js';
 
 let running = false;
 
@@ -10,6 +10,48 @@ export function hasMaterialArchiveChange(watch, latest) {
   const previousDigest=String(watch?.lastCaptureDigest||'');
   const nextDigest=String(latest?.digest||'');
   return previousDigest&&nextDigest ? previousDigest!==nextDigest : true;
+}
+
+async function fetchArchivedText(url, timestamp) {
+  const target = validatePublicUrl(url);
+  if (!/^\\d{14}$/.test(String(timestamp || ''))) throw new Error('Invalid archive timestamp.');
+  const snapshot = new URL('https://web.archive.org/web/' + timestamp + 'id_/' + target.href);
+  const response = await fetch(snapshot, {
+    redirect: 'manual',
+    signal: AbortSignal.timeout(12000),
+    headers: { 'user-agent': 'ADVERSE-Research/0.1 (bounded archive comparison)', accept: 'text/html,text/plain;q=0.9' }
+  });
+  if (response.status >= 300 && response.status < 400) throw new Error('Archive snapshot redirected; text comparison skipped.');
+  if (!response.ok) throw new Error('Archive snapshot returned HTTP ' + response.status + '.');
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('text/html') && !contentType.includes('text/plain')) throw new Error('Archive snapshot is not text content.');
+  const reader = response.body?.getReader();
+  if (!reader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text) > 1000000) throw new Error('Archive snapshot exceeds the 1 MB limit.');
+    return text;
+  }
+  let bytes = 0;
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 1000000) {
+      await reader.cancel();
+      throw new Error('Archive snapshot exceeds the 1 MB limit.');
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
+export async function compareArchiveSnapshots(url, from, to) {
+  const [before, after] = await Promise.all([
+    fetchArchivedText(url, from),
+    fetchArchivedText(url, to)
+  ]);
+  return compareArchivedText(before, after);
 }
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -97,13 +139,28 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
         const shouldAlert = hasMaterialArchiveChange(watch, latest);
         if (shouldAlert) {
           const hasFingerprint = Boolean(latest?.digest && watch.lastCaptureDigest);
+          let diffSummary = '';
+          if (watch.lastCaptureTimestamp && latestTimestamp > String(watch.lastCaptureTimestamp)) {
+            try {
+              const diff = await compareArchiveSnapshots(watch.url, String(watch.lastCaptureTimestamp), latestTimestamp);
+              diffSummary = ' Heuristic archived-text comparison found ' + diff.added.length + ' added and ' + diff.removed.length + ' removed sentences';
+              const examples = [
+                ...diff.added.slice(0, 2).map(text => 'Added: ' + text),
+                ...diff.removed.slice(0, 2).map(text => 'Removed: ' + text)
+              ];
+              if (examples.length) diffSummary += '. Examples: ' + examples.join(' | ');
+              diffSummary += '. Extraction differences may create noise; review both original captures before drawing conclusions.';
+            } catch (error) {
+              diffSummary = ' Full text comparison was unavailable (' + String(error?.message || 'archive comparison failed').slice(0, 120) + '); compare the archived captures manually.';
+            }
+          }
           const alert = await Alert.create({
             investigationId: watch.investigationId,
             watchId: String(watch._id),
             title: hasFingerprint ? 'Archive content fingerprint changed' : 'New archive capture detected',
-            message: hasFingerprint
-              ? 'A newer Internet Archive capture has a different archive digest from the last recorded observation. Compare the archived versions; digest differences do not establish why a change occurred.'
-              : 'The Internet Archive returned a newer capture, but a comparable digest was unavailable. Review the archived source before drawing conclusions.',
+            message: (hasFingerprint
+              ? 'A newer Internet Archive capture has a different archive digest from the last recorded observation.'
+              : 'The Internet Archive returned a newer capture, but a comparable digest was unavailable.') + diffSummary + ' A capture difference does not establish why a page changed or imply wrongdoing.',
             url: watch.url,
             captureTimestamp: latestTimestamp,
             observedAt: now,
