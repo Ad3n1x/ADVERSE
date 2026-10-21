@@ -114,7 +114,7 @@ Search providers include the saved ADVERSE evidence index, Wikipedia, Crossref, 
 
 ### Render API
 
-The repository includes a Render Blueprint at `render.yaml`. Configure `MONGODB_URI` and `WEB_ORIGIN` in the Render environment settings. The Blueprint generates a `JWT_SECRET`. Set `WEB_ORIGIN` to the deployed frontend origin. Health check: `/api/v1/health`.
+The repository includes a Render Blueprint at `render.yaml`. Configure `MONGODB_URI` and `WEB_ORIGIN` in the Render environment settings. The Blueprint generates a `JWT_SECRET`. Set `WEB_ORIGIN` to the deployed frontend origin. Liveness check: `/api/v1/health`. Readiness/Render health check: `/api/v1/ready`.
 
 ### Vercel frontend
 
@@ -127,6 +127,13 @@ Never commit real credentials. Keep MongoDB and provider tokens on the API servi
 ## Requirements audit
 
 See [`docs/FEATURE_AUDIT.md`](docs/FEATURE_AUDIT.md) for the requirement-by-requirement status, evidence, and remaining verification work. Status labels distinguish implemented behavior from partial, provider-dependent, and unverified requirements.
+
+## Production operations and release status
+
+- [`docs/RELEASE-READINESS.md`](docs/RELEASE-READINESS.md): current verified release posture and outstanding release gates.
+- [`docs/OPERATIONS.md`](docs/OPERATIONS.md): deployment checks, monitoring triage, and MongoDB backup/restore runbook.
+
+ADVERSE is currently a deployed beta. Passing CI and a live deployment do not prove that database backups have been restored successfully or that an independent security review has been completed.
 
 ## Evidence principles
 
