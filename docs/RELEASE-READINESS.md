@@ -1,54 +1,67 @@
 # ADVERSE release readiness record
 
-**Release posture:** GPT-6-assisted engineering; independent certification not claimed.
+**Release posture:** Deployed beta; core CI and live smoke checks pass. A broad public launch is not yet independently cleared.
 
 **Repository:** https://github.com/Ad3n1x/ADVERSE  
 **Production web:** https://adverse-web.onrender.com/  
 **Production API:** https://adverse-api-7yim.onrender.com/  
 **Record updated:** 2026-10-21
 
-**Last fully verified CI commit:** `875c5fac409900d220334bf60d7c893d81b9941c`  
-**CI run:** [Run 39671349745 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671349745)  
-**Current main commit:** `d7f02b7c4df4f0c6a49500b63f5f9d41e70bd3ee` (discovery workflow updated; latest CI/discovery run pending)
+**Verified main commit:** `e3159d5478c8c39b7cf7f49d1b26b0e84da33796`  
+**CI run:** [Run 39673616692 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616692)  
+**Render health-check workflow:** [Run 39673616808 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808)  
+**Live API deployment:** `dep-dbcict7b9u1s73bnl3m0` — Render reported status `live`.  
+**Live health-check path:** `/api/v1/ready`, confirmed in Render service configuration.
 
 ## What this record means
 
 GPT-6 assistance may have been used to inspect, change, and document this codebase. This is not an OpenAI-issued certificate, endorsement, security audit, or guarantee of correctness. OpenAI has not reviewed or certified ADVERSE through this document.
 
-## Implemented safeguards and engineering work
+## Verified now
 
-- API readiness and liveness endpoints with reduced public configuration disclosure.
-- Production API startup runs JavaScript syntax checks before starting.
-- Private research endpoints and internal scheduled tasks have authentication protections with regression-test coverage in the repository.
-- Public URL verification includes private and special-use IP checks, DNS resolution checks, redirect refusal, bounded response reading, and timeouts. DNS rebinding and provider-specific edge cases remain residual risks; do not treat URL reachability as proof of safety or truth.
-- GitHub Actions CI is configured to run API syntax/regression tests, frontend type-check/build, and Playwright browser smoke tests.
-- A security reporting and responsible-use policy is documented in `SECURITY.md`.
-- Scheduled monitoring is configured in `.github/workflows/monitoring-schedule.yml`; actual operation depends on repository secrets, Render configuration, MongoDB availability, and successful scheduled-run results.
+- API syntax checks and regression tests passed in the current-main CI run.
+- Frontend type-check and production build passed in the current-main CI run.
+- Playwright browser smoke tests passed in the current-main CI run.
+- Live API liveness, readiness, and public-search response-contract checks passed in the current-main CI run.
+- Render service configuration now reports `healthCheckPath: /api/v1/ready`; the configuration workflow verified the saved value and the resulting Render deployment is live.
+- Render application logs show successful MongoDB connection and a completed automated discovery cycle that processed two jobs, saved 12 results, and recorded zero provider failures in that cycle.
+- Scheduled archive and cyber-monitoring jobs both passed in [run 39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
+- Automated discovery workflow succeeded in [run 39671815718](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
 
-## Release gates — evidence must be current
+## Release gates
 
-| Gate | Evidence required | Status in this record |
+| Gate | Status | Remaining work |
 |---|---|---|
-| API deploy | Render shows the target commit live and startup logs are healthy | A successful Render API deployment and MongoDB connection were observed on 2026-10-21 |
-| CI API checks | Latest main-branch GitHub Actions API job passes | **Passed** on commit `875c5fa`; run 39671349745. Current main commit awaits CI. |
-| Frontend build | Type-check and production build pass | **Passed** on commit `875c5fa`; current main commit awaits CI. |
-| Browser smoke tests | Playwright run passes against the real frontend entry page | **Last passed** on commit `8a40f2d`; current main commit awaits CI. |
-| Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | **Health, readiness, and public-search response contract passed** in run 39671349745. Current main commit awaits CI. |
-| Health-check configuration | Render service dashboard health path matches `/api/v1/ready` | Repository declares it; live Render service setting was observed empty |
-| Scheduled monitoring | Recent successful archive and cyber-monitoring scheduled jobs, with no secrets exposed | **Passed** for both archive and cyber-monitoring jobs in scheduled run [39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314). Automated discovery had older failures caused by a missing API URL in the workflow version used by those runs; the current workflow now specifies the production API URL, and its next scheduled run must be confirmed. |
-| Privacy/authorization | Tests demonstrate cross-account access is denied for each private resource family | Needs ongoing review and complete regression coverage |
-| Operational resilience | Rate limits, provider failures, database outages, alert delivery, and recovery tested | Partial controls/tests exist; full failure/recovery exercise remains outstanding. |
-| Database backups and restore | Automated backups enabled and a restore drill completed | Not verified; confirm MongoDB backup policy and test restoring a backup before relying on user data. |\n| Environment configuration | Production `WEB_ORIGIN`, `JWT_SECRET`, `MONGODB_URI`, and all required scheduler secrets are present and correctly scoped | Presence of all values is not independently verified here; never share the values themselves. |\n| Independent security review | External reviewer documents findings and remediation | Not performed |
+| API deployment and health check | **Passed** | Continue monitoring live deployment events and readiness. |
+| API tests, frontend build, browser smoke tests | **Passed** on the commit linked above | Require green CI for each subsequent change. |
+| Live public-search contract | **Passed** | Expand ongoing representative-query and result-quality checks. |
+| MongoDB connectivity | **Observed working** in production logs | Confirm provider backup policy and access/recovery ownership. |
+| Scheduled monitoring | **Recent successful evidence** exists for archive and cyber-monitoring | Keep checking later scheduled runs; a single run is not a reliability guarantee. |
+| Automated discovery | **Successful run observed** | Verify recurrence and result quality over time. |
+| Database backup and restore | **Not verified** | Enable/confirm automated backups at the actual MongoDB provider and perform a restore drill. No backup should be claimed until tested. |
+| Privacy and authorization | **Partially covered by automated tests** | Complete cross-account/ownership testing for all private resource families. |
+| Operational resilience | **Partial** | Exercise provider outage, database outage, rate-limit, email-alert, and recovery scenarios. |
+| Production secrets | **Partially evidenced** | Successful protected scheduled jobs prove their required secrets were available for that run; not every production secret/value has been independently audited. Never publish secret values. |
+| Independent security review | **Not performed** | Have an independent reviewer assess the deployed application before claiming security certification or broad launch readiness. |
 
-## How to make a release claim
+## Known security boundaries
 
-Only mark a gate passed when the linked CI run, deployment record, or test evidence proves it. Record the exact commit SHA and timestamp with each release. Do not advertise ADVERSE as “GPT-6 certified” or “OpenAI certified.” An accurate description is **“Built with GPT-6 assistance; verification evidence published in the repository.”**
+- Public URL checks use private/special-use IP protections, DNS resolution checks, redirect refusal, bounded response reads, and timeouts. DNS rebinding and provider-specific edge cases remain residual risks.
+- A reachable URL is not proof that a site is safe, genuine, or trustworthy. The interface should present verification as evidence signals, not a guarantee.
+- Keep API keys, scheduler secrets, database credentials, session secrets, and email credentials in deployment secret stores.
+- Only monitor websites and systems that the user owns or is explicitly authorized to monitor.
 
-## Reproducible verification
+## Release decision
 
-1. The [last fully verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671349745) passed API syntax/regression tests, frontend typecheck/build, Playwright browser smoke tests, and live API health, readiness, and public-search contract checks for commit `875c5fac409900d220334bf60d7c893d81b9941c`.
-2. The current main commit `d7f02b7c4df4f0c6a49500b63f5f9d41e70bd3ee` updates the automated-discovery workflow to report the HTTP result. Verify its triggered workflow and CI runs before treating this change as validated.
-3. Inspect [Render API service settings](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0) and configure the health-check path as `/api/v1/ready`. The latest Render service details still reported this field as empty, so this is not marked complete.
-4. Confirm the live API is connected to persistent MongoDB and test public search from the deployed website.
-5. Review the [scheduled monitoring run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314) and the next [automated discovery run](https://github.com/Ad3n1x/ADVERSE/actions). Confirm scheduler secrets match the Render service values. Never publish secret values.
-6. Run an independent security review before making a security-certification claim.
+**Current recommendation: deployed beta / controlled public testing.** The core engineering and smoke checks pass, but full production readiness is not established until backup restoration, broader authorization and resilience tests, and independent security review are completed.
+
+Do not advertise ADVERSE as “GPT-6 certified” or “OpenAI certified.” An accurate description is **“Built with GPT-6 assistance; verification evidence published in the repository.”**
+
+## Reproducible evidence
+
+1. [Current-main CI](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616692) — API tests, frontend build, browser smoke tests, and live API checks.
+2. [Render health-check configuration workflow](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808) — updates and verifies the live service path.
+3. [Scheduled archive and cyber-monitoring run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
+4. [Automated discovery run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
+5. [Render API service](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0).
+6. Operational recovery guidance: [docs/OPERATIONS.md](OPERATIONS.md).
