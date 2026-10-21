@@ -19,10 +19,12 @@ services:
         sync: false
       - key: CYBER_MONITORING_CRON_SECRET
         sync: false
-      - key: RESEND_API_KEY
+      - key: BREVO_API_KEY
         sync: false
-      - key: RESEND_FROM_EMAIL
-        sync: false
+      - key: BREVO_FROM_EMAIL
+        value: adenix271@gmail.com
+      - key: BREVO_FROM_NAME
+        value: ADVERSE
 
   - type: cron
     name: adverse-cyber-monitoring
