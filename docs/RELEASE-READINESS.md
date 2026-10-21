@@ -7,9 +7,9 @@
 **Production API:** https://adverse-api-7yim.onrender.com/  
 **Record updated:** 2026-10-21
 
-**Last fully verified CI commit:** `8a40f2db2e6442e073f7f3ca21ffdea9220a9fcc`  
-**CI run:** [Run 39670739177 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670739177)  
-**Current main commit:** `777be681c8718ead445153a98effd61d3030bd2d` (adds live public-search contract check; verification pending)
+**Last fully verified CI commit:** `875c5fac409900d220334bf60d7c893d81b9941c`  
+**CI run:** [Run 39671349745 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671349745)  
+**Current main commit:** `d7f02b7c4df4f0c6a49500b63f5f9d41e70bd3ee` (discovery workflow updated; latest CI/discovery run pending)
 
 ## What this record means
 
@@ -30,10 +30,10 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 | Gate | Evidence required | Status in this record |
 |---|---|---|
 | API deploy | Render shows the target commit live and startup logs are healthy | A successful Render API deployment and MongoDB connection were observed on 2026-10-21 |
-| CI API checks | Latest main-branch GitHub Actions API job passes | **Last passed** on commit `8a40f2d`; run 39670739177. Current main commit awaits CI. |
-| Frontend build | Type-check and production build pass | **Last passed** on commit `8a40f2d`; current main commit awaits CI. |
+| CI API checks | Latest main-branch GitHub Actions API job passes | **Passed** on commit `875c5fa`; run 39671349745. Current main commit awaits CI. |
+| Frontend build | Type-check and production build pass | **Passed** on commit `875c5fa`; current main commit awaits CI. |
 | Browser smoke tests | Playwright run passes against the real frontend entry page | **Last passed** on commit `8a40f2d`; current main commit awaits CI. |
-| Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | **Health and readiness passed** in run 39670739177. New public-search contract check was added on current commit and awaits CI. |
+| Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | **Health, readiness, and public-search response contract passed** in run 39671349745. Current main commit awaits CI. |
 | Health-check configuration | Render service dashboard health path matches `/api/v1/ready` | Repository declares it; live Render service setting was observed empty |
 | Scheduled monitoring | Recent successful archive and cyber-monitoring scheduled jobs, with no secrets exposed | **Passed** for both archive and cyber-monitoring jobs in scheduled run [39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314). Automated discovery had older failures caused by a missing API URL in the workflow version used by those runs; the current workflow now specifies the production API URL, and its next scheduled run must be confirmed. |
 | Privacy/authorization | Tests demonstrate cross-account access is denied for each private resource family | Needs ongoing review and complete regression coverage |
@@ -46,8 +46,8 @@ Only mark a gate passed when the linked CI run, deployment record, or test evide
 
 ## Reproducible verification
 
-1. The [last fully verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39670739177) passed API syntax/regression tests, frontend typecheck/build, Playwright browser smoke tests, and live API health/readiness checks for commit `8a40f2db2e6442e073f7f3ca21ffdea9220a9fcc`.
-2. The current main commit `777be681c8718ead445153a98effd61d3030bd2d` adds a live public-search response-contract check. Do not call that change verified until its CI run passes.
+1. The [last fully verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671349745) passed API syntax/regression tests, frontend typecheck/build, Playwright browser smoke tests, and live API health, readiness, and public-search contract checks for commit `875c5fac409900d220334bf60d7c893d81b9941c`.
+2. The current main commit `d7f02b7c4df4f0c6a49500b63f5f9d41e70bd3ee` updates the automated-discovery workflow to report the HTTP result. Verify its triggered workflow and CI runs before treating this change as validated.
 3. Inspect [Render API service settings](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0) and configure the health-check path as `/api/v1/ready`. The latest Render service details still reported this field as empty, so this is not marked complete.
 4. Confirm the live API is connected to persistent MongoDB and test public search from the deployed website.
 5. Review the [scheduled monitoring run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314) and the next [automated discovery run](https://github.com/Ad3n1x/ADVERSE/actions). Confirm scheduler secrets match the Render service values. Never publish secret values.
