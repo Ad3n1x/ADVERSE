@@ -4,7 +4,16 @@
 
 ADVERSE is a public-first search product that helps people find useful webpages, official resources, tools, guides, and answers faster. It searches available public sources, deduplicates results, and checks a selection of destinations for readable public-page access. Reachability is not a guarantee that content is true, safe, current, or endorsed. The private research workspace remains available for users who want to save and analyze sources.
 
-## Public search experience\n\n- Public search without an account through `/api/v1/public-search`.\n- Federated search across configured and keyless public providers; coverage is bounded and is not the entire web.\n- Duplicate URL removal and a limited live accessibility check for selected result links.\n- Clear status for reachable, unconfirmed, and unchecked links. Redirects, bot restrictions, and transient outages can prevent confirmation without proving a URL is fake.\n- No invented URLs or false claims of verification; the interface explains what each check does and does not establish.\n- Existing private research tools remain behind authentication.\n\n## Existing private research workspace
+## Public search experience
+
+- Public search without an account through `/api/v1/public-search`.
+- Federated search across configured and keyless public providers; coverage is bounded and is not the entire web.
+- Duplicate URL removal and a limited live accessibility check for selected result links.
+- Clear status for reachable, unconfirmed, and unchecked links. Redirects, bot restrictions, and transient outages can prevent confirmation without proving a URL is fake.
+- No invented URLs or false claims of verification; the interface explains what each check does and does not establish.
+- Existing private research tools remain behind authentication.
+
+## Existing private research workspace
 
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
@@ -126,5 +135,5 @@ See [`docs/FEATURE_AUDIT.md`](docs/FEATURE_AUDIT.md) for the requirement-by-requ
 ### Password recovery
 
 - The sign-in screen includes a Forgot password flow. Reset tokens are generated with cryptographic randomness, stored only as SHA-256 hashes, expire after 30 minutes, and are consumed once. Reset requests use a generic response to avoid revealing whether an email address has an account.
-- Configure `BREVO_API_KEY` on the Render API service. `BREVO_FROM_EMAIL` defaults to the verified `adenix271@gmail.com` sender and `BREVO_FROM_NAME` defaults to `ADVERSE`; the sender must remain active in Brevo. Set `WEB_ORIGIN` to the exact HTTPS origin of the deployed frontend so reset links return to ADVERSE. Never expose the Resend key in frontend variables or source control.
+- Configure `BREVO_API_KEY` on the Render API service. `BREVO_FROM_EMAIL` defaults to the verified `adenix271@gmail.com` sender and `BREVO_FROM_NAME` defaults to `ADVERSE`; the sender must remain active in Brevo. Set `WEB_ORIGIN` to the exact HTTPS origin of the deployed frontend so reset links return to ADVERSE. Never expose the Brevo API key in frontend variables or source control.
 - Without a valid Brevo API key and active sender, the UI still returns the generic response but no email is delivered; check server logs for the `password_reset_delivery_failed` event and configure the sender before relying on recovery in production.
