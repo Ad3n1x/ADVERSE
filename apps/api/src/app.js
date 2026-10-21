@@ -6,7 +6,7 @@ import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
-import { searchAllPublic, rankPublicResults } from './global-search.js';
+import { searchAllPublic, rankPublicResults, diversifyPublicResults, normalizeResultUrl } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
 import { getProviderCatalog } from './provider-adapters.js';
 import { runMonitoringCycle } from './monitor.js';
@@ -304,10 +304,10 @@ app.get('/api/v1/public-search',optionalAuth,limitProvider,wrap(async(req,res)=>
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
   const providerKeys=req.user?await getUserProviderKeys(req.user.id):{};
   const live=await searchAllPublic(q,providerKeys).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
-  const ranked=rankPublicResults(Array.isArray(live.results)?live.results:[],q);
-  const candidates=ranked.slice(0,30).map(({_searchScore,_searchOrder,...item})=>item);
+  const ranked=diversifyPublicResults(Array.isArray(live.results)?live.results:[],q,{limit:30,maxPerDomain:3});
+  const candidates=ranked.map(({_searchScore,_searchOrder,...item})=>item);
   const unique=[];const seen=new Set();
-  for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const key=parsed.href.toLowerCase();if(seen.has(key))continue;seen.add(key);unique.push({...item,url:parsed.href,linkSignals:inspectPublicLink(parsed.href)});}catch{}}
+  for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const canonical=normalizeResultUrl(parsed.href);const key=canonical;if(seen.has(key))continue;seen.add(key);unique.push({...item,url:canonical,linkSignals:inspectPublicLink(canonical)});}catch{}}
   const checked=await Promise.all(unique.slice(0,8).map(async item=>{
     const checkedAt=new Date().toISOString();
     try{await scrapePublicPage(item.url);return {...item,linkCheck:{status:'reachable',checkedAt,note:'The public page responded with readable text during this check. This does not verify every claim on the page.'}};}
