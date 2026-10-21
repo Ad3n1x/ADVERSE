@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import crypto from 'node:crypto';
 import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
-import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert } from './models.js';
+import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
 import { searchAllPublic } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
@@ -286,12 +286,82 @@ app.get('/api/v1/investigations/:id/timeline',wrap(async(req,res)=>{if(!await ex
 app.get('/api/v1/investigations/:id/history/graph',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const raw=String(req.query.asOf||'');const asOf=raw?new Date(raw):new Date();if(!Number.isFinite(asOf.getTime()))return sendError(res,400,'INVALID_DATE','Provide a valid asOf date.');const [allEvidence,allEntities,allRelationships]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid)]);const knownAt=e=>{const t=e.retrievedAt||e.createdAt;return t&&new Date(t)<=asOf;};const evidence=allEvidence.filter(knownAt);const evidenceIds=new Set(evidence.map(e=>String(e.id||e._id)));const entities=allEntities.filter(e=>{const created=e.createdAt?new Date(e.createdAt):null;if(created&&created>asOf)return false;return !(e.evidenceIds||[]).length||(e.evidenceIds||[]).some(id=>evidenceIds.has(String(id)));});const entityIds=new Set(entities.map(e=>String(e.id||e._id)));const relationships=allRelationships.filter(r=>entityIds.has(String(r.fromEntityId))&&entityIds.has(String(r.toEntityId))&&(r.evidenceIds||[]).some(id=>evidenceIds.has(String(id))));res.json({data:{asOf:asOf.toISOString(),evidence,entities,relationships},meta:{mode:'known-by-date reconstruction',note:'This view shows records retrievable by the selected date, not proof that a relationship or event objectively existed at that time. Evidence retrieval dates are used; unknown dates are excluded.'}}); }));
 app.get('/api/v1/investigations/:id/export',wrap(async(req,res)=>{const iid=req.params.id;const investigation=await investigationGet(iid,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');const [evidence,entities,relationships]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid)]);const report={product:'ADVERSE',generatedAt:new Date().toISOString(),investigation,summary:{evidenceCount:evidence.length,entityCount:entities.length,relationshipCount:relationships.length},findings:[],evidence,entities,relationships,limitations:['This export includes stored records only. It does not imply independent verification.','Source dates and retrieval dates are preserved separately.']};const format=String(req.query.format||'json');if(format==='pdf'){const pdf=createReportPdf(report);res.type('application/pdf').attachment('adverse-investigation-report.pdf');return res.send(pdf);}if(format==='csv'){res.type('text/csv').attachment('adverse-evidence.csv');const rows=[['title','url','sourceType','publisher','publishedAt','retrievedAt','verificationStatus','excerpt'],...evidence.map(e=>[e.title,e.url,e.sourceType,e.publisher,e.publishedAt||'',e.retrievedAt||'',e.verificationStatus,e.excerpt])];return res.send(rows.map(row=>row.map(csvCell).join(',')).join('\r\n'));}res.type('application/json').attachment('adverse-investigation.json').send(JSON.stringify(report,null,2));}));
 
+
+const cyberAssetSchema=z.object({url:z.string().url().max(2048),label:z.string().trim().max(160).default(''),intervalHours:z.union([z.literal(1),z.literal(6),z.literal(12),z.literal(24)]).default(6),authorized:z.literal(true)});
+async function runCyberAssetCheck(asset) {
+ const now=new Date(),nextCheckAt=new Date(now.getTime()+Number(asset.intervalHours||6)*3600000),db=isDb();
+ const assetId=String(asset.id||asset._id);
+ const saveAsset=async update=>db?CyberAsset.findByIdAndUpdate(asset._id,{$set:update},{new:true}).lean():Object.assign(memory.cyberAssets.get(assetId),update);
+ const recordEvent=async event=>db?CyberEvent.create(event).then(x=>x.toObject()):(()=>{const x={id:id(),...event,createdAt:now,updatedAt:now};memory.cyberEvents.set(x.id,x);return x;})();
+ try{
+  const parsed=validatePublicUrl(asset.url);
+  const [dns,page]=await Promise.all([publicDns(parsed.href),scrapePublicPage(parsed.href)]);
+  const dnsFingerprint=crypto.createHash('sha256').update(JSON.stringify(dns.records)).digest('hex');
+  const certificateFingerprint=crypto.createHash('sha256').update(JSON.stringify((dns.certificateTransparency?.records||[]).map(x=>({id:x.id,names:x.names,notAfter:x.notAfter,issuer:x.issuer})))).digest('hex');
+  const previousHash=String(asset.lastSnapshotHash||''),previousDns=String(asset.lastDnsFingerprint||''),previousCert=String(asset.lastCertificateFingerprint||''),previousStatus=asset.lastHttpStatus==null?null:Number(asset.lastHttpStatus),currentStatus=Number(page.httpStatus||200);
+  const events=[];
+  if(!previousHash&&!previousDns)events.push({type:'baseline',severity:'info',title:'Initial baseline recorded',message:'Initial public page snapshot, DNS records, and available certificate-transparency observations were recorded. This baseline is not a security verdict.',details:{httpStatus:currentStatus,contentHash:page.contentHash,dnsFingerprint,certificateFingerprint}});
+  else{
+   if(previousStatus!==null&&previousStatus!==currentStatus)events.push({type:'availability',severity:currentStatus>=400?'medium':'low',title:'HTTP status changed',message:'Observed HTTP response changed from '+previousStatus+' to '+currentStatus+'. Recheck before interpreting this as an outage or incident.',details:{before:previousStatus,after:currentStatus}});
+   if(previousHash&&previousHash!==page.contentHash)events.push({type:'content-change',severity:'medium',title:'Public page content changed',message:'The fetched response hash changed. This does not establish whether the change is malicious or meaningful.',details:{before:previousHash,after:page.contentHash}});
+   if(previousDns&&previousDns!==dnsFingerprint)events.push({type:'dns-change',severity:'medium',title:'Public DNS records changed',message:'The observed DNS record set changed. DNS changes do not establish ownership, intent, or compromise.',details:{before:previousDns,after:dnsFingerprint,records:dns.records}});
+   if(previousCert&&previousCert!==certificateFingerprint)events.push({type:'certificate-observation',severity:'low',title:'Certificate Transparency observations changed',message:'The public certificate-log result set changed. New log entries do not prove misuse or a current TLS failure.',details:{before:previousCert,after:certificateFingerprint}});
+  }
+  for(const event of events)await recordEvent({investigationId:asset.investigationId,assetId,url:parsed.href,observedAt:now,...event});
+  const updated=await saveAsset({url:parsed.href,hostname:parsed.hostname,lastCheckedAt:now,nextCheckAt,lastSnapshotHash:page.contentHash||'',lastDnsFingerprint:dnsFingerprint,lastCertificateFingerprint:certificateFingerprint,lastHttpStatus:currentStatus,lastError:''});
+  return {asset:updated,observation:{checkedAt:now.toISOString(),url:parsed.href,hostname:parsed.hostname,httpStatus:currentStatus,title:page.title,contentHash:page.contentHash,dns,capturedMethod:page.method,events,notice:'Public observations only; not packet capture, endpoint surveillance, or proof of compromise.'}};
+ }catch(error){
+  const message=String(error?.message||'Monitoring check failed').slice(0,500);
+  await saveAsset({lastCheckedAt:now,nextCheckAt,lastError:message});
+  const event=await recordEvent({investigationId:asset.investigationId,assetId,url:asset.url,observedAt:now,type:'check-failed',severity:'low',title:'Check could not be completed',message:'The public monitoring check failed: '+message+'. A failed check is not proof of an incident.'});
+  return {asset:{...asset,lastCheckedAt:now,nextCheckAt,lastError:message},observation:{checkedAt:now.toISOString(),url:asset.url,error:message,events:[event],notice:'Check failure is not proof of an incident.'}};
+ }
+}
+
 const watchSchema=z.object({url:z.string().url().max(2048),label:z.string().trim().max(160).default(''),intervalHours:z.union([z.literal(6),z.literal(12),z.literal(24)]).default(24)});
 app.get('/api/v1/investigations/:id/monitoring',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const watches=await listFor(Watch,'watches',iid);const alerts=isDb()?await Alert.find({investigationId:iid}).sort({observedAt:-1}).limit(50).lean():[...memory.alerts.values()].filter(x=>x.investigationId===iid).sort((a,b)=>new Date(b.observedAt)-new Date(a.observedAt)).slice(0,50);res.json({data:{watches:watches.map(x=>({...x,id:String(x.id||x._id)})),alerts:alerts.map(x=>({...x,id:String(x.id||x._id)})),meta:{scheduler:isDb()?'database-backed process worker':'monitoring requires MongoDB in production',scope:'Internet Archive CDX capture checks only; this is not a live-page change detector.'}}});}));
 app.post('/api/v1/investigations/:id/monitoring',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=watchSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Provide a public URL and an interval of 6, 12 or 24 hours.',p.error.flatten());let url;try{url=validatePublicUrl(p.data.url).href;}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const existing=await listFor(Watch,'watches',iid);if(existing.length>=20)return sendError(res,409,'WATCH_LIMIT','An investigation can have at most 20 monitoring rules.');if(existing.some(x=>x.url===url&&x.enabled))return sendError(res,409,'WATCH_EXISTS','This URL is already being monitored.');const record={id:id(),investigationId:iid,url,label:p.data.label||new URL(url).hostname,intervalHours:p.data.intervalHours,enabled:true,lastCaptureTimestamp:'',lastCheckedAt:null,nextCheckAt:new Date(),lastError:'',createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Watch,'watches',record);res.status(201).json({data:{...data,id:String(data.id||data._id)},meta:{scheduler:'Checks run when the API worker is awake; free hosting may sleep.'}});}));
 app.post('/api/v1/monitoring/:id/check',requireAuth,wrap(async(req,res)=>{if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Archive checks require the production database.');const watch=await Watch.findById(req.params.id).lean();if(!watch||!await exists(watch.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Monitoring rule not found.');if(!watch.enabled)return sendError(res,409,'WATCH_DISABLED','Enable this monitoring rule before checking it.');await Watch.updateOne({_id:watch._id},{$set:{nextCheckAt:new Date()}});const result=await runMonitoringCycle({watchId:String(watch._id)});res.status(result.skipped?202:200).json({data:{...result,message:result.skipped?'A monitoring cycle is already running; this rule is queued for the next cycle.':'Archive check completed. Review the alert list and email delivery status.'}});}));
 app.delete('/api/v1/monitoring/:id',requireAuth,wrap(async(req,res)=>{const watch=isDb()?await Watch.findById(req.params.id).lean():memory.watches.get(req.params.id);if(!watch||!await exists(watch.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Monitoring rule not found.');if(isDb()){await Watch.deleteOne({_id:req.params.id});await Alert.deleteMany({watchId:req.params.id});}else{memory.watches.delete(req.params.id);for(const [k,v] of memory.alerts)if(v.watchId===req.params.id)memory.alerts.delete(k);}res.status(204).end();}));
 app.post('/api/v1/alerts/:id/acknowledge',requireAuth,wrap(async(req,res)=>{const alert=isDb()?await Alert.findById(req.params.id).lean():memory.alerts.get(req.params.id);if(!alert||!await exists(alert.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Alert not found.');const acknowledgedAt=new Date();if(isDb())await Alert.updateOne({_id:req.params.id},{$set:{acknowledgedAt}});else memory.alerts.set(req.params.id,{...alert,acknowledgedAt});res.json({data:{id:req.params.id,acknowledgedAt}});}));
+
+
+app.get('/api/v1/investigations/:id/cyber-assets',requireAuth,wrap(async(req,res)=>{
+ const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
+ const assets=isDb()?await CyberAsset.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory.cyberAssets.values()].filter(x=>x.investigationId===iid);
+ const events=isDb()?await CyberEvent.find({investigationId:iid}).sort({observedAt:-1}).limit(100).lean():[...memory.cyberEvents.values()].filter(x=>x.investigationId===iid).sort((a,b)=>new Date(b.observedAt)-new Date(a.observedAt)).slice(0,100);
+ res.json({data:{assets:assets.map(x=>({...x,id:String(x.id||x._id)})),events:events.map(x=>({...x,id:String(x.id||x._id)})),meta:{scope:'Only explicitly authorized public HTTP(S) assets. Checks use public DNS, bounded page retrieval, and Certificate Transparency records; no packet capture or private-device monitoring.',persistence:isDb()?'mongodb':'ephemeral-memory',scheduler:'Recurring checks require a protected Render Cron service configured with CYBER_MONITORING_CRON_SECRET.'}}});
+}));
+app.post('/api/v1/investigations/:id/cyber-assets',requireAuth,wrap(async(req,res)=>{
+ const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
+ const p=cyberAssetSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Provide an HTTP(S) URL, interval, and confirm authorization.',p.error.flatten());
+ let parsed;try{parsed=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL','Only public HTTP(S) targets can be monitored.',{reason:e.message});}
+ const existing=isDb()?await CyberAsset.countDocuments({investigationId:iid}):[...memory.cyberAssets.values()].filter(x=>x.investigationId===iid).length;
+ if(existing>=25)return sendError(res,409,'ASSET_LIMIT','An investigation can monitor up to 25 authorized assets.');
+ const record={id:id(),investigationId:iid,url:parsed.href,hostname:parsed.hostname,label:p.data.label||parsed.hostname,authorizedByUser:true,intervalHours:p.data.intervalHours,enabled:true,lastCheckedAt:null,nextCheckAt:new Date(),lastSnapshotHash:'',lastDnsFingerprint:'',lastCertificateFingerprint:'',lastHttpStatus:null,lastError:'',createdAt:new Date(),updatedAt:new Date()};
+ let saved;if(isDb()){const doc=await CyberAsset.create(record);saved={...doc.toObject(),id:String(doc._id)};}else{memory.cyberAssets.set(record.id,record);saved=record;}
+ res.status(201).json({data:saved,meta:{notice:'Target registered with explicit authorization attestation. Registration is not evidence that the target is safe or compromised.'}});
+}));
+app.post('/api/v1/cyber-assets/:id/check',requireAuth,limitProvider,wrap(async(req,res)=>{
+ const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
+ if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Authorized monitoring asset not found.');
+ res.json({data:await runCyberAssetCheck(asset)});
+}));
+app.delete('/api/v1/cyber-assets/:id',requireAuth,wrap(async(req,res)=>{
+ const asset=isDb()?await CyberAsset.findById(req.params.id).lean():memory.cyberAssets.get(req.params.id);
+ if(!asset||!await exists(asset.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Authorized monitoring asset not found.');
+ if(isDb()){await CyberAsset.deleteOne({_id:req.params.id});await CyberEvent.deleteMany({assetId:req.params.id});}else{memory.cyberAssets.delete(req.params.id);for(const [k,v] of memory.cyberEvents)if(v.assetId===req.params.id)memory.cyberEvents.delete(k);}
+ res.status(204).end();
+}));
+app.post('/api/v1/internal/cyber-monitoring/run',wrap(async(req,res)=>{
+ const expected=String(process.env.CYBER_MONITORING_CRON_SECRET||''),supplied=String(req.get('x-cyber-monitoring-secret')||'');
+ if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Cyber-monitoring scheduler authentication is required.');
+ const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Cyber-monitoring scheduler authentication failed.');
+ if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled cyber monitoring requires MongoDB persistence.');
+ const due=await CyberAsset.find({enabled:true,nextCheckAt:{$lte:new Date()}}).sort({nextCheckAt:1}).limit(10).lean(),results=[];
+ for(const asset of due)results.push(await runCyberAssetCheck(asset));
+ res.json({data:{checked:results.length,results:results.map(x=>({assetId:String(x.asset?.id||x.asset?._id||''),events:x.observation?.events?.length||0,error:x.observation?.error||''}))}});
+}));
 
 app.use((req,res)=>sendError(res,404,'NOT_FOUND',`No route for ${req.method} ${req.path}`));
 app.use((err,_req,res,_next)=>{console.error('Request failed:',err?.message||'unknown error');res.status(500).json({error:{code:'INTERNAL_ERROR',message:'The request could not be completed.'}});});
