@@ -128,9 +128,14 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
   running = true;
   let checked = 0;
   let retriedEmails = 0;
+  let enabledWatches = 0;
+  let dueWatches = 0;
   try {
     retriedEmails = await retryPendingEmails();
-    const query = watchId ? { _id: watchId, enabled: true } : { enabled: true, nextCheckAt: { $lte: new Date() } };
+    const now = new Date();
+    enabledWatches = await Watch.countDocuments({ enabled: true });
+    const query = watchId ? { _id: watchId, enabled: true } : { enabled: true, nextCheckAt: { $lte: now } };
+    dueWatches = await Watch.countDocuments(query);
     const due = await Watch.find(query).sort({ nextCheckAt: 1 }).limit(watchId ? 1 : 5).lean();
     for (const watch of due) {
       const now = new Date();
@@ -188,7 +193,7 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
       }
       checked += 1;
     }
-    return { checked, retriedEmails, skipped: false };
+    return { checked, retriedEmails, enabledWatches, dueWatches, skipped: false };
   } finally {
     running = false;
   }
