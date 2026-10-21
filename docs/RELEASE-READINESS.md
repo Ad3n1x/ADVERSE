@@ -30,6 +30,11 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 - Scheduled archive and cyber-monitoring jobs both passed in [run 39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
 - Automated discovery workflow succeeded in [run 39671815718](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
 
+## Additional automation added
+
+- Hourly public production monitor: [production-monitor.yml](https://github.com/Ad3n1x/ADVERSE/blob/main/.github/workflows/production-monitor.yml) checks the web page, API liveness/readiness, and the public search response contract.
+- Opt-in encrypted MongoDB backup: [database-backup.yml](https://github.com/Ad3n1x/ADVERSE/blob/main/.github/workflows/database-backup.yml). It requires the repository owner to configure `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_PASSPHRASE`, and repository variable `ADVERSE_BACKUP_ENABLED=true`. Until then, no backup is run. The encrypted GitHub artifact is temporary (up to 90 days), not a substitute for off-site backups and a restore drill.
+
 ## Release gates
 
 Latest automated security checks are also green: [dependency audit and CodeQL](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237486). This is automated analysis, not an independent penetration test.
@@ -42,7 +47,7 @@ Latest automated security checks are also green: [dependency audit and CodeQL](h
 | MongoDB connectivity | **Observed working** in production logs | Confirm provider backup policy and access/recovery ownership. |
 | Scheduled monitoring | **Recent successful evidence** exists for archive and cyber-monitoring | Keep checking later scheduled runs; a single run is not a reliability guarantee. |
 | Automated discovery | **Successful run observed** | Verify recurrence and result quality over time. |
-| Database backup and restore | **Not verified** | Identify the actual production database provider, establish encrypted backups with retention, and perform an isolated restore drill. Do not store raw dumps in GitHub or public artifacts. |
+| Database backup and restore | **Automation added; not yet verified** | Configure the required repository secrets/variable, confirm the target cluster, run the first encrypted backup, then test restore into an isolated database. Establish an independent off-site copy before broad launch. |
 | Privacy and authorization | **Partially covered by automated tests** | Complete cross-account/ownership testing for all private resource families. |
 | Operational resilience | **Partial** | Exercise provider outage, database outage, rate-limit, email-alert, and recovery scenarios. |
 | Production secrets | **Partially evidenced** | Successful protected scheduled jobs prove their required secrets were available for that run; not every production secret/value has been independently audited. Never publish secret values. |
