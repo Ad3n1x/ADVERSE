@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
@@ -130,7 +131,20 @@ const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({
 const listFor=async(Model,collection,iid)=>isDb()?Model.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory[collection].values()].filter(x=>x.investigationId===iid);
 const saveRecord=async(Model,collection,record)=>{if(isDb()){const doc=await Model.create(record);return doc.toObject();}memory[collection].set(record.id,record);return record;};
 const exists=async(iid,uid)=>Boolean(await investigationGet(iid,uid));
-app.get('/api/v1/health',(_req,res)=>{const geminiConfigured=Boolean(String(process.env.GEMINI_API_KEY||'').trim());const compatibleConfigured=Boolean(String(process.env.AI_PROVIDER_BASE_URL||'').trim()&&String(process.env.AI_PROVIDER_API_KEY||'').trim()&&String(process.env.AI_PROVIDER_MODEL||'').trim());res.json({ok:true,service:'adverse-api',persistence:isDb()?'mongodb':'ephemeral-memory',providers:['Wikipedia Search','Crossref','OpenAlex','GDELT Global News','Google News RSS','Wikidata Knowledge Graph','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],capabilities:['federated-search','automated-discovery','source-provenance-review','claim-triage','historical-archive-comparison','authorized-cyber-monitoring','public-dns-change-detection','public-content-fingerprinting'],aiReview:{configured:geminiConfigured||compatibleConfigured,provider:geminiConfigured?'Google Gemini':compatibleConfigured?'OpenAI-compatible provider':null,model:geminiConfigured?String(process.env.GEMINI_MODEL||'gemini-3.8-flash').trim():compatibleConfigured?String(process.env.AI_PROVIDER_MODEL||'').trim():null,status:'configuration-only; a successful review has not been verified by this health check'},timestamp:new Date().toISOString()});});
+app.get('/api/v1/health',(_req,res)=>{res.json({ok:true,service:'adverse-api',timestamp:new Date().toISOString()});});
+
+// Readiness is intentionally stricter than liveness. Render should only route traffic
+// when production persistence and the session secret are actually available.
+app.get('/api/v1/ready',(_req,res)=>{
+  const production=process.env.NODE_ENV==='production';
+  const databaseReady=isDb()&&mongoose.connection.readyState===1;
+  const sessionSecretReady=Boolean(String(process.env.JWT_SECRET||'').trim());
+  const ready=(!production||(databaseReady&&sessionSecretReady));
+  const geminiConfigured=Boolean(String(process.env.GEMINI_API_KEY||'').trim());
+  const compatibleConfigured=Boolean(String(process.env.AI_PROVIDER_BASE_URL||'').trim()&&String(process.env.AI_PROVIDER_API_KEY||'').trim()&&String(process.env.AI_PROVIDER_MODEL||'').trim());
+  const payload={ok:ready,status:ready?'ready':'not_ready',service:'adverse-api',persistence:databaseReady?'mongodb':production?'unavailable':'ephemeral-memory',checks:{database:databaseReady?'ok':production?'unavailable':'optional_in_development',sessionSecret:sessionSecretReady?'configured':'missing'},providers:['Wikipedia Search','Crossref','OpenAlex','GDELT Global News','Google News RSS','Wikidata Knowledge Graph','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],capabilities:['federated-search','automated-discovery','source-provenance-review','claim-triage','historical-archive-comparison','authorized-cyber-monitoring','public-dns-change-detection','public-content-fingerprinting'],aiReview:{configured:geminiConfigured||compatibleConfigured,provider:geminiConfigured?'Google Gemini':compatibleConfigured?'OpenAI-compatible provider':null,model:geminiConfigured?String(process.env.GEMINI_MODEL||'gemini-3.8-flash').trim():compatibleConfigured?String(process.env.AI_PROVIDER_MODEL||'').trim():null,status:'configuration-only; a successful review has not been verified by this health check'},timestamp:new Date().toISOString()};
+  res.status(ready?200:503).json(payload);
+});
 
 app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
   const expected=String(process.env.DISCOVERY_CRON_SECRET||'');
