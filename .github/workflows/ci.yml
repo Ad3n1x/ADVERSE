@@ -1,37 +1,67 @@
 name: ADVERSE CI
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   api:
+    name: API syntax and regression tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm run check -w @adverse/api
-      - run: npm test -w @adverse/api
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Check API syntax
+        run: npm run check -w @adverse/api
+      - name: Run API tests
+        run: npm test -w @adverse/api
+
   frontend:
+    name: Frontend typecheck and production build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npm run build -w @adverse/web
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Type-check frontend
+        run: npm run typecheck -w @adverse/web
+      - name: Build production frontend
+        run: npm run build -w @adverse/web
 
   browser-e2e:
+    name: Browser smoke tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm install
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser smoke tests
+        run: npm run test:e2e
