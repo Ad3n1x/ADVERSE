@@ -508,9 +508,15 @@ app.post('/api/v1/internal/cyber-monitoring/run',wrap(async(req,res)=>{
  if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Cyber-monitoring scheduler authentication is required.');
  const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Cyber-monitoring scheduler authentication failed.');
  if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled cyber monitoring requires MongoDB persistence.');
- const due=await CyberAsset.find({enabled:true,nextCheckAt:{$lte:new Date()}}).sort({nextCheckAt:1}).limit(10).lean(),results=[];
+ const now=new Date();
+ const [enabledAssets,dueCount,due]=await Promise.all([
+  CyberAsset.countDocuments({enabled:true}),
+  CyberAsset.countDocuments({enabled:true,nextCheckAt:{$lte:now}}),
+  CyberAsset.find({enabled:true,nextCheckAt:{$lte:now}}).sort({nextCheckAt:1}).limit(10).lean()
+ ]);
+ const results=[];
  for(const asset of due)results.push(await runCyberAssetCheck(asset));
- res.json({data:{checked:results.length,results:results.map(x=>({assetId:String(x.asset?.id||x.asset?._id||''),events:x.observation?.events?.length||0,error:x.observation?.error||''}))}});
+ res.json({data:{checked:results.length,enabledAssets,dueAssets:dueCount,results:results.map(x=>({assetId:String(x.asset?.id||x.asset?._id||''),events:x.observation?.events?.length||0,error:x.observation?.error||''}))}});
 }));
 
 app.use((req,res)=>sendError(res,404,'NOT_FOUND',`No route for ${req.method} ${req.path}`));
