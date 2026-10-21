@@ -51,3 +51,14 @@ test('diversifies a ranked result list across domains without discarding overflo
   assert.equal(results.slice(0, 3).filter(item => new URL(item.url).hostname === 'one.example').length, 2);
   assert.ok(results.some(item => new URL(item.url).hostname === 'two.example'));
 });
+
+
+test('prefers recent dated results when the query asks for current information', async () => {
+  const { rankPublicResults } = await import('../src/global-search.js');
+  const items = [
+    { title: 'ADVERSE release notes', url: 'https://example.com/old', excerpt: 'ADVERSE release', publishedAt: '2020-01-01T00:00:00.000Z' },
+    { title: 'ADVERSE release notes', url: 'https://example.org/new', excerpt: 'ADVERSE release', publishedAt: new Date().toISOString() }
+  ];
+  const ranked = rankPublicResults(items, 'latest ADVERSE release');
+  assert.equal(ranked[0].url, 'https://example.org/new');
+});
