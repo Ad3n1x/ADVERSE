@@ -5,12 +5,13 @@
 **Repository:** https://github.com/Ad3n1x/ADVERSE  
 **Production web:** https://adverse-web.onrender.com/  
 **Production API:** https://adverse-api-7yim.onrender.com/  
-**Record updated:** 2026-10-21
+**Record updated:** 2026-10-21 (latest CI/deployment verification)
 
-**Latest verified code commit:** `2b870aac271da09b9e3533ef204764fda6c676ee`  
-**Latest CI run:** [Run 39676092662 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39676092662)  
+**Latest verified code commit:** `157776f29b18939f26432b3c474aefb5fc054f56`  
+**Latest CI run:** [Run 39678237478 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478)  
+**Security checks:** [Run 39678237486 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237486), including CodeQL and production dependency audit.  
 **Render health-check workflow:** [Run 39673616808 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808)  
-**Live API deployment:** `dep-dbciiq4dthfc73ddt1h0` — Render confirmed status `live`.  
+**Live API deployment:** `dep-dbciq2lk3hvs739ldkfg` — Render confirmed status `live`.  
 **Live health-check path:** `/api/v1/ready`, confirmed in Render service configuration.
 
 ## What this record means
@@ -19,17 +20,19 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 
 ## Verified now
 
-- API syntax checks and regression tests passed in CI for commit `2b870aac271da09b9e3533ef204764fda6c676ee`, including a regression test for Bearer-authenticated public search with per-user provider keys.
-- Frontend type-check and production build passed in the current-main CI run.
-- Playwright browser smoke tests passed in the current-main CI run.
-- Live API liveness, readiness, and public-search response-contract checks passed in the current-main CI run.
+- API syntax checks and regression tests passed in CI for commit `157776f29b18939f26432b3c474aefb5fc054f56`, including Bearer-authenticated public search and a regression test guarding against cross-account provider-key leakage.
+- Frontend type-check and production build passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
+- Playwright browser smoke tests passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
+- Live API liveness, readiness, and public-search response-contract checks passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
 - Render service configuration now reports `healthCheckPath: /api/v1/ready`; the configuration workflow verified the saved value and the resulting Render deployment is live.
 - Render application logs for the live deployment show successful MongoDB connection and a completed automated discovery cycle that processed two jobs, saved 12 results, and recorded zero provider failures in that cycle.
-- The latest API deployment is confirmed `live` on commit `2b870aac271da09b9e3533ef204764fda6c676ee`.
+- The latest API deployment is confirmed `live` on commit `157776f29b18939f26432b3c474aefb5fc054f56`.
 - Scheduled archive and cyber-monitoring jobs both passed in [run 39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
 - Automated discovery workflow succeeded in [run 39671815718](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
 
 ## Release gates
+
+Latest automated security checks are also green: [dependency audit and CodeQL](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237486). This is automated analysis, not an independent penetration test.
 
 | Gate | Status | Remaining work |
 |---|---|---|
@@ -39,11 +42,12 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 | MongoDB connectivity | **Observed working** in production logs | Confirm provider backup policy and access/recovery ownership. |
 | Scheduled monitoring | **Recent successful evidence** exists for archive and cyber-monitoring | Keep checking later scheduled runs; a single run is not a reliability guarantee. |
 | Automated discovery | **Successful run observed** | Verify recurrence and result quality over time. |
-| Database backup and restore | **Not verified** | Enable/confirm automated backups at the actual MongoDB provider and perform a restore drill. No backup should be claimed until tested. |
+| Database backup and restore | **Not verified** | Identify the actual production database provider, establish encrypted backups with retention, and perform an isolated restore drill. Do not store raw dumps in GitHub or public artifacts. |
 | Privacy and authorization | **Partially covered by automated tests** | Complete cross-account/ownership testing for all private resource families. |
 | Operational resilience | **Partial** | Exercise provider outage, database outage, rate-limit, email-alert, and recovery scenarios. |
 | Production secrets | **Partially evidenced** | Successful protected scheduled jobs prove their required secrets were available for that run; not every production secret/value has been independently audited. Never publish secret values. |
 | Independent security review | **Not performed** | Have an independent reviewer assess the deployed application before claiming security certification or broad launch readiness. |
+| Atlas network access | **Needs production mapping** | A connected Atlas project reports a broad `0.0.0.0/0` entry; production cluster identity was not independently matched to that project, so do not change the allowlist blindly. Confirm the actual production cluster and Render egress first. |
 
 ## Known security boundaries
 
