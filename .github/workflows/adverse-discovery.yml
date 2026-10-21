@@ -19,12 +19,12 @@ jobs:
     steps:
       - name: Trigger bounded public-source discovery
         env:
-          API_URL: ${{ secrets.ADVERSE_API_URL }}
+          API_URL: https://adverse-api-7yim.onrender.com
           DISCOVERY_CRON_SECRET: ${{ secrets.DISCOVERY_CRON_SECRET }}
         run: |
           set -euo pipefail
           if [[ -z "${API_URL}" || -z "${DISCOVERY_CRON_SECRET}" ]]; then
-            echo "Configure ADVERSE_API_URL and DISCOVERY_CRON_SECRET in repository Actions secrets."
+            echo "Configure DISCOVERY_CRON_SECRET in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
           curl --fail-with-body --silent --show-error --max-time 60 \
