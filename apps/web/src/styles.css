@@ -440,3 +440,14 @@ button.graph-relationship-option{text-align:left;font-family:inherit;cursor:poin
  .find-result-foot>a{margin-left:0}
  .find-footer{padding-left:13px;padding-right:13px}
 }
+
+
+
+.find-domain-line{display:flex;align-items:center;gap:7px;margin-top:9px;color:#8ba69a;font:10px 'DM Mono',monospace;overflow-wrap:anywhere}
+.find-domain-line>svg{flex:0 0 auto;color:#7ccdb7}
+.find-domain-line>span{min-width:0;overflow-wrap:anywhere}
+.find-domain-line>b{margin-left:auto;padding:3px 5px;border:1px solid #304c40;border-radius:4px;color:#9fe2ce;font-size:8px;font-weight:500}
+.find-link-warnings{display:flex;align-items:flex-start;gap:8px;margin-top:8px;padding:9px 10px;border:1px solid rgba(212,185,120,.25);border-radius:6px;background:rgba(60,47,25,.18);color:#c7b88f;font-size:10px;line-height:1.6;overflow-wrap:anywhere}
+.find-link-warnings>svg{flex:0 0 auto;margin-top:2px;color:#d4b978}
+.find-link-warnings b{color:#e2cf9f}
+@media(max-width:420px){.find-domain-line{font-size:9px}.find-link-warnings{font-size:9px;padding:8px}}
