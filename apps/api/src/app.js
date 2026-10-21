@@ -42,6 +42,22 @@ const authSchema=z.object({email:z.string().trim().email().max(254),password:z.s
 const authLimiter=new Map();
 function limitAuth(req,res,next){const ip=req.ip||'unknown',now=Date.now(),old=authLimiter.get(ip)||{start:now,count:0};if(now-old.start>60000){old.start=now;old.count=0;}old.count++;authLimiter.set(ip,old);if(old.count>12)return sendError(res,429,'RATE_LIMITED','Too many authentication attempts. Try again in one minute.');next();}
 const providerLimiter=new Map();
+
+/** Advisory URL signals for readers; these are warnings, never a verdict that a site is malicious. */
+export function inspectPublicLink(input) {
+  let parsed;
+  try { parsed = new URL(input); } catch { return { transport:'unknown', hostname:'', signals:['URL could not be parsed'] }; }
+  const hostname = parsed.hostname.toLowerCase();
+  const labels = hostname.split('.');
+  const signals = [];
+  if (parsed.protocol !== 'https:') signals.push('Uses HTTP rather than encrypted HTTPS');
+  if (labels.some(label => label.startsWith('xn--'))) signals.push('Contains an internationalized/punycode domain label; check the spelling carefully');
+  if (/^(?:\\d{1,3}\\.){3}\\d{1,3}$/.test(hostname) || hostname.startsWith('[')) signals.push('Uses an IP address instead of a familiar domain name');
+  const shorteners = new Set(['bit.ly','t.co','tinyurl.com','ow.ly','is.gd','rb.gy','buff.ly','cutt.ly','shorturl.at']);
+  if (shorteners.has(hostname) || [...shorteners].some(domain => hostname.endsWith('.' + domain))) signals.push('Uses a link-shortening service, so the final destination is not obvious from this URL');
+  if (parsed.port && !['80','443'].includes(parsed.port)) signals.push('Uses a non-standard web port');
+  return { transport: parsed.protocol === 'https:' ? 'HTTPS' : parsed.protocol === 'http:' ? 'HTTP' : 'unknown', hostname, signals };
+}
 function limitProvider(req,res,next){const ip=req.ip||'unknown',now=Date.now(),old=providerLimiter.get(ip)||{start:now,count:0};if(now-old.start>60000){old.start=now;old.count=0;}old.count++;providerLimiter.set(ip,old);if(old.count>40)return sendError(res,429,'RATE_LIMITED','Too many provider requests. Try again in one minute.');next();}
 
 const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({_id:iid,ownerId:uid}).lean();const record=memory.investigations.get(iid);return record&&record.ownerId===uid?record:null;};
@@ -221,7 +237,7 @@ app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
   const ranked=rankPublicResults(Array.isArray(live.results)?live.results:[],q);
   const candidates=ranked.slice(0,30).map(({_searchScore,_searchOrder,...item})=>item);
   const unique=[];const seen=new Set();
-  for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const key=parsed.href.toLowerCase();if(seen.has(key))continue;seen.add(key);unique.push({...item,url:parsed.href});}catch{}}
+  for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const key=parsed.href.toLowerCase();if(seen.has(key))continue;seen.add(key);unique.push({...item,url:parsed.href,linkSignals:inspectPublicLink(parsed.href)});}catch{}}
   const checked=await Promise.all(unique.slice(0,8).map(async item=>{
     const checkedAt=new Date().toISOString();
     try{await scrapePublicPage(item.url);return {...item,linkCheck:{status:'reachable',checkedAt,note:'The public page responded with readable text during this check. This does not verify every claim on the page.'}};}
