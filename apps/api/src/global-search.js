@@ -20,7 +20,7 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 8) {
+export function expandSearchQueries(input, maxQueries = 5) {
   const raw = clean(input, 200);
   if (!raw) return [];
   const queries = [];
@@ -37,15 +37,8 @@ export function expandSearchQueries(input, maxQueries = 8) {
   add(raw, 'natural-language query');
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
-  if (meaningful.length > 1) {
-    add(meaningful.join(' '), 'core terms');
-    add(meaningful.join(' OR '), 'broad term match');
-  }
-  // Search every input token separately before spending the remaining budget on variants.
-  for (const word of words) {
-    if (queries.length >= maxQueries) break;
-    if (word.length >= 2) add(word, 'individual keyword');
-  }
+  if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
+  // Prefer useful related wording before broad OR queries and individual tokens.
   for (const word of words) {
     if (queries.length >= maxQueries) break;
     const variants = SYNONYMS.get(word);
@@ -56,6 +49,12 @@ export function expandSearchQueries(input, maxQueries = 8) {
         if (queries.length >= maxQueries) break;
       }
     }
+  }
+  if (meaningful.length > 1) add(meaningful.join(' OR '), 'broad term match');
+  // Spend remaining query slots on individual input tokens.
+  for (const word of words) {
+    if (queries.length >= maxQueries) break;
+    if (word.length >= 2) add(word, 'individual keyword');
   }
   return queries.slice(0, maxQueries);
 }
