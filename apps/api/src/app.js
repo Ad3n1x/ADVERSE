@@ -24,7 +24,7 @@ app.use(express.json({ limit:'256kb' }));
 app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>{if(res.statusCode>=500)console.error(JSON.stringify({event:'request_error',method:req.method,path:req.path,status:res.statusCode,durationMs:Date.now()-started}));});next();});
 const id=()=>crypto.randomUUID();
 const isDb=()=>globalThis.__ADVERSE_MONGO_READY__===true;
-const memory=globalThis.__ADVERSE_STORE__ ||= { investigations:new Map(), evidence:new Map(), entities:new Map(), relationships:new Map(), users:new Map(), watches:new Map(), alerts:new Map() };
+const memory=globalThis.__ADVERSE_STORE__ ||= { investigations:new Map(), evidence:new Map(), entities:new Map(), relationships:new Map(), users:new Map(), watches:new Map(), alerts:new Map(), cyberAssets:new Map(), cyberEvents:new Map() };
 const wrap=(fn)=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const createInvestigationSchema=z.object({title:z.string().trim().min(1).max(120),question:z.string().trim().max(1000).default('')});
 const evidenceSchema=z.object({title:z.string().trim().min(1).max(240),url:z.string().url().max(2048),sourceType:z.enum(['web','archive','organization','document','manual','domain']).default('manual'),publisher:z.string().max(200).default(''),publishedAt:z.string().datetime().nullable().optional(),excerpt:z.string().max(5000).default(''),verificationStatus:z.enum(['unverified','supported','conflicting','insufficient']).default('unverified'),entities:z.array(z.string()).max(50).default([]),captureTimestamp:z.string().max(32).default('')});
