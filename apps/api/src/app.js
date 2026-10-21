@@ -156,9 +156,7 @@ app.post('/api/v1/investigations/:id/ai-review',wrap(async(req,res)=>{
    response=await fetch(endpoint,{method:'POST',headers:{authorization:'Bearer '+apiKey,'content-type':'application/json'},body:JSON.stringify({model,temperature:0.1,max_tokens:1800,messages:[{role:'system',content:system},{role:'user',content:prompt}]}),signal:AbortSignal.timeout(25000)});
   }
  }catch(error){
-  console.error(JSON.stringify({event:'ai_provider_transport_error',provider:geminiKey?'google-gemini':'openai-compatible',model:geminiKey?geminiModel:model,category:error?.name==='TimeoutError'||error?.name==='AbortError'?'timeout':'network_error',message:String(error?.message||'Provider request failed').replace(geminiKey?new RegExp(geminiKey.replace(/[.*+?^${}()|[\]\\]/g,'\\ }catch{return sendError(res,502,'AI_PROVIDER_UNAVAILABLE','The configured AI provider could not be reached.');}
- if(!response.ok){let code='AI_PROVIDER_ERROR';let message='The configured AI provider returned an error.';if(response.status===401||response.status===403){code='AI_AUTH_FAILED';message='Gemini rejected the API key. Check GEMINI_API_KEY in Render.';}else if(response.status===429){code='AI_RATE_LIMITED';message='The Gemini API quota or rate limit was reached. Try again later.';}else if(response.status===400){code='AI_REQUEST_INVALID';message='The Gemini API rejected the request. Check the configured model and API access.';}return sendError(res,502,code,message);}
- let payload;try{payload=await response.json();}catch{return sendError(res,502,'AI_INVALID_RESPONSE','The AI provider returned invalid JSON.');}'),'g'):/\b(?:AIza[\w-]{20,}|Bearer\s+\S+)\b/g,'[REDACTED]').slice(0,300)}));
+  console.error(JSON.stringify({event:'ai_provider_transport_error',provider:geminiKey?'google-gemini':'openai-compatible',model:geminiKey?geminiModel:model,category:error?.name==='TimeoutError'||error?.name==='AbortError'?'timeout':'network_error',errorName:String(error?.name||'Error').slice(0,80)}));
   return sendError(res,502,'AI_PROVIDER_UNAVAILABLE','The configured AI provider could not be reached.');
  }
  const responseText=await response.text().catch(()=> '');
@@ -168,8 +166,8 @@ app.post('/api/v1/investigations/:id/ai-review',wrap(async(req,res)=>{
   const providerError=payload?.error||payload?.message||null;
   const providerCode=typeof providerError?.status==='string'?providerError.status:typeof providerError?.code==='string'?providerError.code:null;
   let providerMessage=typeof providerError==='string'?providerError:typeof providerError?.message==='string'?providerError.message:'Provider returned a non-JSON error response.';
-  if(geminiKey&&geminiKey.length)providerMessage=providerMessage.split(geminiKey).join('[REDACTED]');
-  providerMessage=providerMessage.replace(/AIza[\w-]{20,}/g,'[REDACTED]').replace(/Bearer\s+\S+/gi,'Bearer [REDACTED]').replace(/[\r\n\t]+/g,' ').slice(0,600);
+  if(geminiKey)providerMessage=providerMessage.split(geminiKey).join('[REDACTED]');
+  providerMessage=providerMessage.replace(/AIza[\\w-]{20,}/g,'[REDACTED]').replace(/Bearer\\s+\\S+/gi,'Bearer [REDACTED]').replace(/[\\r\\n\\t]+/g,' ').slice(0,600);
   console.error(JSON.stringify({event:'ai_provider_http_error',provider:geminiKey?'google-gemini':'openai-compatible',model:geminiKey?geminiModel:model,httpStatus:response.status,providerCode,providerMessage,requestId:response.headers.get('x-request-id')||response.headers.get('x-goog-request-id')||null}));
   let code='AI_PROVIDER_ERROR';let message='The configured AI provider returned an error.';
   if(response.status===401||response.status===403){code='AI_AUTH_FAILED';message='The AI provider rejected this request. Check API key validity and project access.';}
