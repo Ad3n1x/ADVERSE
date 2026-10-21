@@ -13,7 +13,7 @@ test('expands a phrase into exact, natural-language, and individual keyword sear
 });
 
 test('adds related wording while keeping expansion bounded and deduplicated', () => {
-  const plan = expandSearchQueries('MovieBox old version');
+  const plan = expandSearchQueries('MovieBox old version', 8);
   assert.ok(plan.some(item => item.reason === 'related wording'));
   assert.equal(new Set(plan.map(item => item.query.toLowerCase())).size, plan.length);
   assert.ok(plan.length <= 10);
