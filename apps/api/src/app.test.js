@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { app } from './app.js';
+import { app, inspectPublicLink } from './app.js';
 import { validatePublicUrl } from './providers.js';
 import { rankPublicResults, expandSearchQueries } from './global-search.js';
 async function withServer(fn){const server=app.listen(0);try{await fn('http://127.0.0.1:'+server.address().port);}finally{await new Promise(resolve=>server.close(resolve));}}
@@ -182,4 +182,15 @@ test('public query expansion stays bounded and preserves natural language intent
  assert.ok(plan.length<=5);
  assert.equal(plan[1].query,'best free Python courses for beginners');
  assert.ok(plan.some(item=>item.reason==='core terms'));
+});
+
+test('public link safety signals are descriptive and do not label URLs as malicious',()=>{
+ const http=inspectPublicLink('http://example.org/page');
+ assert.equal(http.transport,'HTTP');
+ assert.ok(http.signals.some(signal=>/HTTPS/i.test(signal)));
+ const short=inspectPublicLink('https://bit.ly/example');
+ assert.ok(short.signals.some(signal=>/shortening service/i.test(signal)));
+ const secure=inspectPublicLink('https://example.org/page');
+ assert.equal(secure.transport,'HTTPS');
+ assert.equal(secure.signals.length,0);
 });
