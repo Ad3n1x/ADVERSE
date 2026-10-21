@@ -10,7 +10,30 @@ test('archive monitoring uses timestamp-only fallback when a digest is unavailab
 });
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasMaterialArchiveChange, notifyAlertByEmail } from './monitor.js';
+import { hasMaterialArchiveChange, notifyAlertByEmail, compareArchiveSnapshots } from './monitor.js';
+
+test('archive snapshot comparison reports text changes', async () => {
+  globalThis.fetch = async (url) => {
+    const newer = String(url).includes('/web/20240201000000id_/');
+    return new Response(newer ? 'Stable sentence. New public update.' : 'Stable sentence. Old public note.', {
+      status: 200, headers: { 'content-type': 'text/plain' }
+    });
+  };
+  try {
+    const result = await compareArchiveSnapshots('https://example.org/page', '20240101000000', '20240201000000');
+    assert.deepEqual(result.added, ['New public update.']);
+    assert.deepEqual(result.removed, ['Old public note.']);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('archive snapshot comparison rejects malformed timestamps', async () => {
+  let called = false;
+  globalThis.fetch = async () => { called = true; return new Response('unexpected'); };
+  try {
+    await assert.rejects(compareArchiveSnapshots('https://example.org/page', 'latest', '20240201000000'), /Invalid archive timestamp/);
+    assert.equal(called, false);
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 const originalFetch = globalThis.fetch;
 const envKeys = ['BREVO_API_KEY', 'ALERT_EMAIL_FROM', 'ALERT_EMAIL_TO', 'BREVO_FROM_EMAIL'];
