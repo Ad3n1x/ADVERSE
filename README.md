@@ -126,5 +126,5 @@ See [`docs/FEATURE_AUDIT.md`](docs/FEATURE_AUDIT.md) for the requirement-by-requ
 ### Password recovery
 
 - The sign-in screen includes a Forgot password flow. Reset tokens are generated with cryptographic randomness, stored only as SHA-256 hashes, expire after 30 minutes, and are consumed once. Reset requests use a generic response to avoid revealing whether an email address has an account.
-- Configure `RESEND_API_KEY` and `RESEND_FROM_EMAIL` on the Render API service. The sender address/domain must be verified in Resend. Set `WEB_ORIGIN` to the exact HTTPS origin of the deployed frontend so reset links return to ADVERSE. Never expose the Resend key in frontend variables or source control.
-- Without valid email configuration, the UI still returns the generic response but no email is delivered; check server logs for the `password_reset_delivery_failed` event and configure the sender before relying on recovery in production.
+- Configure `BREVO_API_KEY` on the Render API service. `BREVO_FROM_EMAIL` defaults to the verified `adenix271@gmail.com` sender and `BREVO_FROM_NAME` defaults to `ADVERSE`; the sender must remain active in Brevo. Set `WEB_ORIGIN` to the exact HTTPS origin of the deployed frontend so reset links return to ADVERSE. Never expose the Resend key in frontend variables or source control.
+- Without a valid Brevo API key and active sender, the UI still returns the generic response but no email is delivered; check server logs for the `password_reset_delivery_failed` event and configure the sender before relying on recovery in production.
