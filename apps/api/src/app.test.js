@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { app } from './app.js';
 import { validatePublicUrl } from './providers.js';
-import { rankPublicResults } from './global-search.js';
+import { rankPublicResults, expandSearchQueries } from './global-search.js';
 async function withServer(fn){const server=app.listen(0);try{await fn('http://127.0.0.1:'+server.address().port);}finally{await new Promise(resolve=>server.close(resolve));}}
 let testClientIp=10;
 async function register(base,email='researcher@example.org'){const clientIp='198.51.100.'+(testClientIp++);const r=await fetch(base+'/api/v1/auth/register',{method:'POST',headers:{'content-type':'application/json','x-forwarded-for':clientIp},body:JSON.stringify({email,password:'long-enough-password-123',displayName:'Test Researcher'})});const body=await r.json();return {response:r,body,cookie:(r.headers.get('set-cookie')||'').split(';')[0]};}
@@ -175,4 +175,11 @@ test('Find Anything ranking rewards multiple subject terms over incidental snipp
   {title:'Old version help thread',url:'https://forum.example/old',excerpt:'MovieBox mentioned in a long discussion',publisher:'Forum'}
  ],'MovieBox old version APK');
  assert.equal(results[0].title,'MovieBox APK download');
+});
+
+test('public query expansion stays bounded and preserves natural language intent',()=>{
+ const plan=expandSearchQueries('best free Python courses for beginners');
+ assert.ok(plan.length<=5);
+ assert.equal(plan[1].query,'best free Python courses for beginners');
+ assert.ok(plan.some(item=>item.reason==='core terms'));
 });
