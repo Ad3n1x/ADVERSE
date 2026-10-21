@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations } from './providers.js';
 import { searchAllPublic } from './global-search.js';
+import { searchImages, searchVideos, searchPeople } from './media-search.js';
 import { getProviderCatalog } from './provider-adapters.js';
 import { runMonitoringCycle } from './monitor.js';
 import { runDiscoveryCycle } from './discovery.js';
@@ -124,6 +125,19 @@ app.get('/api/v1/investigations/:id/entities',wrap(async(req,res)=>{if(!await ex
 app.post('/api/v1/investigations/:id/entities',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=entitySchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Entity fields are invalid.',p.error.flatten());if(p.data.canonicalUrl){try{validatePublicUrl(p.data.canonicalUrl);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}}if(p.data.evidenceIds.length){const evidence=await listFor(Evidence,'evidence',iid);const allowed=new Set(evidence.map(item=>String(item.id||item._id)));if(p.data.evidenceIds.some(evidenceId=>!allowed.has(evidenceId)))return sendError(res,400,'INVALID_EVIDENCE_REFERENCE','Every entity evidence reference must belong to this investigation.');}const record={id:id(),investigationId:iid,...p.data,createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Entity,'entities',record);res.status(201).json({data});}));
 app.get('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:await listFor(Relationship,'relationships',req.params.id)});}));
 app.post('/api/v1/investigations/:id/relationships',wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=relationshipSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','A relationship requires valid entities and at least one evidence reference.',p.error.flatten());const [entities,evidence]=await Promise.all([listFor(Entity,'entities',iid),listFor(Evidence,'evidence',iid)]);const ids=new Set(entities.map(e=>String(e.id||e._id)));const evIds=new Set(evidence.map(e=>String(e.id||e._id)));if(!ids.has(p.data.fromEntityId)||!ids.has(p.data.toEntityId)||p.data.fromEntityId===p.data.toEntityId)return sendError(res,400,'INVALID_RELATIONSHIP','Both endpoints must be distinct entities in this investigation.');if(p.data.evidenceIds.some(x=>!evIds.has(x)))return sendError(res,400,'INVALID_EVIDENCE_REFERENCE','Every supporting evidence record must belong to this investigation.');const record={id:id(),investigationId:iid,...p.data,createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Relationship,'relationships',record);res.status(201).json({data});}));
+app.get('/api/v1/public-search/media',limitProvider,wrap(async(req,res)=>{
+  const q=String(req.query.q||'').trim().slice(0,200);
+  const type=String(req.query.type||'all').trim().toLowerCase();
+  if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
+  if(!['images','videos','people','all'].includes(type))return sendError(res,400,'INVALID_MEDIA_TYPE','Choose images, videos, people, or all.');
+  const tasks=[];
+  if(type==='images'||type==='all')tasks.push(['images',searchImages]);
+  if(type==='videos'||type==='all')tasks.push(['videos',searchVideos]);
+  if(type==='people'||type==='all')tasks.push(['people',searchPeople]);
+  const settled=await Promise.all(tasks.map(async([name,fn])=>{try{return {name,results:await fn(q),error:null};}catch(error){return {name,results:[],error:'Provider unavailable: '+String(error?.message||'request failed')};}}));
+  const results=settled.flatMap(item=>item.results).slice(0,40);
+  res.json({data:results,meta:{query:q,type,providers:tasks.map(item=>item[0]),failedProviders:settled.filter(item=>item.error).map(item=>({provider:item.name,error:item.error})),resultCount:results.length,notice:'Results come from public third-party indexes. Image rights, identity matches, accuracy, and content safety are not guaranteed; open the original source and check its terms.'}});
+}));
 app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
