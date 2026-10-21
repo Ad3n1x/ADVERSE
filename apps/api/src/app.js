@@ -140,9 +140,7 @@ app.get('/api/v1/ready',(_req,res)=>{
   const databaseReady=isDb()&&mongoose.connection.readyState===1;
   const sessionSecretReady=Boolean(String(process.env.JWT_SECRET||'').trim());
   const ready=(!production||(databaseReady&&sessionSecretReady));
-  const geminiConfigured=Boolean(String(process.env.GEMINI_API_KEY||'').trim());
-  const compatibleConfigured=Boolean(String(process.env.AI_PROVIDER_BASE_URL||'').trim()&&String(process.env.AI_PROVIDER_API_KEY||'').trim()&&String(process.env.AI_PROVIDER_MODEL||'').trim());
-  const payload={ok:ready,status:ready?'ready':'not_ready',service:'adverse-api',persistence:databaseReady?'mongodb':production?'unavailable':'ephemeral-memory',checks:{database:databaseReady?'ok':production?'unavailable':'optional_in_development',sessionSecret:sessionSecretReady?'configured':'missing'},providers:['Wikipedia Search','Crossref','OpenAlex','GDELT Global News','Google News RSS','Wikidata Knowledge Graph','Internet Archive CDX','Google Public DNS-over-HTTPS','Certificate Transparency (crt.sh)'],capabilities:['federated-search','automated-discovery','source-provenance-review','claim-triage','historical-archive-comparison','authorized-cyber-monitoring','public-dns-change-detection','public-content-fingerprinting'],aiReview:{configured:geminiConfigured||compatibleConfigured,provider:geminiConfigured?'Google Gemini':compatibleConfigured?'OpenAI-compatible provider':null,model:geminiConfigured?String(process.env.GEMINI_MODEL||'gemini-3.8-flash').trim():compatibleConfigured?String(process.env.AI_PROVIDER_MODEL||'').trim():null,status:'configuration-only; a successful review has not been verified by this health check'},timestamp:new Date().toISOString()};
+  const payload={ok:ready,status:ready?'ready':'not_ready',service:'adverse-api',checks:{database:databaseReady?'ok':production?'unavailable':'optional_in_development',sessionSecret:sessionSecretReady?'configured':'missing'},timestamp:new Date().toISOString()};
   res.status(ready?200:503).json(payload);
 });
 
