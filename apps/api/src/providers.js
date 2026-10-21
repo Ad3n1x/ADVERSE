@@ -70,6 +70,28 @@ export function validatePublicUrl(input) {
   if(net.isIP(host)===6&&isPrivateIPv6(host))throw new Error('Private network destinations are blocked.');
   return u;
 }
+
+/**
+ * Validate the resolved destination before server-side fetches. This prevents
+ * obvious DNS-to-private-network SSRF targets; callers must still disable redirects.
+ */
+export async function validatePublicUrlResolution(input) {
+  const url = validatePublicUrl(input);
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (net.isIP(host)) return url;
+  let addresses;
+  try {
+    addresses = await lookup(host, { all: true, verbatim: true });
+  } catch {
+    throw new Error('The public domain could not be resolved.');
+  }
+  if (!addresses.length || addresses.some(record =>
+    net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address)
+  )) {
+    throw new Error('Private or restricted network destinations are blocked.');
+  }
+  return url;
+}
 export async function publicDns(inputUrl) {
   const u=validatePublicUrl(inputUrl); let records;
   try { records=await lookup(u.hostname,{all:true,verbatim:true}); } catch { throw new Error('The domain could not be resolved.'); }
