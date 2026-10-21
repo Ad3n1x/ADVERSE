@@ -1,0 +1,57 @@
+name: ADVERSE Encrypted Database Backup
+
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Create encrypted MongoDB backup
+    if: ${{ vars.ADVERSE_BACKUP_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require backup secrets
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          test -n "$MONGODB_BACKUP_URI" || { echo "::error::Set repository secret MONGODB_BACKUP_URI to the production MongoDB URI."; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::Set repository secret BACKUP_ENCRYPTION_PASSPHRASE to a strong unique passphrase."; exit 1; }
+
+      - name: Install MongoDB Database Tools
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --retry 3 https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.12.2.tgz -o "$RUNNER_TEMP/mongodb-tools.tgz"
+          tar -xzf "$RUNNER_TEMP/mongodb-tools.tgz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/mongodb-database-tools-ubuntu2204-x86_64-100.12.2/bin" >> "$GITHUB_PATH"
+
+      - name: Dump production database and encrypt archive
+        env:
+          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
+          BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mongodump --uri="$MONGODB_BACKUP_URI" --archive="$RUNNER_TEMP/adverse-backup.archive.gz" --gzip
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/adverse-backup.archive.gz" -out "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          test -s "$RUNNER_TEMP/adverse-backup.archive.gz.enc"
+          rm -f "$RUNNER_TEMP/adverse-backup.archive.gz" "$RUNNER_TEMP/mongodb-tools.tgz"
+          echo "Encrypted backup archive created. The encryption passphrase is never printed."
+
+      - name: Store encrypted backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: adverse-mongodb-encrypted-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/adverse-backup.archive.gz.enc
+          if-no-files-found: error
+          retention-days: 90
