@@ -19,7 +19,8 @@ export const app = express();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy:{policy:'cross-origin'} }));
-app.use(cors({ origin: process.env.WEB_ORIGIN || 'http://localhost:5173', credentials: true }));
+const allowedWebOrigins = () => String(process.env.WEB_ORIGIN || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')).split(',').map(value => value.trim()).filter(Boolean);
+app.use(cors({ origin(origin, callback) { if (!origin || allowedWebOrigins().includes(origin)) return callback(null, true); return callback(null, false); }, credentials: true }));
 app.use(express.json({ limit:'256kb' }));
 app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>{if(res.statusCode>=500)console.error(JSON.stringify({event:'request_error',method:req.method,path:req.path,status:res.statusCode,durationMs:Date.now()-started}));});next();});
 const id=()=>crypto.randomUUID();
@@ -37,7 +38,21 @@ function tokenFor(user){const secret=jwtSecret();if(!secret)throw new Error('JWT
 function verifyToken(token){try{const [head,body,sig]=token.split('.');const expected=createHmac('sha256',jwtSecret()).update(head+'.'+body).digest();const supplied=Buffer.from(sig,'base64url');if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return null;const p=JSON.parse(Buffer.from(body,'base64url').toString());if(!p.sub||p.exp<Math.floor(Date.now()/1000))return null;return {id:p.sub,email:p.email};}catch{return null;}}
 function cookieToken(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('adverse_session='));return raw?decodeURIComponent(raw.slice('adverse_session='.length)):'';}
 function setSession(res,token){res.setHeader('Set-Cookie',`adverse_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=604800${process.env.NODE_ENV==='production'?'; Secure':''}`);}
-function requireAuth(req,res,next){const user=verifyToken(cookieToken(req)||String(req.headers.authorization||'').replace(/^Bearer\\s+/i,''));if(!user)return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');req.user=user;next();}
+function requireAuth(req,res,next){
+  const cookie = cookieToken(req);
+  const unsafeMethod = !['GET','HEAD','OPTIONS'].includes(req.method.toUpperCase());
+  const origin = req.get('origin');
+  // Cookie-authenticated mutations are vulnerable to CSRF when the session cookie is cross-site.
+  // Browser unsafe requests carry Origin; allow non-browser clients without Origin for API compatibility.
+  if (cookie && unsafeMethod && origin && !allowedWebOrigins().includes(origin)) {
+    return sendError(res, 403, 'ORIGIN_NOT_ALLOWED', 'This request origin is not allowed to modify the workspace.');
+  }
+  const bearer = String(req.headers.authorization || '').replace(/^Bearer\\s+/i, '');
+  const user = verifyToken(cookie || bearer);
+  if (!user) return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');
+  req.user=user;
+  next();
+}
 const authSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(12).max(128),displayName:z.string().trim().min(1).max(80).optional()});
 const authLimiter=new Map();
 function limitAuth(req,res,next){const ip=req.ip||'unknown',now=Date.now(),old=authLimiter.get(ip)||{start:now,count:0};if(now-old.start>60000){old.start=now;old.count=0;}old.count++;authLimiter.set(ip,old);if(old.count>12)return sendError(res,429,'RATE_LIMITED','Too many authentication attempts. Try again in one minute.');next();}
