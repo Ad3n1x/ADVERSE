@@ -194,3 +194,25 @@ test('public link safety signals are descriptive and do not label URLs as malici
  assert.equal(secure.transport,'HTTPS');
  assert.equal(secure.signals.length,0);
 });
+
+
+test('cyber-monitoring scheduler requires the configured secret and persistent storage',async()=>withServer(async base=>{
+ const previousSecret=process.env.CYBER_MONITORING_CRON_SECRET;
+ const previousDb=globalThis.__ADVERSE_MONGO_READY__;
+ process.env.CYBER_MONITORING_CRON_SECRET='test-scheduler-secret';
+ globalThis.__ADVERSE_MONGO_READY__=false;
+ try{
+  const missing=await fetch(base+'/api/v1/internal/cyber-monitoring/run',{method:'POST'});
+  assert.equal(missing.status,401);
+  assert.equal((await missing.json()).error.code,'CRON_AUTH_REQUIRED');
+  const invalid=await fetch(base+'/api/v1/internal/cyber-monitoring/run',{method:'POST',headers:{'x-cyber-monitoring-secret':'wrong-secret'}});
+  assert.equal(invalid.status,401);
+  assert.equal((await invalid.json()).error.code,'CRON_AUTH_INVALID');
+  const valid=await fetch(base+'/api/v1/internal/cyber-monitoring/run',{method:'POST',headers:{'x-cyber-monitoring-secret':'test-scheduler-secret'}});
+  assert.equal(valid.status,503);
+  assert.equal((await valid.json()).error.code,'DATABASE_REQUIRED');
+ }finally{
+  if(previousSecret===undefined)delete process.env.CYBER_MONITORING_CRON_SECRET;else process.env.CYBER_MONITORING_CRON_SECRET=previousSecret;
+  if(previousDb===undefined)delete globalThis.__ADVERSE_MONGO_READY__;else globalThis.__ADVERSE_MONGO_READY__=previousDb;
+ }
+}));
