@@ -44,21 +44,47 @@ function isPrivateIPv4(ip) {
   const a=ip.split('.').map(Number); if(a.length!==4||a.some(n=>!Number.isInteger(n)||n<0||n>255))return true;
   return a[0]===0||a[0]===10||a[0]===127||a[0]>=224||(a[0]===169&&a[1]===254)||(a[0]===172&&a[1]>=16&&a[1]<=31)||(a[0]===192&&a[1]===168)||(a[0]===100&&a[1]>=64&&a[1]<=127)||(a[0]===192&&(a[1]===0||a[1]===88&&a[2]===99||a[1]===0&&a[2]===2))||(a[0]===198&&(a[1]===18||a[1]===19||a[1]===51&&a[2]===100))||(a[0]===203&&a[1]===0&&a[2]===113)||(a[0]===255);
 }
-function mappedIPv4(ip) {
-  const x=ip.toLowerCase();
-  if (!x.startsWith('::ffff:')) return null;
-  const tail=x.slice(7);
-  if (tail.includes('.')) return tail;
-  const groups=tail.split(':');
-  if (groups.length!==2 || groups.some(group=>! /^[0-9a-f]{1,4}$/.test(group))) return null;
-  const high=parseInt(groups[0],16), low=parseInt(groups[1],16);
-  return `${high>>8}.${high&255}.${low>>8}.${low&255}`;
+function ipv6Words(ip) {
+  let value=String(ip).toLowerCase().replace(/^\\[|\\]$/g,'');
+  if (value.includes('.')) {
+    const index=value.lastIndexOf(':');
+    const v4=value.slice(index+1);
+    const bytes=v4.split('.').map(Number);
+    if(bytes.length!==4||bytes.some(n=>!Number.isInteger(n)||n<0||n>255))return null;
+    value=value.slice(0,index+1)+((bytes[0]<<8)|bytes[1]).toString(16)+':'+((bytes[2]<<8)|bytes[3]).toString(16);
+  }
+  if((value.match(/::/g)||[]).length>1)return null;
+  const halves=value.split('::');
+  const left=halves[0]?halves[0].split(':'):[];
+  const right=halves.length===2&&halves[1]?halves[1].split(':'):[];
+  if([...left,...right].some(word=>! /^[0-9a-f]{1,4}$/.test(word)))return null;
+  const missing=8-left.length-right.length;
+  if(halves.length===1&&missing!==0)return null;
+  if(halves.length===2&&missing<1)return null;
+  return [...left,...Array(Math.max(0,missing)).fill('0'),...right].map(word=>parseInt(word,16));
 }
 function isPrivateIPv6(ip) {
-  const x=ip.toLowerCase();
-  const mapped=mappedIPv4(x);
-  if (mapped) return isPrivateIPv4(mapped);
-  return x==='::'||x==='::1'||x.startsWith('fe8')||x.startsWith('fe9')||x.startsWith('fea')||x.startsWith('feb')||x.startsWith('fc')||x.startsWith('fd')||x.startsWith('ff')||x.startsWith('2001:db8:')||x.startsWith('2001:10:')||x.startsWith('2001:20:');
+  const words=ipv6Words(ip);
+  if(!words||words.length!==8)return true;
+  const [a,b,c,d,e,f,g,h]=words;
+  // Reject unspecified, loopback and deprecated IPv4-compatible forms.
+  if(words.every(word=>word===0))return true;
+  if(words.slice(0,7).every(word=>word===0)&&(h===1||h===0))return true;
+  // IPv4-mapped IPv6: ::ffff:w.x.y.z, including expanded spellings.
+  if(words.slice(0,5).every(word=>word===0)&&f===0xffff) {
+    return isPrivateIPv4(`${g>>8}.${g&255}.${h>>8}.${h&255}`);
+  }
+  // IPv4-compatible (::/96) is obsolete; reject to avoid ambiguous routing.
+  if(words.slice(0,6).every(word=>word===0))return true;
+  // Unique-local, link-local, multicast, discard-only and special translation/relay ranges.
+  if((a&0xfe00)===0xfc00||(a&0xffc0)===0xfe80||(a&0xff00)===0xff00)return true;
+  if(a===0x0100&&b===0)return true; // 100::/64
+  if(a===0x0064&&b===0xff9b)return true; // 64:ff9b::/96 NAT64
+  if(a===0x2002)return true; // 6to4 can embed an IPv4 destination
+  if(a===0x2001&&b===0x0db8)return true; // documentation
+  if(a===0x2001&&b===0x0010)return true; // ORCHID
+  if(a===0x2001&&b===0x0020)return true; // ORCHIDv2
+  return false;
 }
 export function validatePublicUrl(input) {
   let u; try { u=new URL(input); } catch { throw new Error('Enter a valid public URL.'); }
