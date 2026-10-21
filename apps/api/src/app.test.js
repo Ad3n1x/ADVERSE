@@ -8,6 +8,13 @@ let testClientIp=10;
 async function register(base,email='researcher@example.org'){const clientIp='198.51.100.'+(testClientIp++);const r=await fetch(base+'/api/v1/auth/register',{method:'POST',headers:{'content-type':'application/json','x-forwarded-for':clientIp},body:JSON.stringify({email,password:'long-enough-password-123',displayName:'Test Researcher'})});const body=await r.json();return {response:r,body,cookie:(r.headers.get('set-cookie')||'').split(';')[0]};}
 test('health route responds with service status and non-secret AI configuration metadata',async()=>withServer(async base=>{const r=await fetch(base+'/api/v1/health');assert.equal(r.status,200);const body=await r.json();assert.equal(body.ok,true);assert.equal(typeof body.aiReview.configured,'boolean');assert.ok(body.aiReview.provider===null||typeof body.aiReview.provider==='string');assert.equal(Object.hasOwn(body.aiReview,'apiKey'),false);assert.equal(Object.hasOwn(body.aiReview,'key'),false);}));
 test('investigations require authentication',async()=>withServer(async base=>{const r=await fetch(base+'/api/v1/investigations');assert.equal(r.status,401);}));
+test('accepts a valid bearer token for API clients',async()=>withServer(async base=>{
+ const auth=await register(base,'bearer-client@example.org');
+ const token=decodeURIComponent(auth.cookie.slice('adverse_session='.length));
+ const response=await fetch(base+'/api/v1/investigations',{headers:{authorization:'Bearer '+token}});
+ assert.equal(response.status,200);
+ assert.deepEqual((await response.json()).data,[]);
+}));
 test('blocks cross-site cookie-authenticated mutations',async()=>withServer(async base=>{
  const auth=await register(base,'csrf-block@example.org');
  const response=await fetch(base+'/api/v1/investigations',{method:'POST',headers:{'content-type':'application/json',cookie:auth.cookie,origin:'https://attacker.example'},body:JSON.stringify({title:'Cross-site mutation'})});
