@@ -7,6 +7,9 @@
 **Production API:** https://adverse-api-7yim.onrender.com/  
 **Record updated:** 2026-10-21
 
+**Verified CI commit:** `ccfc69fa9111dbe39e9abcf21a2cb0c6713c5f79`  
+**CI run:** [Run 39669044245 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39669044245)
+
 ## What this record means
 
 GPT-6 assistance may have been used to inspect, change, and document this codebase. This is not an OpenAI-issued certificate, endorsement, security audit, or guarantee of correctness. OpenAI has not reviewed or certified ADVERSE through this document.
@@ -26,9 +29,9 @@ GPT-6 assistance may have been used to inspect, change, and document this codeba
 | Gate | Evidence required | Status in this record |
 |---|---|---|
 | API deploy | Render shows the target commit live and startup logs are healthy | A successful Render API deployment and MongoDB connection were observed on 2026-10-21 |
-| CI API checks | Latest main-branch GitHub Actions API job passes | Pending fresh workflow result |
-| Frontend build | Type-check and production build pass | Pending fresh workflow result |
-| Browser smoke tests | Playwright run passes against the real frontend entry page | Pending fresh workflow result |
+| CI API checks | Latest main-branch GitHub Actions API job passes | **Passed** on commit `ccfc69f`; run 39669044245 completed successfully |
+| Frontend build | Type-check and production build pass | **Passed** on commit `ccfc69f`; type-check and production build steps succeeded |
+| Browser smoke tests | Playwright run passes against the real frontend entry page | **Passed** on commit `ccfc69f`; both public search smoke tests succeeded |
 | Live API checks | Health/readiness endpoints and representative public-search request verified over HTTP | Not independently verified by this record |
 | Health-check configuration | Render service dashboard health path matches `/api/v1/ready` | Repository declares it; live Render service setting was observed empty |
 | Scheduled monitoring | Recent successful archive and cyber-monitoring scheduled jobs, with no secrets exposed | Must be checked in GitHub Actions and Render |
@@ -42,8 +45,8 @@ Only mark a gate passed when the linked CI run, deployment record, or test evide
 
 ## Reproducible verification
 
-1. Open the [GitHub Actions runs](https://github.com/Ad3n1x/ADVERSE/actions) and inspect the latest run for the current `main` commit.
-2. Verify the API syntax and test job, frontend typecheck/build job, and browser smoke-test job each completed successfully.
+1. The [verified GitHub Actions run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39669044245) passed the API syntax/regression tests, frontend typecheck/build, and Playwright browser smoke tests for current `main` commit `ccfc69fa9111dbe39e9abcf21a2cb0c6713c5f79`.
+2. Recheck GitHub Actions after any new commit; a passing run only verifies the exact commit tested.
 3. Inspect [Render API service settings](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0) and configure the health-check path as `/api/v1/ready`.
 4. Confirm the live API is connected to persistent MongoDB and test public search from the deployed website.
 5. Review the scheduled monitoring workflow runs and confirm both monitoring secrets exist in GitHub Actions and match the Render service values. Never publish secret values.
