@@ -128,7 +128,32 @@ app.get('/api/v1/public-search',limitProvider,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,200);
   if(q.length<2)return sendError(res,400,'QUERY_REQUIRED','Enter at least two characters to search.');
   const live=await searchAllPublic(q).catch(error=>({results:[],queryPlan:[],meta:{},error:String(error?.message||'Public providers unavailable')}));
-  const candidates=(Array.isArray(live.results)?live.results:[]).slice(0,30);
+  // Rank the merged provider results against the user's full intent before limiting them.
+  // This prevents single-word expansions such as "old" or "version" from crowding out
+  // pages that actually match the named product.
+  const normalizedQuery=q.toLocaleLowerCase().replace(/[^\\p{L}\\p{N}]+/gu,' ').trim();
+  const queryTerms=[...new Set(normalizedQuery.split(/\\s+/).filter(Boolean))];
+  const stopTerms=new Set(['old','new','version','latest','best','find','search','about','page','site','website','please','for','the','a','an','of','to']);
+  const intentTerms=queryTerms.filter(term=>!stopTerms.has(term));
+  const ranked=(Array.isArray(live.results)?live.results:[]).map((item,index)=>{
+    const title=String(item.title||'').toLocaleLowerCase();
+    const url=String(item.url||'').toLocaleLowerCase();
+    const excerpt=String(item.excerpt||'').toLocaleLowerCase();
+    const haystack=title+' '+url+' '+excerpt;
+    let score=0;
+    if(normalizedQuery&&title.includes(normalizedQuery))score+=16;
+    if(normalizedQuery&&haystack.includes(normalizedQuery))score+=7;
+    for(const term of intentTerms){
+      if(title.includes(term))score+=6;
+      else if(url.includes(term))score+=4;
+      else if(excerpt.includes(term))score+=1;
+    }
+    // A named product/subject should appear in the title or URL, not only in generic prose.
+    if(intentTerms.length>0&&!intentTerms.some(term=>title.includes(term)||url.includes(term)))score-=5;
+    if(/\\b(chat|chatroom|conversation|forum thread)\\b/i.test(title)&&!queryTerms.some(term=>['chat','chatroom','conversation','forum'].includes(term)))score-=8;
+    return {...item,_relevanceScore:score,_providerOrder:index};
+  }).sort((a,b)=>b._relevanceScore-a._relevanceScore||a._providerOrder-b._providerOrder);
+  const candidates=ranked.slice(0,30);
   const unique=[];const seen=new Set();
   for(const item of candidates){try{const parsed=validatePublicUrl(item.url);const key=parsed.href.toLowerCase();if(seen.has(key))continue;seen.add(key);unique.push({...item,url:parsed.href});}catch{}}
   const checked=await Promise.all(unique.slice(0,8).map(async item=>{
