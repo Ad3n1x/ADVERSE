@@ -121,6 +121,9 @@ a{color:var(--mint);text-underline-offset:3px}
 .page-panel>.panel-heading{padding:18px}
 .footer{display:flex;justify-content:space-between;gap:12px;padding:24px 0 4px;color:#5f7069;font:9px var(--mono)}
 .footer-sep{padding:0 7px;color:#34463f}
+.footer a{color:#a6c7b4;text-decoration:none;font-weight:700;letter-spacing:.06em}
+.footer a:hover,.footer a:focus-visible{color:#e0f4e7;text-decoration:underline}
+@media(max-width:640px){.footer{flex-wrap:wrap;align-items:flex-start;line-height:1.8}.footer>span{max-width:100%}}
 .modal-backdrop{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:20px;background:#030606d9;backdrop-filter:blur(7px);overflow-y:auto;overscroll-behavior:contain}.modal-backdrop .modal{position:relative;z-index:10000;max-height:calc(100dvh - 40px);margin:auto}
 .modal{width:min(100%,540px);max-height:min(86vh,760px);overflow:auto;padding:21px;border:1px solid #354741;border-radius:12px;background:#111819;box-shadow:0 28px 100px #000a}
 .modal-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
