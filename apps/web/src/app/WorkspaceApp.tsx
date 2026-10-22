@@ -8,9 +8,10 @@ import AuthScreen from '../features/auth/AuthScreen';
 import Empty from '../components/ui/Empty';
 import Modal from '../components/ui/Modal';
 import { API, request } from '../lib/api';
+import { HISTORY_KEY, SAVED_KEY } from '../lib/storageKeys';
 import { getRecordId as key } from '../lib/ids';
 import type { Capture, Entity, Evidence, Investigation, Relationship, SearchResult, Tab, ToastItem, ToastKind } from '../types/research';
-import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
+import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Trash2 } from 'lucide-react';
 function WorkspaceApp(){
  const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'|'forgot'|'reset'>('login'),[showAuth,setShowAuth]=useState(false),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState(''),[accountRole,setAccountRole]=useState('user'),[resetToken,setResetToken]=useState(''),[authMessage,setAuthMessage]=useState('');
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const token=params.get('reset');if(token){setResetToken(token);setAuthMode('reset');setShowAuth(true);setAuthMessage('');}},[]);
