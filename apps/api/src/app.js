@@ -540,11 +540,20 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const title=String(investigation.title||'').trim();
  const question=String(investigation.question||title).trim();
  if(question.length<2)return sendError(res,400,'RESEARCH_QUESTION_REQUIRED','Add a clear investigation question before starting the agent.');
+ const currentState=investigation.agentRunState||{};
+ const stateUpdated=Date.parse(currentState.updatedAt||currentState.startedAt||'');
+ if(currentState.status==='running'&&Number.isFinite(stateUpdated)&&Date.now()-stateUpdated<10*60*1000)return sendError(res,409,'AGENT_ALREADY_RUNNING','This investigation already has a research run in progress.');
+ const runId=id();
+ const initialState={runId,status:'running',stage:'starting',detail:'Preparing the investigation and loading known sources.',startedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),trace:[]};
+ if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:initialState}});
+ else {const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=initialState;}
+ res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Research agent started. Progress is saved as the run proceeds.'}});
+ void (async()=>{
  const providerKeys=await getUserProviderKeys(req.user.id);
  const trace=[];
  const startedAt=Date.now();
  const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
- const persistAgentState=async state=>{const payload={...state,updatedAt:new Date().toISOString()};if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:payload}});else{const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=payload;}};
+ const persistAgentState=async state=>{const payload={runId,...state,updatedAt:new Date().toISOString()};if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:payload}});else{const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=payload;}};
  const recordTrace=async entry=>{trace.push(entry);await persistAgentState({status:'running',stage:entry.stage,detail:entry.detail||('Working on '+entry.stage),startedAt:new Date(startedAt).toISOString(),trace:trace.slice(-20)});};
  await persistAgentState({status:'running',stage:'starting',detail:'Preparing the investigation and loading known sources.',startedAt:new Date(startedAt).toISOString(),trace:[]});
  const prior=await listFor(Evidence,'evidence',iid);
@@ -633,11 +642,11 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  await recordTrace({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
  const durationMs=Date.now()-startedAt;
  const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
- const runRecord={runId:id(),investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
+ const runRecord={runId,investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
  if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$push:{agentRunHistory:{$each:[runRecord],$slice:-20}},$set:{updatedAt:new Date()}});
  else {const stored=memory.investigations.get(iid);if(stored){stored.agentRunHistory=Array.isArray(stored.agentRunHistory)?stored.agentRunHistory:[];stored.agentRunHistory.push(runRecord);stored.agentRunHistory=stored.agentRunHistory.slice(-20);stored.updatedAt=new Date().toISOString();}}
- await persistAgentState({status:'complete',stage:'complete',detail:'Investigation completed and the report was saved.',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),runId:runRecord.runId,report:{title:report.title,savedCount:report.savedCount,scrapedCount:report.scrapedCount,queryCount:report.queries.length,leadCount:report.leads.length},trace:report.trace.slice(-20)});
- res.json({data:report,meta:{runId:runRecord.runId,persisted:true,persistence:isDb()?'mongodb':'ephemeral-memory'}});
+ await persistAgentState({status:'complete',stage:'complete',detail:'Investigation completed and the report was saved.',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),runId:runRecord.runId,report,trace:report.trace.slice(-20)});
+ })().catch(async error=>{const failed={runId,status:'failed',stage:'failed',detail:String(error?.message||'Research run failed.').slice(0,300),finishedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),trace:[]};try{if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:failed}});else{const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=failed;}}catch{}console.error('ADVERSE autonomous research run failed',String(error?.message||error).slice(0,300));});
 }));
 app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
