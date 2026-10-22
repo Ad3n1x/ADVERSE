@@ -20,7 +20,7 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByRole('button', { name: /Create collection/ }).click();
   await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Connection map' }).click();
+  await page.getByRole('button', { name: /Connections map/i }).click();
   await page.getByRole('button', { name: /Add entity/ }).click();
   await page.getByLabel('Name').fill('Example Corporation');
   await page.getByLabel('Public link (optional)').fill('https://example.org');
