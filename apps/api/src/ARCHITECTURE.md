@@ -43,6 +43,6 @@ src/
 - Authentication and password-reset handlers live in `controllers/auth/`; `routes/auth.routes.js` owns endpoint wiring, rate limiting and async error wrapping.
 - The web workspace uses `app/hooks/useWorkspaceNotifications.ts` for toast/error lifecycle and `features/public-search/visual-file.ts` for browser media preprocessing.
 - The API `check` script syntax-checks the new route/service/model files as well as compatibility exports.
-- Some non-auth route modules still contain request-handler logic inline. Continue extracting controllers by resource while preserving authentication, ownership checks, response shapes, and memory-mode behavior.
+- Utility routes now delegate to `controllers/utility.controller.js`; auth routes delegate to the auth controllers. The remaining resource route modules are still being migrated incrementally so their existing authorization, owner scoping, response envelopes and memory-mode behavior stay intact.
 
 Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
