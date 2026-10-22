@@ -605,14 +605,14 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const addQuery=(value,reason,round)=>{
   const q=cleanText(value,180);
   const k=q.toLowerCase();
-  if(q.length<3||querySeen.has(k)||plan.length>=8)return;
+  if(q.length<3||querySeen.has(k)||plan.length>=12)return;
   querySeen.add(k);plan.push({query:q,reason,round});
  };
  addQuery(question,'Primary investigation question',1);
  if(title.toLowerCase()!==question.toLowerCase())addQuery(title,'Investigation title cross-check',1);
  const allResults=[];
  let providerFailures=0;
- for(let round=1;round<=3;round++){
+ for(let round=1;round<=4;round++){
   const current=plan.filter(item=>item.round===round);
   if(!current.length)continue;
   await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original mission across available public indexes.':'Following promising leads from round '+(round-1)+' and cross-checking them against additional public sources.'});
@@ -625,7 +625,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
    for(const result of (item.result.results||[]).slice(0,14))allResults.push({...result,agentQuery:item.plan.query,agentReason:item.plan.reason});
   }
   await recordTrace({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
-  if(round<3){
+  if(round<4){
    await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
    const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
    let candidates=planned.leads;
