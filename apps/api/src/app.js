@@ -36,7 +36,7 @@ app.use((req,res,next)=>{
     if(!route.startsWith('/api/v1/'))return;
     const isSearch=route==='/api/v1/search'||route==='/api/v1/public-search'||route==='/api/v1/public-search/media';
     // Record route/method/status/latency only; never capture query strings or request bodies.
-    const event={kind:isSearch?'search':'request',route,method:req.method,status:res.statusCode,durationMs:Math.max(0,Date.now()-(req[telemetryStartedAt]||Date.now())),userId:String(req.user?.id||'').slice(0,100),errorCode:res.statusCode>=500?'HTTP_5XX':''};
+    const event={kind:isSearch?'search':'request',route,method:req.method,status:res.statusCode,durationMs:Math.max(0,Date.now()-(req[telemetryStartedAt]||Date.now())),userId:String(req.user?.id||'').slice(0,100),resultCount:Number(res.locals.searchResultCount||0),errorCode:res.statusCode>=500?'HTTP_5XX':String(res.locals.searchError||'').slice(0,80)};
     if(isDb())void SearchMetric.create(event).catch(()=>{});
     else {const items=globalThis.__ADVERSE_METRICS__ ||= [];items.push({...event,createdAt:new Date()});if(items.length>2000)items.splice(0,items.length-2000);}
   });
@@ -154,7 +154,7 @@ app.use('/api/v1',wrap(async(req,res,next)=>{
   globalThis.__ADVERSE_SEARCH_LIMIT__=Number(cfg.usageLimits?.searchesPerMinute)||40;
   if(cfg.maintenanceMode)return sendError(res,503,'MAINTENANCE_MODE','ADVERSE is temporarily in maintenance mode. Please try again soon.');
   if((req.path==='/search'||req.path==='/public-search'||req.path==='/public-search/media')&&cfg.featureFlags?.search===false)return sendError(res,503,'FEATURE_DISABLED','Search is temporarily unavailable.');
-  if(req.path.startsWith('/search/provider-credentials')&&cfg.featureFlags?.providerSettings===false)return sendError(res,503,'FEATURE_DISABLED','Provider settings are temporarily unavailable.');
+  if((req.path.startsWith('/search/provider-credentials')||req.path.startsWith('/search/providers'))&&cfg.featureFlags?.providerSettings===false)return sendError(res,503,'FEATURE_DISABLED','Provider settings are temporarily unavailable.');
   if(req.path.startsWith('/investigations/')&&req.path.includes('/monitoring')&&cfg.featureFlags?.monitoring===false)return sendError(res,503,'FEATURE_DISABLED','Monitoring is temporarily unavailable.');
   next();
 }));
@@ -233,6 +233,7 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   }
   const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
   setSession(res,tokenFor(safe));
+  req.user=safe;
   await auditAdmin(req,'admin.login','admin',configuredEmail,{success:true});
   res.json({data:safe});
 }));
@@ -247,7 +248,7 @@ app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
   const counts=new Map(investigationCounts.map(row=>[String(row._id),row.count]));
   res.json({data:{
     metrics:{totalUsers:users,totalInvestigations,usersCreatedLast7Days:await User.countDocuments({createdAt:{$gte:new Date(Date.now()-7*86400000)}})},
-    recentUsers:recentUsers.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),
+    recentUsers:recentUsers.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),
     generatedAt:new Date().toISOString(),
     limitations:['Search-query analytics are not yet recorded, so this view does not claim to show search volume or active users.','Last updated is the account record update timestamp, not a verified last-login time.']
   }});
@@ -263,7 +264,7 @@ app.get('/api/v1/admin/users',requireAdmin,wrap(async(req,res)=>{
   const ids=rows.map(u=>String(u._id));
   const groups=ids.length?await Investigation.aggregate([{$match:{ownerId:{$in:ids}}},{$group:{_id:'$ownerId',count:{$sum:1}}} ]):[];
   const counts=new Map(groups.map(row=>[String(row._id),row.count]));
-  res.json({data:rows.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),meta:{page,limit,total,pages:Math.ceil(total/limit)}});
+  res.json({data:rows.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),meta:{page,limit,total,pages:Math.ceil(total/limit)}});
 }));
 
 app.get('/api/v1/admin/health',requireAdmin,wrap(async(req,res)=>{
@@ -279,7 +280,7 @@ app.get('/api/v1/admin/metrics',requireAdmin,wrap(async(req,res)=>{
   const [total,searches,errors,summary,byRoute,timeline,latencies]=await Promise.all([
     SearchMetric.countDocuments({createdAt:{$gte:since}}),
     SearchMetric.countDocuments({kind:'search',createdAt:{$gte:since}}),
-    SearchMetric.countDocuments({status:{$gte:500},createdAt:{$gte:since}}),
+    SearchMetric.countDocuments({createdAt:{$gte:since},$or:[{status:{$gte:500}},{errorCode:{$ne:''}}]}),
     SearchMetric.aggregate([{$match:{createdAt:{$gte:since}}},{$group:{_id:null,avg:{$avg:'$durationMs'},max:{$max:'$durationMs'}}}]),
     SearchMetric.aggregate([{$match:{createdAt:{$gte:since}}},{$group:{_id:'$route',count:{$sum:1},errors:{$sum:{$cond:[{$gte:['$status',500]},1,0]}},avgLatency:{$avg:'$durationMs'}}},{$sort:{count:-1}},{$limit:20}]),
     SearchMetric.aggregate([{$match:{createdAt:{$gte:since}}},{$group:{_id:{$dateTrunc:{date:'$createdAt',unit:duration>2*86400000?'day':'hour'}},requests:{$sum:1},errors:{$sum:{$cond:[{$gte:['$status',500]},1,0]}}}},{$sort:{_id:1}},{$limit:750}]),
@@ -639,6 +640,8 @@ app.get('/api/v1/search',requireAuth,limitProvider,wrap(async(req,res)=>{
   const seen=new Set(stored.map(item=>String(item.url||'').toLowerCase()));
   const merged=[...stored,...liveResults.filter(item=>{const key=String(item.url||'').toLowerCase();if(seen.has(key))return false;seen.add(key);return true;}).map(item=>({...item,rank:rank(item),indexed:false}))];
   merged.sort((a,b)=>b.rank-a.rank);
+  res.locals.searchResultCount=merged.length;
+  res.locals.searchError=live.error||(!liveResults.length?'NO_LIVE_PROVIDER_RESULTS':'');
   res.json({data:merged.slice(0,100).map(({rank:_rank,...item})=>item),meta:{
     providers:[...new Set(merged.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],
     query:q,queryPlan:live.queryPlan||[],retrievedAt:new Date().toISOString(),indexedCount:stored.length,liveCount:liveResults.length,
