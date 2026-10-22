@@ -64,7 +64,7 @@ function requireAuth(req,res,next){
   const unsafeMethod = !['GET','HEAD','OPTIONS'].includes(req.method.toUpperCase());
   const origin = req.get('origin');
   if (cookie && unsafeMethod && origin && !allowedWebOrigins().includes(origin)) return sendError(res,403,'ORIGIN_NOT_ALLOWED','This request origin is not allowed to modify the workspace.');
-  const bearer = String(req.headers.authorization || '').replace(/^Bearer\\s+/i, '');
+  const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   const user = verifyToken(cookie || bearer);
   if (!user) return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');
   Promise.resolve().then(async()=>{
