@@ -257,3 +257,70 @@ table td{color:#d5e1ef!important}
  box-shadow:0 0 0 1000px #09131b inset!important;
  caret-color:#55d9d0!important;
 }
+
+
+/* App-wide readability pass: stronger secondary text, clearer controls and focus. */
+:root{
+ --text:#f0f5fb;
+ --muted:#b5c5d7;
+ --dim:#9aadc2;
+}
+body,#root,.app,.content,.page-content,.workspace-content{color:#e7eff8}
+p,li,dd,dt,figcaption,.description,.helper-text,.form-hint,.empty-state p,
+.page-heading p,.section-row p,.panel-heading p,.modal-heading p,.auth-card>p,
+.case-summary p,.case-copy span,.user-copy span,.breadcrumbs,.metric-neutral,
+.metric-top,.field-hint,.search-hint,.modal-note,.notice{
+ color:#b3c3d5;
+}
+small,.small,.caption,.subtle,.muted,.secondary-text,.helper,.hint{
+ color:#a9bbcf;
+}
+.footer,.footer-sep,.brand span,.nav-label,.auth-brand>span,.auth-toggle,
+.auth-footer,.user-row,.case-status-label{
+ color:#9aadc2!important;
+}
+.nav-item,.investigation-item,.secondary-button,.icon-button,
+.graph-toolbar button,.settings-row,.table-row,.list-row{
+ color:#d4e1ef;
+}
+.nav-item svg,.icon-button svg{color:inherit}
+input,textarea,select,option,button,[role="button"]{font:inherit}
+input,textarea,select,.auth-card label input,.modal input,.modal textarea,.modal select{
+ color:#f0f6ff!important;
+ caret-color:#73e5dc;
+}
+input::placeholder,textarea::placeholder,.modal input::placeholder,
+.modal textarea::placeholder,.auth-card input::placeholder,
+.inline-search input::placeholder,.search-field input::placeholder{
+ color:#9aadc2!important;opacity:1!important;
+}
+button:disabled,.primary-button:disabled,.secondary-button:disabled{
+ opacity:.72;cursor:not-allowed;
+}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
+select:focus-visible,[role="button"]:focus-visible{
+ outline:2px solid #73e5dc!important;
+ outline-offset:3px;
+}
+a{color:#8ce9e1}
+a:hover{color:#c0fff7}
+.text-button{color:#8ce9e1!important}
+.nav-label{color:#9aadc2!important}
+.brand span,.case-copy span,.user-copy span,.metric-top,.metric-neutral,
+.section-row p,.panel-heading p,.page-heading p,.case-summary p,
+.empty-state p,.modal-heading p,.auth-card>p,.search-hint{
+ color:#b0c1d4!important;
+}
+.metric-foot,.footer{color:#9eafc3!important}
+.graph-entity-option small,.graph-relationship-select small,
+.graph-source-link,.graph-inspector small{
+ color:#b8c9da!important;font-size:12px!important;
+}
+.graph-source-link{color:#8ce9e1!important}
+.modal form label,.auth-card label,.field-label,.search-field label{
+ color:#d4e1ef!important;
+}
+.nav-item.active{color:#d5fff9!important}
+.nav-item.active svg{color:#8ce9e1!important}
+.security-note{color:#a8f2e9!important}
+.security-note span{color:#b0d2d4!important}
