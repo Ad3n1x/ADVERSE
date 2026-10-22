@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { timingSafeEqual, scryptSync } from 'node:crypto';
-import { z } from 'zod';
 import { sendPasswordResetEmail } from '../services/auth/password-reset-email.js';
+import { createPasswordResetController } from '../controllers/auth/password-reset.controller.js';
 
 export function registerAuthRoutes(app, {
   limitAuth, wrap, authSchema, sendError, ownerEmail, isDb, User, memory,
@@ -11,49 +11,9 @@ export function registerAuthRoutes(app, {
   app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{const p=authSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid email and a password of at least 12 characters.',p.error.flatten());const email=p.data.email.toLowerCase();if(email===ownerEmail())return sendError(res,403,'OWNER_EMAIL_RESERVED','This email is reserved for the workspace owner. Use administrator sign-in instead.');const existsUser=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);if(existsUser)return sendError(res,409,'ACCOUNT_EXISTS','An account with this email already exists.');const salt=crypto.randomBytes(16).toString('hex');const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');const user=isDb()?await User.create({email,displayName:p.data.displayName||email.split('@')[0],passwordHash}):{id:id(),email,displayName:p.data.displayName||email.split('@')[0],passwordHash};if(!isDb())memory.users.set(user.id,user);const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.status(201).json({data:safe});}));
   app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:user.role||'user'};setSession(res,tokenFor(safe));res.json({data:safe});}));
   
-  const passwordResetRequestSchema=z.object({email:z.string().trim().email().max(254)});
-  const passwordResetCompleteSchema=z.object({token:z.string().min(32).max(256),password:z.string().min(12).max(128)});
-  app.post('/api/v1/auth/forgot-password',limitAuth,wrap(async(req,res)=>{
-   const p=passwordResetRequestSchema.safeParse(req.body);
-   if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email address.');
-   const email=p.data.email.toLowerCase();
-   const user=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);
-   if(user){
-    const rawToken=crypto.randomBytes(32).toString('base64url');
-    const tokenHash=crypto.createHash('sha256').update(rawToken).digest('hex');
-    const expiresAt=new Date(Date.now()+30*60*1000);
-    if(isDb()){await User.updateOne({_id:user._id},{$set:{passwordResetTokenHash:tokenHash,passwordResetExpiresAt:expiresAt}});}
-    else{user.passwordResetTokenHash=tokenHash;user.passwordResetExpiresAt=expiresAt;}
-    try{
-     const configuredOrigin=String(process.env.WEB_ORIGIN||'').split(',')[0].trim();
-     if(!configuredOrigin)throw new Error('WEB_ORIGIN is not configured.');
-     const origin=new URL(configuredOrigin);
-     if(process.env.NODE_ENV==='production'&&origin.protocol!=='https:')throw new Error('Production password reset links require HTTPS.');
-     const resetUrl=new URL('/',origin);resetUrl.searchParams.set('reset',rawToken);
-     await sendPasswordResetEmail(email,resetUrl.toString());
-    }catch(error){
-     if(isDb())await User.updateOne({_id:user._id,passwordResetTokenHash:tokenHash},{$set:{passwordResetTokenHash:'',passwordResetExpiresAt:null}});
-     else if(user.passwordResetTokenHash===tokenHash){user.passwordResetTokenHash='';user.passwordResetExpiresAt=null;}
-     console.error(JSON.stringify({event:'password_reset_delivery_failed',reason:String(error?.message||'email delivery failed').slice(0,180)}));
-    }
-   }
-   res.json({data:{message:'If an account exists for that email, password reset instructions will be sent shortly.'}});
-  }));
-  app.post('/api/v1/auth/reset-password',limitAuth,wrap(async(req,res)=>{
-   const p=passwordResetCompleteSchema.safeParse(req.body);
-   if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid reset link and a password of at least 12 characters.');
-   const tokenHash=crypto.createHash('sha256').update(p.data.token).digest('hex');
-   const now=new Date();
-   const user=isDb()?await User.findOne({passwordResetTokenHash:tokenHash,passwordResetExpiresAt:{$gt:now}}):[...memory.users.values()].find(u=>u.passwordResetTokenHash===tokenHash&&u.passwordResetExpiresAt&&new Date(u.passwordResetExpiresAt)>now);
-   if(!user)return sendError(res,400,'RESET_LINK_INVALID','This password reset link is invalid or expired. Request a new one.');
-   const salt=crypto.randomBytes(16).toString('hex');
-   const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');
-   if(isDb()){
-    const updated=await User.updateOne({_id:user._id,passwordResetTokenHash:tokenHash,passwordResetExpiresAt:{$gt:now}},{$set:{passwordHash,passwordResetTokenHash:'',passwordResetExpiresAt:null}});
-    if(!updated.modifiedCount)return sendError(res,400,'RESET_LINK_INVALID','This password reset link is invalid or expired. Request a new one.');
-   }else{user.passwordHash=passwordHash;user.passwordResetTokenHash='';user.passwordResetExpiresAt=null;}
-   res.json({data:{message:'Password updated. You can now sign in with your new password.'}});
-  }));
+  const passwordReset = createPasswordResetController({ isDb, User, memory, sendError, sendPasswordResetEmail });
+  app.post('/api/v1/auth/forgot-password',limitAuth,wrap(passwordReset.forgotPassword));
+  app.post('/api/v1/auth/reset-password',limitAuth,wrap(passwordReset.resetPassword));
   
   app.get('/api/v1/auth/me',requireAuth,wrap(async(req,res)=>{const user=isDb()?await User.findById(req.user.id).select('email displayName role status').lean():memory.users.get(req.user.id);if(!user)return sendError(res,401,'SESSION_EXPIRED','Please sign in again.');const email=String(user.email||'').toLowerCase();res.json({data:{id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:email===ownerEmail()?'owner':(user.role||'user')}});}));
   app.post('/api/v1/auth/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
