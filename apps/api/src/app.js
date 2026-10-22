@@ -530,6 +530,94 @@ app.patch('/api/v1/investigations/:id',requireAuth,wrap(async(req,res)=>{if(!awa
 app.delete('/api/v1/investigations/:id',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');if(isDb()){await Promise.all([Investigation.deleteOne({_id:iid,ownerId:req.user.id}),Evidence.deleteMany({investigationId:iid}),Entity.deleteMany({investigationId:iid}),Relationship.deleteMany({investigationId:iid}),Watch.deleteMany({investigationId:iid}),Alert.deleteMany({investigationId:iid}),CyberAsset.deleteMany({investigationId:iid}),CyberEvent.deleteMany({investigationId:iid})]);}else{memory.investigations.delete(iid);for(const c of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [k,v] of memory[c])if(v.investigationId===iid)memory[c].delete(k);}res.status(204).end();}));
 app.delete('/api/v1/investigations',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));if(ids.length){await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}})]);}return res.json({data:{deletedCount:ids.length},message:'All investigations and their dependent records were deleted.'});}const owned=[...memory.investigations.entries()].filter(([,item])=>String(item.ownerId)===uid);const ids=new Set(owned.map(([iid])=>String(iid)));for(const iid of ids)memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(ids.has(String(record.investigationId)))memory[collection].delete(rid);res.json({data:{deletedCount:ids.size},message:'All investigations and their dependent records were deleted.'});}));
 app.get('/api/v1/investigations/:id/overview',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const [evidence,entities,relationships,investigation]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid),investigationGet(iid,req.user.id)]);res.json({data:{evidence,entities,relationships,aiReviewHistory:Array.isArray(investigation?.aiReviewHistory)?investigation.aiReviewHistory:[],timeline:evidence.map(e=>({id:e.id||String(e._id),date:e.publishedAt||e.retrievedAt,title:e.title,type:'evidence',url:e.url,verificationStatus:e.verificationStatus})).sort((a,b)=>new Date(a.date||0)-new Date(b.date||0))}});}));
+app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=>{
+ const iid=req.params.id;
+ const investigation=await investigationGet(iid,req.user.id);
+ if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');
+ const title=String(investigation.title||'').trim();
+ const question=String(investigation.question||title).trim();
+ if(question.length<2)return sendError(res,400,'RESEARCH_QUESTION_REQUIRED','Add a clear investigation question before starting the agent.');
+ const providerKeys=await getUserProviderKeys(req.user.id);
+ const trace=[];
+ const startedAt=Date.now();
+ const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+ const prior=await listFor(Evidence,'evidence',iid);
+ const knownUrls=new Set(prior.map(item=>{try{return normalizeResultUrl(item.url).toLowerCase();}catch{return String(item.url||'').toLowerCase();}}));
+ const querySeen=new Set();
+ const plan=[];
+ const addQuery=(value,reason,round)=>{
+  const q=cleanText(value,180);
+  const k=q.toLowerCase();
+  if(q.length<3||querySeen.has(k)||plan.length>=5)return;
+  querySeen.add(k);plan.push({query:q,reason,round});
+ };
+ addQuery(question,'Primary investigation question',1);
+ if(title.toLowerCase()!==question.toLowerCase())addQuery(title,'Investigation title cross-check',1);
+ const allResults=[];
+ let providerFailures=0;
+ for(let round=1;round<=2;round++){
+  const current=plan.filter(item=>item.round===round);
+  if(!current.length)continue;
+  trace.push({stage:'search',round,status:'running',detail:round===1?'Searching the original question across available public indexes.':'Following promising leads from the first pass and searching them independently.'});
+  const settled=await Promise.all(current.map(async item=>{
+   try{return {plan:item,result:await searchAllPublic(item.query,providerKeys)};}
+   catch{return {plan:item,result:{results:[],meta:{failedSearches:1},error:'Provider search failed'}};}
+  }));
+  for(const item of settled){
+   providerFailures+=Number(item.result.meta?.failedSearches||0);
+   for(const result of (item.result.results||[]).slice(0,14))allResults.push({...result,agentQuery:item.plan.query,agentReason:item.plan.reason});
+  }
+  trace.push({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
+  if(round===1){
+   const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
+   const seenHosts=new Set();
+   for(const result of seed){
+    if(plan.length>=5)break;
+    let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
+    if(!host||seenHosts.has(host))continue;
+    seenHosts.add(host);
+    const candidate=cleanText(result.title,150);
+    if(candidate.length>=12&&candidate.toLowerCase()!==question.toLowerCase())addQuery(candidate,'Lead discovered in '+host,2);
+   }
+  }
+ }
+ const merged=new Map();
+ for(const item of allResults){
+  try{
+   const url=normalizeResultUrl(validatePublicUrl(item.url).href);
+   const key=url.toLowerCase();
+   const old=merged.get(key);
+   if(old){old.providers=[...new Set([...(old.providers||[]),item.provider,...(item.providers||[])].filter(Boolean))];old.matchedQueries=[...new Set([...(old.matchedQueries||[]),item.agentQuery].filter(Boolean))];if(String(item.excerpt||'').length>String(old.excerpt||'').length)old.excerpt=item.excerpt;continue;}
+   merged.set(key,{...item,url,providers:[...new Set([item.provider,...(item.providers||[])].filter(Boolean))],matchedQueries:[item.agentQuery].filter(Boolean)});
+  }catch{}
+ }
+ const ranked=diversifyPublicResults([...merged.values()],question,{limit:60,maxPerDomain:2});
+ const fresh=ranked.filter(item=>!knownUrls.has(item.url.toLowerCase())).slice(0,14);
+ trace.push({stage:'triage',status:'complete',candidateCount:ranked.length,newCandidateCount:fresh.length,detail:'Deduplicated public URLs, diversified publishers, and prioritized question-relevant results. Relevance is a heuristic, not a truth verdict.'});
+ const scrapeCandidates=fresh.slice(0,5);
+ const pageResults=await Promise.all(scrapeCandidates.map(async item=>{try{return {url:item.url,page:await scrapePublicPage(item.url)};}catch(error){return {url:item.url,error:cleanText(error?.message,180),page:null};}}));
+ const pageMap=new Map(pageResults.map(item=>[item.url,item]));
+ let savedCount=0;
+ const sourceRecords=[];
+ for(const item of fresh){
+  if(savedCount>=14)break;
+  const page=pageMap.get(item.url)?.page;
+  const excerpt=cleanText(page?.excerpt||item.excerpt,4500);
+  const host=new URL(item.url).hostname.replace(/^www\./,'');
+  const record={id:id(),investigationId:iid,title:cleanText(page?.title&&page.title!==host?page.title:item.title||host,240),url:item.url,sourceType:item.sourceType==='document'?'document':'web',publisher:cleanText(item.publisher||item.provider||host,200),publishedAt:item.publishedAt&&!Number.isNaN(new Date(item.publishedAt).getTime())?new Date(item.publishedAt):null,retrievedAt:new Date(page?.retrievedAt||item.retrievedAt||Date.now()),excerpt,verificationStatus:'unverified',contentHash:crypto.createHash('sha256').update(excerpt).digest('hex'),entities:[],captureTimestamp:'',createdAt:new Date(),updatedAt:new Date()};
+  try{
+   const saved=await saveRecord(Evidence,'evidence',record);
+   knownUrls.add(item.url.toLowerCase());savedCount++;
+   sourceRecords.push({id:String(saved.id||saved._id||record.id),title:record.title,url:record.url,publisher:record.publisher,excerpt:record.excerpt,provider:item.provider||'',providers:item.providers||[],matchedQueries:item.matchedQueries||[],retrieved: Boolean(page),verificationStatus:'unverified'});
+  }catch(error){if(error?.code!==11000)console.warn('ADVERSE agent evidence save failed:',cleanText(error?.message,160));}
+ }
+ const scrapedCount=pageResults.filter(item=>item.page).length;
+ const followUpLeads=plan.filter(item=>item.round===2).map(item=>({query:item.query,reason:item.reason,status:'searched'}));
+ trace.push({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
+ trace.push({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
+ const durationMs=Date.now()-startedAt;
+ res.json({data:{investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()}});
+}));
 app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
  if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
