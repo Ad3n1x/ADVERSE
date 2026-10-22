@@ -3,7 +3,6 @@ import { Bell, Check, Clock3, ExternalLink, Globe2, Plus, RefreshCw, ShieldCheck
 import { request } from '../../lib/api';
 import Empty from '../../components/ui/Empty';
 import type { Investigation, MonitorAlert, WatchRecord } from '../../types/research';
-
 function MonitoringView({cases,caseId,setCaseId,onError,onNotice}:{cases:Investigation[];caseId:string;setCaseId:(id:string)=>void;onError:(message:string)=>void;onNotice:(message:string)=>void}){
  const [watches,setWatches]=useState<WatchRecord[]>([]),[alerts,setAlerts]=useState<MonitorAlert[]>([]),[meta,setMeta]=useState<{scheduler:string;scope:string}|null>(null);
  const [url,setUrl]=useState(''),[label,setLabel]=useState(''),[intervalHours,setIntervalHours]=useState('24'),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[checkingId,setCheckingId]=useState('');
@@ -22,6 +21,4 @@ function MonitoringView({cases,caseId,setCaseId,onError,onNotice}:{cases:Investi
  <div className="monitor-section-heading"><h3>Recent alerts</h3><span>{alerts.filter(a=>!a.acknowledgedAt).length} unacknowledged</span></div>{alerts.length===0?<Empty title="No alerts recorded" text="Alerts appear here if the configured archive-check worker records a change."/>:<div className="watch-list">{alerts.map(a=><article className="watch-row alert-row" key={a.id}><div className="watch-symbol"><Bell size={17}/></div><div className="watch-details"><b>{a.label||a.url||'Archive observation'}</b><p>{a.message||'An archive observation was recorded. Compare the capture timestamps before interpreting it.'}</p><span>{a.observedAt?new Date(a.observedAt).toLocaleString():'Observation time unavailable'} · {a.acknowledgedAt?'Acknowledged':'Needs review'}</span>{a.emailStatus&&<small className={a.emailStatus==='sent'?'email-status email-sent':'email-status'}>{a.emailStatus==='sent'?'Email sent':a.emailStatus==='pending'?'Email delivery pending · '+(a.emailAttempts||0)+' attempt(s)':'Email disabled'}</small>}{a.emailLastError&&<small className="watch-error">{a.emailLastError}</small>}{a.url&&<a href={a.url} target="_blank" rel="noreferrer">Open watched URL <ExternalLink size={12}/></a>}</div><div className="watch-actions">{!a.acknowledgedAt&&<button className="secondary-button" onClick={()=>acknowledge(a.id)}><Check size={14}/> Acknowledge</button>}<button className="secondary-button" onClick={()=>void removeAlert(a.id)} aria-label={'Delete alert '+(a.label||a.url||a.id)}><Trash2 size={14}/> Delete</button></div></article>)}</div>}</>}
  </section>;
 }
-
-
 export default MonitoringView;
