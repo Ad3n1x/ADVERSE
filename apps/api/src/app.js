@@ -974,12 +974,51 @@ app.post('/api/v1/investigations/:id/research',requireAuth,limitProvider,wrap(as
     };
     try{saved.push(await saveRecord(Evidence,'evidence',record));}catch(error){console.error('ADVERSE research save failed',String(error?.message||error));}
   }
+  // Add source-provenance nodes and links for records this run actually saved.
+  // This graph describes where a page came from, not whether its claims are true.
+  let graphEntitiesAdded=0,graphRelationshipsAdded=0;
+  try{
+    const [knownEntities,knownRelationships]=await Promise.all([listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid)]);
+    const entityByUrl=new Map(knownEntities.filter(x=>x.canonicalUrl).map(x=>[String(x.canonicalUrl).toLowerCase(),x]));
+    const entityByNameType=new Map(knownEntities.map(x=>[(String(x.name||'').trim().toLowerCase()+'|'+x.type),x]));
+    const relationshipKeys=new Set(knownRelationships.map(x=>[String(x.fromEntityId),String(x.toEntityId),x.type].join('|')));
+    for(const source of saved){
+      const evidenceId=String(source.id||source._id||'');
+      if(!evidenceId||!source.url)continue;
+      let parsed;try{parsed=new URL(source.url);}catch{continue;}
+      const host=parsed.hostname.toLowerCase().replace(/^www\\./,'');
+      const publisherName=String(source.publisher||host).trim().slice(0,200)||host;
+      const docName=String(source.title||source.url).trim().slice(0,200)||source.url;
+      let publisher=entityByUrl.get(('https://'+host).toLowerCase())||entityByNameType.get(publisherName.toLowerCase()+'|domain')||entityByNameType.get(publisherName.toLowerCase()+'|organization');
+      if(!publisher){
+        try{
+          publisher=await saveRecord(Entity,'entities',{id:id(),investigationId:iid,name:publisherName,type:'domain',description:'Publisher/domain identified from a saved public source URL. This identifies the source host, not its trustworthiness.',canonicalUrl:'https://'+host,evidenceIds:[evidenceId],createdAt:new Date(),updatedAt:new Date()});
+          entityByUrl.set(('https://'+host).toLowerCase(),publisher);entityByNameType.set(publisherName.toLowerCase()+'|domain',publisher);graphEntitiesAdded++;
+        }catch(error){console.warn('ADVERSE research publisher graph save failed',String(error?.message||error));continue;}
+      }
+      let document=entityByUrl.get(source.url.toLowerCase())||entityByNameType.get(docName.toLowerCase()+'|document');
+      if(!document){
+        try{
+          document=await saveRecord(Entity,'entities',{id:id(),investigationId:iid,name:docName,type:'document',description:'Public page discovered and saved by this research run. Review the original source before relying on its contents.',canonicalUrl:source.url,evidenceIds:[evidenceId],createdAt:new Date(),updatedAt:new Date()});
+          entityByUrl.set(source.url.toLowerCase(),document);entityByNameType.set(docName.toLowerCase()+'|document',document);graphEntitiesAdded++;
+        }catch(error){console.warn('ADVERSE research document graph save failed',String(error?.message||error));continue;}
+      }
+      const from=String(publisher.id||publisher._id||''),to=String(document.id||document._id||'');
+      const relKey=[from,to,'publishes'].join('|');
+      if(from&&to&&from!==to&&!relationshipKeys.has(relKey)){
+        try{
+          await saveRecord(Relationship,'relationships',{id:id(),investigationId:iid,fromEntityId:from,toEntityId:to,type:'publishes',evidenceIds:[evidenceId],confidence:'low',rationale:'Publisher/domain and page URL were observed in the same saved source record. This records source provenance only; it does not validate the page or its claims.',verificationStatus:'unverified',createdAt:new Date(),updatedAt:new Date()});
+          relationshipKeys.add(relKey);graphRelationshipsAdded++;
+        }catch(error){console.warn('ADVERSE research provenance link save failed',String(error?.message||error));}
+      }
+    }
+  }catch(error){console.warn('ADVERSE research graph enrichment incomplete',String(error?.message||error));}
   const providers=[...new Set(available.map(item=>item.provider).filter(Boolean))];
   const failures=settled.filter(item=>item.status==='rejected').length;
   res.json({data:{
     investigationId:iid,queryCount:queries.length,queries,providers,
     discoveredCount:unique.length,alreadyStoredCount:unique.length-pending.length,
-    savedCount:saved.length,scrapeAttempted:scrapeCandidates.length,
+    savedCount:saved.length,graphEntitiesAdded,graphRelationshipsAdded,scrapeAttempted:scrapeCandidates.length,
     scrapedCount:scraped.filter(item=>item.page).length,
     scrapeFailures:scraped.filter(item=>item.error).map(item=>({url:item.item.url,reason:item.error})).slice(0,12),
     providerFailures:failures,results:saved.map(item=>({id:String(item.id||item._id),title:item.title,url:item.url,publisher:item.publisher,sourceType:item.sourceType,verificationStatus:item.verificationStatus})),
