@@ -1005,3 +1005,50 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
   .panel-heading .primary-button,.panel-heading .secondary-button{width:100%;justify-content:center}
   .modal{padding:14px}
 }
+
+
+/* Managed Saved Data — always styled, including after autonomous-mode removal. */
+.data-cleanup-controls{
+  display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:8px;
+  min-width:0;margin:14px 0 20px;padding:12px 14px;
+  border:1px solid var(--line);border-radius:14px;
+  background:linear-gradient(135deg,rgba(20,32,34,.92),rgba(15,21,24,.88));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.025);
+}
+.data-cleanup-controls>span{
+  display:inline-flex;align-items:center;min-height:32px;margin-right:4px;
+  color:var(--muted);font-family:var(--mono);font-size:10px;font-weight:500;
+  letter-spacing:.12em;line-height:1.4;
+}
+.data-cleanup-controls>button{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:34px;max-width:100%;padding:7px 11px;
+  border:1px solid #33433f;border-radius:9px;background:#151f20;
+  color:var(--text);font-size:12px;font-weight:600;line-height:1.35;
+  white-space:normal;overflow-wrap:anywhere;
+  transition:background .16s ease,border-color .16s ease,transform .16s ease;
+}
+.data-cleanup-controls>button:hover:not(:disabled){
+  border-color:var(--mint);background:#1b2b29;transform:translateY(-1px);
+}
+.data-cleanup-controls>button:focus-visible{
+  outline:2px solid var(--mint);outline-offset:2px;
+}
+.data-cleanup-controls>button:disabled{cursor:not-allowed;opacity:.42}
+.data-cleanup-controls>button.clear-generated-data{
+  margin-left:auto;border-color:rgba(242,169,155,.48);
+  background:rgba(91,40,38,.2);color:#f2b0a4;
+}
+.data-cleanup-controls>button.clear-generated-data:hover:not(:disabled){
+  border-color:#f2a99b;background:rgba(120,48,43,.34);color:#ffd1c8;
+}
+@media(max-width:760px){
+  .data-cleanup-controls{align-items:stretch;gap:7px;padding:11px}
+  .data-cleanup-controls>span{width:100%;min-height:unset;margin:0 0 2px}
+  .data-cleanup-controls>button{flex:1 1 calc(50% - 7px);min-width:0}
+  .data-cleanup-controls>button.clear-generated-data{margin-left:0}
+}
+@media(max-width:420px){
+  .data-cleanup-controls{margin:12px 0 16px;padding:10px;border-radius:11px}
+  .data-cleanup-controls>button{flex:1 1 100%;width:100%;text-align:center}
+}
