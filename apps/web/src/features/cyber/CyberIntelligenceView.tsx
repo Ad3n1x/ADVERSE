@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, Clock3, ExternalLink, Fingerprint, Plus, Radar, RefreshCw, Server, ShieldCheck } from 'lucide-react';
+import { Clock3, ExternalLink, Plus, Radar, RefreshCw, Server, ShieldCheck } from 'lucide-react';
 import { request } from '../../lib/api';
 import Empty from '../../components/ui/Empty';
 import type { CyberAssetRecord, CyberEventRecord, Investigation } from '../../types/research';
-
 function CyberIntelligenceView({cases,caseId,setCaseId,onError,onNotice}:{cases:Investigation[];caseId:string;setCaseId:(id:string)=>void;onError:(message:string)=>void;onNotice:(message:string)=>void}){
  const [assets,setAssets]=useState<CyberAssetRecord[]>([]),[events,setEvents]=useState<CyberEventRecord[]>([]),[meta,setMeta]=useState<any>(null);
  const [url,setUrl]=useState(''),[label,setLabel]=useState(''),[intervalHours,setIntervalHours]=useState('6'),[loading,setLoading]=useState(false),[saving,setSaving]=useState(false),[workingId,setWorkingId]=useState('');
@@ -34,5 +33,4 @@ function CyberIntelligenceView({cases,caseId,setCaseId,onError,onNotice}:{cases:
   </>}
  </section>;
 }
-
 export default CyberIntelligenceView;
