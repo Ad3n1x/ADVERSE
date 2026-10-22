@@ -280,9 +280,9 @@ app.get('/api/v1/admin/health',requireAdmin,wrap(async(req,res)=>{
   res.json({data:{api:'ok',database:dbState,uptimeSeconds:Math.round(process.uptime()),nodeVersion:process.version,environment:process.env.NODE_ENV||'development',users:userCount,investigations:investigationCount,maintenanceMode:Boolean(cfg.maintenanceMode),backup:{configured:backupConfigured,lastSuccessAt:process.env.BACKUP_LAST_SUCCESS_AT||null,verificationStatus:backupConfigured?process.env.BACKUP_VERIFICATION_STATUS:'not_configured',note:backupConfigured?'Reported by configured backup integration; restore testing must be verified separately.':'Configure a real backup job and publish BACKUP_LAST_SUCCESS_AT and BACKUP_VERIFICATION_STATUS to expose backup status.'},scheduler:{monitoringConfigured:Boolean(process.env.MONITORING_CRON_SECRET),cyberMonitoringConfigured:Boolean(process.env.CYBER_MONITORING_CRON_SECRET)}}});
 }));
 app.get('/api/v1/admin/metrics',requireAdmin,wrap(async(req,res)=>{
-  if(!isDb())return res.json({data:{window:String(req.query.window||'24h'),totalRequests:0,searches:0,errors:0,averageLatencyMs:0,p95LatencyMs:null,byRoute:[],timeline:[],note:'Persistent metrics require MongoDB; request telemetry is in-memory only in development.'}});
+  if(!isDb())return res.json({data:{window:String(req.query.window||'24h'),totalRequests:0,searches:0,errors:0,rateLimited:0,averageLatencyMs:0,p95LatencyMs:null,byRoute:[],timeline:[],note:'Persistent metrics require MongoDB; request telemetry is in-memory only in development.'}});
   const windowKey=String(req.query.window||'24h');const duration=windowKey==='30d'?30*86400000:windowKey==='7d'?7*86400000:86400000;const since=new Date(Date.now()-duration);
-  const [total,searches,errors,rateLimited,summary,byRoute,timeline,latencies]=await Promise.all([
+  const [total,searches,rateLimited,errors,summary,byRoute,timeline,latencies]=await Promise.all([
     SearchMetric.countDocuments({createdAt:{$gte:since}}),
     SearchMetric.countDocuments({kind:'search',createdAt:{$gte:since}}),
     SearchMetric.countDocuments({status:429,createdAt:{$gte:since}}),
