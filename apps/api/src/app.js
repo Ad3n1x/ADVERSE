@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import { timingSafeEqual, createHmac, scryptSync } from 'node:crypto';
 import { z } from 'zod';
-import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
+import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent, AdminAuditEvent, SearchMetric, PlatformConfig, Incident, JobRun, LinkCheck } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
 import { searchAllPublic, rankPublicResults, diversifyPublicResults, normalizeResultUrl } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
@@ -28,6 +28,20 @@ app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>{if(res.st
 const id=()=>crypto.randomUUID();
 const isDb=()=>globalThis.__ADVERSE_MONGO_READY__===true;
 const memory=globalThis.__ADVERSE_STORE__ ||= { investigations:new Map(), evidence:new Map(), entities:new Map(), relationships:new Map(), users:new Map(), watches:new Map(), alerts:new Map(), cyberAssets:new Map(), cyberEvents:new Map() };
+const telemetryStartedAt = Symbol('adverseTelemetryStartedAt');
+app.use((req,res,next)=>{
+  req[telemetryStartedAt]=Date.now();
+  res.on('finish',()=>{
+    const route=String(req.path||'').split('?')[0].slice(0,160);
+    if(!route.startsWith('/api/v1/'))return;
+    const isSearch=route==='/api/v1/search'||route==='/api/v1/public-search'||route==='/api/v1/public-search/media';
+    if(!isSearch && res.statusCode<500)return;
+    const event={kind:isSearch?'search':'request',route,method:req.method,status:res.statusCode,durationMs:Math.max(0,Date.now()-(req[telemetryStartedAt]||Date.now())),userId:String(req.user?.id||'').slice(0,100),errorCode:res.statusCode>=500?'HTTP_5XX':''};
+    if(isDb())void SearchMetric.create(event).catch(()=>{});
+    else {const items=globalThis.__ADVERSE_METRICS__ ||= [];items.push({...event,createdAt:new Date()});if(items.length>2000)items.splice(0,items.length-2000);}
+  });
+  next();
+});
 const wrap=(fn)=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const createInvestigationSchema=z.object({title:z.string().trim().min(1).max(120),question:z.string().trim().max(1000).default('')});
 const evidenceSchema=z.object({title:z.string().trim().min(1).max(240),url:z.string().url().max(2048),sourceType:z.enum(['web','archive','organization','document','manual','domain']).default('manual'),publisher:z.string().max(200).default(''),publishedAt:z.string().datetime().nullable().optional(),excerpt:z.string().max(5000).default(''),verificationStatus:z.enum(['unverified','supported','conflicting','insufficient']).default('unverified'),entities:z.array(z.string()).max(50).default([]),captureTimestamp:z.string().max(32).default('')});
@@ -49,16 +63,19 @@ function requireAuth(req,res,next){
   const cookie = cookieToken(req);
   const unsafeMethod = !['GET','HEAD','OPTIONS'].includes(req.method.toUpperCase());
   const origin = req.get('origin');
-  // Cookie-authenticated mutations are vulnerable to CSRF when the session cookie is cross-site.
-  // Browser unsafe requests carry Origin; allow non-browser clients without Origin for API compatibility.
-  if (cookie && unsafeMethod && origin && !allowedWebOrigins().includes(origin)) {
-    return sendError(res, 403, 'ORIGIN_NOT_ALLOWED', 'This request origin is not allowed to modify the workspace.');
-  }
-  const bearer = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (cookie && unsafeMethod && origin && !allowedWebOrigins().includes(origin)) return sendError(res,403,'ORIGIN_NOT_ALLOWED','This request origin is not allowed to modify the workspace.');
+  const bearer = String(req.headers.authorization || '').replace(/^Bearer\\s+/i, '');
   const user = verifyToken(cookie || bearer);
   if (!user) return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');
-  req.user=user;
-  next();
+  Promise.resolve().then(async()=>{
+    if(user.role!=='admin'){
+      let status='active';
+      if(isDb()){const account=await User.findById(user.id).select('status').lean();if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');status=account.status||'active';}
+      else {const account=memory.users.get(user.id);if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');status=account.status||'active';}
+      if(status==='suspended')return sendError(res,403,'ACCOUNT_SUSPENDED','This account is suspended. Contact support if you believe this is a mistake.');
+    }
+    req.user=user;next();
+  }).catch(next);
 }
 function optionalAuth(req,res,next){const token=cookieToken(req)||String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const user=token?verifyToken(token):null;if(user)req.user=user;next();}
 const authSchema=z.object({email:z.string().trim().email().max(254),password:z.string().min(12).max(128),displayName:z.string().trim().min(1).max(80).optional()});
