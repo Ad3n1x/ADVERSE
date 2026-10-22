@@ -20,13 +20,7 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByRole('button', { name: /Create collection/ }).click();
   await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
 
-  console.log('GRAPH_DEBUG', JSON.stringify({
-    title: await page.locator('.page-heading h1').textContent().catch(() => null),
-    panelCount: await page.locator('.connections-panel').count(),
-    panelVisible: await page.locator('.connections-panel').isVisible().catch(() => false),
-    panelHeading: await page.locator('.connections-panel h2').textContent().catch(() => null),
-    contentClass: await page.locator('.content').getAttribute('class').catch(() => null),
-  }));
+  await page.getByRole('button', { name: /Graph & links/i }).click();
   await expect(page.getByRole('heading', { name: /Within-collection connections/i })).toBeVisible();
   await page.getByRole('button', { name: /Add entity/ }).click();
   await page.getByLabel('Name').fill('Example Corporation');
