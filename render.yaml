@@ -17,7 +17,7 @@ services:
         generateValue: true
       - key: ADMIN_EMAIL
         sync: false
-      - key: ADMIN_PASSWORD_HASH
+      - key: ADMIN_PASSWORD
         sync: false
       - key: MONITORING_CRON_SECRET
         sync: false
