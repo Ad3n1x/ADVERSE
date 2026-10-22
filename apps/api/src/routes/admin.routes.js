@@ -9,7 +9,7 @@ export function registerAdminRoutes(app, {
   getUserProviderKeys, providerKeyNames, aiCredentialNames, validatePublicUrl,
   inspectPublicLink, assessSourceContext, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, runMonitoringCycle, createReportPdf,
-  csvCell, crypto,
+  csvCell, crypto, auditAdmin, validatePublicUrlResolution,
 }) {
   const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
     function requireAdmin(req,res,next) {
@@ -281,5 +281,4 @@ export function registerAdminRoutes(app, {
     const rows=await LinkCheck.find({}).sort({checkedAt:-1}).limit(100).lean();res.json({data:rows});
   }));
   app.post('/api/v1/admin/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
-  app.delete('/api/v1/auth/account',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}}),User.deleteOne({_id:uid})]);}else{for(const [iid,item] of memory.investigations)if(String(item.ownerId)===uid){memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(String(record.investigationId)===String(iid))memory[collection].delete(rid);}memory.users.delete(uid);}res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();}));
 }
