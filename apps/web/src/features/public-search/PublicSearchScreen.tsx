@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
 import { API } from '../../lib/api';
 import type { PublicSearchResult, SearchHistoryEntry } from '../../types/research';
-
 const HISTORY_KEY='adverse.find-anything.history.v1';
 const SAVED_KEY='adverse.find-anything.saved.v1';
 function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback;}catch{return fallback;}}
@@ -37,5 +36,4 @@ function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  </section>}
  </section><footer className="find-footer"><span>ADVERSE <i>/</i> FIND ANYTHING</span><span>Public-source search · No invented destinations</span><button onClick={onSignIn}>Sign in to save your research</button></footer></main>;
 }
-
 export default PublicSearchScreen;
