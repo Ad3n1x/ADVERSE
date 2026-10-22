@@ -109,7 +109,7 @@ a{color:var(--mint);text-underline-offset:3px}
 .empty-state p{max-width:320px;margin:0;color:#7c8c85;font-size:10px;line-height:1.7}
 .empty-icon{width:35px;height:35px;display:grid;place-items:center;border:1px solid #2c4039;border-radius:9px;background:#15221d;color:#8bdcc9}
 .case-summary{padding:19px}.case-summary>b{font:600 14px var(--display);color:#dce7e1}.case-summary p{font-size:11px;color:#87939d;margin-top:8px;line-height:1.6}.summary-actions{display:flex;gap:8px;margin-top:15px}
-.graph-panel{margin-top:15px}
+.connections-panel{margin-top:15px}
 .graph-title-line{display:flex;align-items:center;gap:8px}.graph-title-line h2{margin:0}
 .graph-preview{position:relative;min-height:260px;background-image:radial-gradient(#34433d 1px,transparent 1px);background-size:22px 22px;background-position:center;overflow:hidden}
 .graph-preview:after{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 10%,#0e1315a8 100%);pointer-events:none;content:""}
@@ -614,7 +614,7 @@ input,textarea,select{accent-color:#70e0c4}
 .compass-links>button>svg:last-child{color:#688b9c;flex-shrink:0}
 .content{max-width:1680px;margin:0 auto}
 .page-heading{padding-bottom:4px}
-.search-engine-hero,.page-panel,.investigations-panel,.activity-panel,.graph-panel,.trust-layer,.cyber-panel{scroll-margin-top:22px}
+.search-engine-hero,.page-panel,.investigations-panel,.activity-panel,.connections-panel,.trust-layer,.cyber-panel{scroll-margin-top:22px}
 .search-engine-hero{margin-bottom:20px!important}
 .search-results-panel{margin-bottom:22px}
 .panel{margin-bottom:18px}
@@ -693,10 +693,10 @@ input,textarea,select{accent-color:#70e0c4}
 .app-shell.autonomous-mode .engine-search-bar input { min-width:0; flex:1; }
 .app-shell.autonomous-mode button { display:none!important; }
 .app-shell.autonomous-mode .engine-search-bar button { display:inline-flex!important; }
-.app-shell.autonomous-mode .panel:not(.search-results-panel):not(.agent-run-panel):not(.graph-panel) { display:none!important; }
+.app-shell.autonomous-mode .panel:not(.search-results-panel):not(.agent-run-panel):not(.connections-panel) { display:none!important; }
 .app-shell.autonomous-mode .search-results-panel,
 .app-shell.autonomous-mode .agent-run-panel,
-.app-shell.autonomous-mode .graph-panel { display:block!important; }
+.app-shell.autonomous-mode .connections-panel { display:block!important; }
 .app-shell.autonomous-mode .search-results-panel .result-actions,
 .app-shell.autonomous-mode .search-results-panel .search-results-toolbar { display:none!important; }
 .app-shell.autonomous-mode a { pointer-events:none!important; cursor:default!important; text-decoration:none!important; }
@@ -932,7 +932,7 @@ button,input,textarea,select{font:inherit}
 button{max-width:100%;white-space:normal}
 input,textarea,select{min-width:0;max-width:100%}
 p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-main{overflow-wrap:anywhere}
-.app-shell,.main,.content,.panel,.work-grid,.metric-grid,.search-results-panel,.graph-panel,.settings-panel{min-width:0}
+.app-shell,.main,.content,.panel,.work-grid,.metric-grid,.search-results-panel,.connections-panel,.settings-panel{min-width:0}
 .work-grid>* ,.metric-grid>* ,.provider-credentials-grid>* ,.tools-modal-grid>*{min-width:0}
 .account-shortcut{display:flex;align-items:center;gap:10px;padding:10px 9px;border:1px solid transparent;border-radius:9px;background:transparent;color:inherit;font:inherit}
 .account-shortcut .user-copy{flex:1;min-width:0}
@@ -1127,7 +1127,7 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 #root .heading-actions{gap:10px}
 #root .work-grid{gap:20px;align-items:start}
 #root .work-grid>*,#root .panel,#root .metric-card,#root .settings-panel,
-#root .search-results-panel,#root .graph-panel,#root .investigations-panel,
+#root .search-results-panel,#root .connections-panel,#root .investigations-panel,
 #root .activity-panel,#root .cyber-panel,#root .evidence-vault-panel,
 #root .monitoring-panel,#root .agent-run-panel{
   min-width:0;
