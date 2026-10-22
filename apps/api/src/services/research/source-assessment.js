@@ -20,7 +20,7 @@ export function assessSourceContext(input, item = {}) {
 function normalizedTitleTokens(title) {
   return new Set(String(title || '').toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu,' ').trim().split(/\s+/).filter(token=>token.length>2));
 }
-function titleSimilarity(a,b) {
+export function titleSimilarity(a,b) {
   const left=normalizedTitleTokens(a), right=normalizedTitleTokens(b);
   if(!left.size||!right.size)return 0;
   let common=0;for(const token of left)if(right.has(token))common++;
