@@ -1,11 +1,9 @@
 import { X } from 'lucide-react';
 import type { ToastItem } from '../../types/research';
-
 type ToastViewportProps = {
   toasts: ToastItem[];
   onDismiss: (id: number) => void;
 };
-
 export default function ToastViewport({ toasts, onDismiss }: ToastViewportProps) {
   return (
     <div className="toast-viewport" aria-live="polite" aria-atomic="false">
