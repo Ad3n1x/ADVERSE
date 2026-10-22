@@ -651,3 +651,10 @@ input,textarea,select{accent-color:#70e0c4}
 .tool-popup-controls .secondary-button{min-height:32px;padding:7px 10px}
 @keyframes tool-backdrop-in{from{opacity:0}to{opacity:1}}
 @media(max-width:600px){.tool-popup-active{width:calc(100vw - 18px)!important;max-height:calc(100dvh - 86px)!important;top:calc(50% + 14px)!important}.tool-popup-controls{top:8px;right:9px;gap:7px;padding:5px}.tool-popup-controls>span{font-size:8px;letter-spacing:.6px}.tool-popup-controls .secondary-button{min-height:30px;padding:6px 8px;font-size:10px}}
+
+
+/* IntelliDesk is the uncluttered default landing page; supporting workspaces open only in focused popups. */
+.content:not(.tool-popup-mode) .section-row,
+.content:not(.tool-popup-mode) .metric-grid{display:none!important}
+.content:not(.tool-popup-mode) .panel:not(.search-results-panel){display:none!important}
+.tool-popup-active{display:block!important}
