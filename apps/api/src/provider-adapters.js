@@ -14,7 +14,6 @@ export function normalizeProviderResult(title, url, excerpt, provider, extra = {
   if (!['http:', 'https:'].includes(parsedUrl.protocol) || parsedUrl.username || parsedUrl.password) return null;
   return { ...extra, title: clean(title, 240) || 'Untitled result', url: parsedUrl.href, excerpt: clean(excerpt, 1200), publisher: provider, retrievedAt: new Date().toISOString(), publishedAt: extra.publishedAt || null, sourceType: extra.sourceType || 'web', provider };
 }
-}
 
 // Keys are optional. Each adapter is isolated; missing credentials are reported, never fatal.
 add('Brave Search API', async (q, userKeys = {}) => {
