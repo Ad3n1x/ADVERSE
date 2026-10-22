@@ -1,4 +1,4 @@
-name: ADVERSE Encrypted Database Backup and Recovery Test
+name: ADVERSE Encrypted Database Backup and Local Recovery Test
 
 on:
   schedule:
@@ -60,21 +60,27 @@ jobs:
           retention-days: 90
 
   restore-test:
-    name: Restore backup into isolated test cluster
+    name: Restore backup into temporary local MongoDB
     needs: backup
     if: ${{ vars.ADVERSE_BACKUP_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    services:
+      mongodb:
+        image: mongo:7
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
     steps:
-      - name: Require isolated restore-test credentials
+      - name: Require backup encryption secret
         env:
-          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
-          MONGODB_RESTORE_TEST_URI: ${{ secrets.MONGODB_RESTORE_TEST_URI }}
           BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: |
           set -euo pipefail
-          test -n "$MONGODB_BACKUP_URI" || { echo "::error::Missing MONGODB_BACKUP_URI."; exit 1; }
-          test -n "$MONGODB_RESTORE_TEST_URI" || { echo "::error::Set MONGODB_RESTORE_TEST_URI to a dedicated, isolated MongoDB test cluster. Never use the production URI."; exit 1; }
           test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::Missing BACKUP_ENCRYPTION_PASSPHRASE."; exit 1; }
 
       - name: Download encrypted backup artifact
@@ -93,8 +99,7 @@ jobs:
 
       - name: Decrypt, restore, verify, and clean up isolated test database
         env:
-          MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
-          MONGODB_RESTORE_TEST_URI: ${{ secrets.MONGODB_RESTORE_TEST_URI }}
+          MONGODB_RESTORE_TEST_URI: mongodb://127.0.0.1:27017
           BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
           RESTORE_DB: adverse_restore_test_${{ github.run_id }}
           ENCRYPTED_ARCHIVE: ${{ runner.temp }}/restore-input/adverse-backup.archive.gz.enc
@@ -108,26 +113,12 @@ jobs:
           import os
           import subprocess
           from pymongo import MongoClient
-          from pymongo.uri_parser import parse_uri
-
-          backup_uri = os.environ["MONGODB_BACKUP_URI"]
           test_uri = os.environ["MONGODB_RESTORE_TEST_URI"]
           restore_db = os.environ["RESTORE_DB"]
           archive = os.environ["DECRYPTED_ARCHIVE"]
 
-          def hosts(uri):
-              parsed = parse_uri(uri, validate=True)
-              # SRV URIs expose their DNS seed name; standard URIs expose node lists.
-              return {
-                  "srv": (parsed.get("fqdn") or "").lower(),
-                  "nodes": tuple(sorted((host.lower(), port) for host, port in (parsed.get("nodelist") or []))),
-              }
-
-          production_hosts = hosts(backup_uri)
-          test_hosts = hosts(test_uri)
-          if production_hosts == test_hosts:
-              raise SystemExit("Refusing restore: test URI resolves to the same URI host identity as production. Use a dedicated isolated cluster.")
-
+          # This URI points to the temporary MongoDB service created for this job,
+          # never to the production database. The service is discarded after the job.
           client = MongoClient(test_uri, serverSelectionTimeoutMS=15000)
           try:
               client.admin.command("ping")
