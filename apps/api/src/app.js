@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
-import { scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
+import { timingSafeEqual, createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
