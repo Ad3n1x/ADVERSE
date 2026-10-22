@@ -220,8 +220,9 @@ function requireAdmin(req,res,next) {
     const email=String(user.email||'').toLowerCase();
     let account=isDb()?await User.findById(user.id).select('email role status').lean():memory.users.get(user.id);
     if(!account || (account.status||'active')==='suspended') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
-    const isOwner=email===ownerEmail() && String(account.email||'').toLowerCase()===ownerEmail();
-    if(!isOwner && account.role!=='admin') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+    const isOwner=email===ownerEmail() && String(account.email||'').toLowerCase()===ownerEmail() && account.role==='admin' && user.role==='admin';
+    const isAdmin=account.role==='admin' && user.role==='admin';
+    if(!isOwner && !isAdmin) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
     req.user={...user,email:account.email,role:isOwner?'owner':'admin',id:String(account._id||account.id)};
     next();
   }).catch(next);
@@ -255,6 +256,13 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
     const displayName='ADVERSE Admin';
     account=isDb()?await User.create({email:configuredEmail,displayName,passwordHash,role:'admin'}):{id:id(),email:configuredEmail,displayName,passwordHash,role:'admin'};
     if(!isDb())memory.users.set(account.id,account);
+  }else{
+    // The configured owner credential is authoritative; replace any pre-existing password
+    // and promote the reserved owner account so an earlier public registration cannot persist.
+    const salt=crypto.randomBytes(16).toString('hex');
+    const passwordHash=configuredPasswordHash||salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
+    if(isDb())await User.updateOne({_id:account._id},{$set:{passwordHash,role:'admin'}});
+    else Object.assign(account,{passwordHash,role:'admin'});
   }
   const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
   setSession(res,tokenFor(safe));
@@ -476,7 +484,7 @@ app.get('/api/v1/admin/links',requireAdmin,wrap(async(req,res)=>{
 app.post('/api/v1/admin/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
 
 app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{const p=authSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid email and a password of at least 12 characters.',p.error.flatten());const email=p.data.email.toLowerCase();if(email===ownerEmail())return sendError(res,403,'OWNER_EMAIL_RESERVED','This email is reserved for the workspace owner. Use administrator sign-in instead.');const existsUser=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);if(existsUser)return sendError(res,409,'ACCOUNT_EXISTS','An account with this email already exists.');const salt=crypto.randomBytes(16).toString('hex');const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');const user=isDb()?await User.create({email,displayName:p.data.displayName||email.split('@')[0],passwordHash}):{id:id(),email,displayName:p.data.displayName||email.split('@')[0],passwordHash};if(!isDb())memory.users.set(user.id,user);const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.status(201).json({data:safe});}));
-app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.json({data:safe});}));
+app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:user.role||'user'};setSession(res,tokenFor(safe));res.json({data:safe});}));
 
 const passwordResetRequestSchema=z.object({email:z.string().trim().email().max(254)});
 const passwordResetCompleteSchema=z.object({token:z.string().min(32).max(256),password:z.string().min(12).max(128)});
