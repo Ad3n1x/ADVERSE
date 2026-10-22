@@ -57,7 +57,7 @@ test('authenticated workspace keeps navigation, account settings, and panels usa
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
 
   await page.locator('.account-shortcut').click();
-  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /System settings/i })).toBeVisible();
 
   const settingsDimensions = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
