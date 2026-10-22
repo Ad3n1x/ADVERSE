@@ -659,7 +659,7 @@ input,textarea,select{accent-color:#70e0c4}
 /* IntelliDesk is the uncluttered default landing page; supporting workspaces open only in focused popups. */
 .content:not(.tool-popup-mode) .section-row,
 .content:not(.tool-popup-mode) .metric-grid{display:none!important}
-.content:not(.tool-popup-mode) .panel:not(.search-results-panel){display:none!important}
+.content:not(.tool-popup-mode):not(.settings-mode) .panel:not(.search-results-panel){display:none!important}
 .tool-popup-active{display:block!important}
 
 
