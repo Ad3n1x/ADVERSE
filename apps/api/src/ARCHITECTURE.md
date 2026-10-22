@@ -40,7 +40,7 @@ src/
 - Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` remains a compatibility export.
 - Route modules receive shared dependencies explicitly from `app.js`; preserve authentication, owner scoping, status codes, response envelopes, rate limits and memory-mode behavior.
 - Search, research, reporting, discovery and monitoring logic belongs in `services/`; password-reset email delivery is isolated from the request handlers.
-- Password-reset HTTP handlers live in `controllers/auth/`; `routes/auth.routes.js` applies rate limiting and async error wrapping before delegating to them.
+- Authentication and password-reset handlers live in `controllers/auth/`; `routes/auth.routes.js` owns endpoint wiring, rate limiting and async error wrapping.
 - The web workspace uses `app/hooks/useWorkspaceNotifications.ts` for toast/error lifecycle and `features/public-search/visual-file.ts` for browser media preprocessing.
 - The API `check` script syntax-checks the new route/service/model files as well as compatibility exports.
 - Some non-auth route modules still contain request-handler logic inline. Continue extracting controllers by resource while preserving authentication, ownership checks, response shapes, and memory-mode behavior.
