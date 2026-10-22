@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AdminApp from './AdminApp';
 import ForceGraph2D from 'react-force-graph-2d';
-import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Command, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
+import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
 
 type Investigation={id:string;title:string;question:string;createdAt:string;status:string;notes?:string};
 type Evidence={id?:string;_id?:string;title:string;url:string;sourceType:string;publisher:string;publishedAt?:string|null;retrievedAt:string;excerpt:string;verificationStatus:string;captureTimestamp?:string};
