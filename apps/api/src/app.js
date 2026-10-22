@@ -68,7 +68,7 @@ function requireAuth(req,res,next){
   const user = verifyToken(cookie || bearer);
   if (!user) return sendError(res,401,'AUTH_REQUIRED','Sign in to access this workspace.');
   Promise.resolve().then(async()=>{
-    if(user.role!=='admin'){
+    {
       let status='active';
       if(isDb()){const account=await User.findById(user.id).select('status').lean();if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');status=account.status||'active';}
       else {const account=memory.users.get(user.id);if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');status=account.status||'active';}
