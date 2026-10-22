@@ -11,6 +11,8 @@ src/
 │   ├── *.model.js                   # one Mongoose model per domain
 │   └── index.js                     # barrel exports
 ├── routes/
+│   ├── admin.routes.js              # admin sign-in, operations and controls
+│   ├── auth.routes.js               # account auth, recovery and session routes
 │   └── health.routes.js             # liveness and readiness endpoints
 ├── services/
 │   ├── agent/                       # agent run state
@@ -28,7 +30,7 @@ src/
 
 - Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` is a compatibility export.
 - Search, research, reporting, discovery, monitoring and agent logic lives under `services/`; old source paths re-export these modules for existing imports.
-- Health and readiness endpoints are registered through `routes/health.routes.js`.
+- Admin, authentication, health and readiness endpoints are registered through dedicated route modules.
 - Keep the existing `server.js` entry point, environment variable names, response envelopes, authentication, ownership checks, rate limits, and memory-mode fallbacks stable.
 - `app.js` still contains most resource route handlers. The API is not yet fully MVC; extracting those into resource routers/controllers is still required.
 - The API `check` script syntax-checks both compatibility exports and the new domain modules.
