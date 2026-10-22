@@ -1,31 +1,36 @@
 # API architecture
 
-The API uses Node.js, Express, and Mongoose. Its source is organized around an incremental MVC migration:
+ADVERSE uses Node.js, Express, and Mongoose. The source is organized by domain, with compatibility exports retained while the legacy application is migrated.
 
 ```text
 src/
-├── config/                     # runtime configuration (next extraction)
-├── controllers/                # HTTP response orchestration (next extraction)
-├── middleware/                 # auth, validation and error handling (next extraction)
+├── config/                         # runtime configuration (to be extracted)
+├── controllers/                    # HTTP orchestration (to be extracted by resource)
+├── middleware/                     # auth, validation and errors (to be extracted)
 ├── models/
-│   ├── *.model.js               # one Mongoose model per domain
-│   └── index.js                 # model barrel exports
-├── routes/                     # resource routers (next extraction from app.js)
+│   ├── *.model.js                   # one Mongoose model per domain
+│   └── index.js                     # barrel exports
+├── routes/
+│   └── health.routes.js             # liveness and readiness endpoints
 ├── services/
-│   ├── agent/                  # agent run state
-│   ├── media/                  # image/video/people search
-│   └── research/               # follow-up planning, claim analysis, research gaps
-├── utils/                      # shared pure helpers (next extraction)
-├── app.js                      # Express app composition and legacy route registration
-└── server.js                   # process entry point and worker startup
+│   ├── agent/                       # agent run state
+│   ├── discovery/                   # autonomous research discovery
+│   ├── media/                       # image/video/people search
+│   ├── monitoring/                  # scheduled archive monitoring
+│   ├── reporting/                   # report generation
+│   ├── research/                    # follow-up planning, claim analysis and gaps
+│   └── search/                      # provider adapters and search orchestration
+├── app.js                           # Express composition plus legacy routes
+└── server.js                        # process entry point and worker startup
 ```
 
 ## Active conventions
 
-- Each Mongoose model lives in its own file; `models/index.js` is the public model barrel and `models.js` remains a compatibility export for older imports.
-- Research and agent domain logic lives under `services/`; old source paths are compatibility exports while callers migrate gradually.
-- Keep the existing `server.js` entry point, environment variable names, response envelopes, authentication and ownership checks stable.
-- Route/controller extraction is the next API phase. It must preserve status codes, response shapes, rate limits, authorization, and memory-mode fallbacks.
-- The current API composition file is still large; it must not be considered fully MVC until resource routers and controllers are extracted and regression tests pass.
+- Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` is a compatibility export.
+- Search, research, reporting, discovery, monitoring and agent logic lives under `services/`; old source paths re-export these modules for existing imports.
+- Health and readiness endpoints are registered through `routes/health.routes.js`.
+- Keep the existing `server.js` entry point, environment variable names, response envelopes, authentication, ownership checks, rate limits, and memory-mode fallbacks stable.
+- `app.js` still contains most resource route handlers. The API is not yet fully MVC; extracting those into resource routers/controllers is still required.
+- The API `check` script syntax-checks both compatibility exports and the new domain modules.
 
 Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
