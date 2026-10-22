@@ -35,7 +35,7 @@ app.use((req,res,next)=>{
     const route=String(req.path||'').split('?')[0].slice(0,160);
     if(!route.startsWith('/api/v1/'))return;
     const isSearch=route==='/api/v1/search'||route==='/api/v1/public-search'||route==='/api/v1/public-search/media';
-    if(!isSearch && res.statusCode<500)return;
+    // Record route/method/status/latency only; never capture query strings or request bodies.
     const event={kind:isSearch?'search':'request',route,method:req.method,status:res.statusCode,durationMs:Math.max(0,Date.now()-(req[telemetryStartedAt]||Date.now())),userId:String(req.user?.id||'').slice(0,100),errorCode:res.statusCode>=500?'HTTP_5XX':''};
     if(isDb())void SearchMetric.create(event).catch(()=>{});
     else {const items=globalThis.__ADVERSE_METRICS__ ||= [];items.push({...event,createdAt:new Date()});if(items.length>2000)items.splice(0,items.length-2000);}
@@ -142,7 +142,7 @@ export function inspectPublicLink(input) {
   if (parsed.port && !['80','443'].includes(parsed.port)) signals.push('Uses a non-standard web port');
   return { transport: parsed.protocol === 'https:' ? 'HTTPS' : parsed.protocol === 'http:' ? 'HTTP' : 'unknown', hostname, signals };
 }
-function limitProvider(req,res,next){return applyRateLimit(providerLimiter,req,res,next,40,'Too many provider requests. Try again in one minute.');}
+function limitProvider(req,res,next){return applyRateLimit(providerLimiter,req,res,next,Math.max(1,Math.min(300,Number(globalThis.__ADVERSE_SEARCH_LIMIT__||40))),'Too many provider requests. Try again in one minute.');}
 
 const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({_id:iid,ownerId:uid}).lean();const record=memory.investigations.get(iid);return record&&record.ownerId===uid?record:null;};
 const listFor=async(Model,collection,iid)=>isDb()?Model.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory[collection].values()].filter(x=>x.investigationId===iid);
@@ -150,9 +150,12 @@ const saveRecord=async(Model,collection,record)=>{if(isDb()){const doc=await Mod
 const exists=async(iid,uid)=>Boolean(await investigationGet(iid,uid));
 app.use('/api/v1',wrap(async(req,res,next)=>{
   if(req.path.startsWith('/admin/')||req.path==='/admin'||req.path==='/health'||req.path==='/ready'||req.path.startsWith('/internal/'))return next();
-  const cfg=await readPlatformConfig().catch(()=>({maintenanceMode:false,featureFlags:{search:true}}));
+  const cfg=await readPlatformConfig().catch(()=>({maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:40}}));
+  globalThis.__ADVERSE_SEARCH_LIMIT__=Number(cfg.usageLimits?.searchesPerMinute)||40;
   if(cfg.maintenanceMode)return sendError(res,503,'MAINTENANCE_MODE','ADVERSE is temporarily in maintenance mode. Please try again soon.');
   if((req.path==='/search'||req.path==='/public-search'||req.path==='/public-search/media')&&cfg.featureFlags?.search===false)return sendError(res,503,'FEATURE_DISABLED','Search is temporarily unavailable.');
+  if(req.path.startsWith('/search/provider-credentials')&&cfg.featureFlags?.providerSettings===false)return sendError(res,503,'FEATURE_DISABLED','Provider settings are temporarily unavailable.');
+  if(req.path.startsWith('/investigations/')&&req.path.includes('/monitoring')&&cfg.featureFlags?.monitoring===false)return sendError(res,503,'FEATURE_DISABLED','Monitoring is temporarily unavailable.');
   next();
 }));
 app.get('/api/v1/health',(_req,res)=>{res.json({ok:true,service:'adverse-api',timestamp:new Date().toISOString()});});
@@ -230,6 +233,7 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   }
   const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
   setSession(res,tokenFor(safe));
+  await auditAdmin(req,'admin.login','admin',configuredEmail,{success:true});
   res.json({data:safe});
 }));
 app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
@@ -237,7 +241,7 @@ app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
   const [users,totalInvestigations,recentUsers,investigationCounts]=await Promise.all([
     User.countDocuments({}),
     Investigation.countDocuments({}),
-    User.find({}).select('email displayName createdAt updatedAt').sort({createdAt:-1}).limit(8).lean(),
+    User.find({}).select('email displayName status createdAt updatedAt').sort({createdAt:-1}).limit(8).lean(),
     Investigation.aggregate([{$group:{_id:'$ownerId',count:{$sum:1}}}])
   ]);
   const counts=new Map(investigationCounts.map(row=>[String(row._id),row.count]));
@@ -255,7 +259,7 @@ app.get('/api/v1/admin/users',requireAdmin,wrap(async(req,res)=>{
   const limit=Math.max(1,Math.min(50,Number.parseInt(String(req.query.limit||'20'),10)||20));
   const needle=q.toLowerCase();
   const filter=q?{$expr:{$or:[{$gte:[{$indexOfCP:[{$toLower:'$email'},needle]},0]},{$gte:[{$indexOfCP:[{$toLower:'$displayName'},needle]},0]}]}}:{};
-  const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
+  const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName status createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
   const ids=rows.map(u=>String(u._id));
   const groups=ids.length?await Investigation.aggregate([{$match:{ownerId:{$in:ids}}},{$group:{_id:'$ownerId',count:{$sum:1}}} ]):[];
   const counts=new Map(groups.map(row=>[String(row._id),row.count]));
@@ -327,6 +331,7 @@ app.put('/api/v1/admin/config',requireAdmin,wrap(async(req,res)=>{
   if('usageLimits'in body&&(!body.usageLimits||typeof body.usageLimits!=='object'||!Number.isInteger(body.usageLimits.searchesPerMinute)||body.usageLimits.searchesPerMinute<1||body.usageLimits.searchesPerMinute>300))return sendError(res,400,'INVALID_SETTING','Searches per minute must be between 1 and 300.');
   if('retentionDays'in body&&(!Number.isInteger(body.retentionDays)||body.retentionDays<7||body.retentionDays>3650))return sendError(res,400,'INVALID_SETTING','Retention must be between 7 and 3650 days.');
   for(const key of Object.keys(body))await writePlatformConfig(key,body[key],req.user.email);
+  if(body.usageLimits)globalThis.__ADVERSE_SEARCH_LIMIT__=body.usageLimits.searchesPerMinute;
   await auditAdmin(req,'platform.config_updated','platform','settings',{keys:Object.keys(body)});
   res.json({data:await readPlatformConfig()});
 }));
