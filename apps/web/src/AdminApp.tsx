@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { Activity, ArrowLeft, LogOut, RefreshCw, Search, ShieldCheck, Users, Layers3, CalendarDays, LockKeyhole } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
+import { ArrowLeft, LogOut, RefreshCw, Search, ShieldCheck, Users, Layers3, CalendarDays } from 'lucide-react';
 
 const API=(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/,'');
 type AdminUser={id:string;email:string;displayName:string;createdAt?:string;lastUpdatedAt?:string;investigations:number};
@@ -29,7 +30,7 @@ export default function AdminApp(){
  const login=async(e:FormEvent)=>{e.preventDefault();setLoading(true);setError('');try{await call('/admin/login',{method:'POST',body:JSON.stringify({email,password})});setPassword('');setSignedIn(true);}catch(e){setError(e instanceof Error?e.message:'Sign-in failed.');}finally{setLoading(false);}};
  const logout=async()=>{await call('/admin/logout',{method:'POST'}).catch(()=>undefined);setSignedIn(false);setOverview(null);setUsers([]);};
  const bg='#080d12',panel='#0f171e',line='#22313b',muted='#91a1ae',text='#edf4f8',accent='#8ee7c4';
- const card:React.CSSProperties={background:panel,border:'1px solid '+line,borderRadius:18,padding:22};
+ const card:CSSProperties={background:panel,border:'1px solid '+line,borderRadius:18,padding:22};
  if(!signedIn)return <main style={{minHeight:'100vh',background:bg,color:text,fontFamily:'Inter,ui-sans-serif,system-ui',display:'grid',placeItems:'center',padding:20}}>
   <section style={{...card,width:'min(440px,100%)',boxSizing:'border-box'}}>
    <div style={{display:'flex',alignItems:'center',gap:10,color:accent,fontWeight:800,letterSpacing:2,fontSize:12}}><ShieldCheck size={20}/> ADVERSE / CONTROL ROOM</div>
@@ -65,9 +66,9 @@ export default function AdminApp(){
   </div>
  </main>;
 }
-function Metric({icon,label,value,detail}:{icon:React.ReactNode;label:string;value?:number;detail:string}){return <section style={{background:'#0f171e',border:'1px solid #22313b',borderRadius:18,padding:22}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',color:'#8ee7c4'}}>{icon}<span style={{fontSize:11,color:'#91a1ae',textTransform:'uppercase',letterSpacing:1}}>{label}</span></div><div style={{fontSize:36,fontWeight:750,letterSpacing:-1.5,margin:'18px 0 4px'}}>{value===undefined?'—':value.toLocaleString()}</div><div style={{fontSize:12,color:'#91a1ae'}}>{detail}</div></section>}
-const inputStyle:React.CSSProperties={background:'#080d12',border:'1px solid #2a3b46',borderRadius:10,padding:'12px 13px',color:'#edf4f8',font:'inherit',outline:'none',width:'100%',boxSizing:'border-box'};
-const buttonStyle:React.CSSProperties={display:'flex',alignItems:'center',justifyContent:'center',background:'#8ee7c4',border:0,borderRadius:10,padding:'13px 16px',fontWeight:750,color:'#092019',cursor:'pointer',fontSize:14};
-const secondaryButton:React.CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,background:'#111b23',border:'1px solid #2a3b46',borderRadius:10,padding:'10px 12px',color:'#dce7ed',cursor:'pointer',fontSize:13};
-const thStyle:React.CSSProperties={padding:'12px 10px',fontSize:11,textTransform:'uppercase',letterSpacing:1,color:'#91a1ae',borderBottom:'1px solid #2a3b46',fontWeight:650};
-const tdStyle:React.CSSProperties={padding:'14px 10px',fontSize:13,borderBottom:'1px solid #1d2a33',verticalAlign:'top'};
+function Metric({icon,label,value,detail}:{icon:ReactNode;label:string;value?:number;detail:string}){return <section style={{background:'#0f171e',border:'1px solid #22313b',borderRadius:18,padding:22}}><div style={{display:'flex',alignItems:'center',justifyContent:'space-between',color:'#8ee7c4'}}>{icon}<span style={{fontSize:11,color:'#91a1ae',textTransform:'uppercase',letterSpacing:1}}>{label}</span></div><div style={{fontSize:36,fontWeight:750,letterSpacing:-1.5,margin:'18px 0 4px'}}>{value===undefined?'—':value.toLocaleString()}</div><div style={{fontSize:12,color:'#91a1ae'}}>{detail}</div></section>}
+const inputStyle:CSSProperties={background:'#080d12',border:'1px solid #2a3b46',borderRadius:10,padding:'12px 13px',color:'#edf4f8',font:'inherit',outline:'none',width:'100%',boxSizing:'border-box'};
+const buttonStyle:CSSProperties={display:'flex',alignItems:'center',justifyContent:'center',background:'#8ee7c4',border:0,borderRadius:10,padding:'13px 16px',fontWeight:750,color:'#092019',cursor:'pointer',fontSize:14};
+const secondaryButton:CSSProperties={display:'inline-flex',alignItems:'center',justifyContent:'center',gap:7,background:'#111b23',border:'1px solid #2a3b46',borderRadius:10,padding:'10px 12px',color:'#dce7ed',cursor:'pointer',fontSize:13};
+const thStyle:CSSProperties={padding:'12px 10px',fontSize:11,textTransform:'uppercase',letterSpacing:1,color:'#91a1ae',borderBottom:'1px solid #2a3b46',fontWeight:650};
+const tdStyle:CSSProperties={padding:'14px 10px',fontSize:13,borderBottom:'1px solid #1d2a33',verticalAlign:'top'};
