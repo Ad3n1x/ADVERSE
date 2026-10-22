@@ -66,6 +66,24 @@ jobs:
           response="$(curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 5 --max-time 90 --get --data-urlencode 'q=OpenAI' --output /tmp/adverse-search.json --write-out '%{http_code}' https://adverse-api-7yim.onrender.com/api/v1/public-search)"
           test "$response" = "200"
           node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/adverse-search.json","utf8")); if (!Array.isArray(r.data) || !r.meta || r.meta.query !== "OpenAI" || typeof r.meta.notice !== "string") { console.error("Public search response contract failed"); process.exit(1); } console.log(JSON.stringify({ok:true,resultCount:r.data.length,query:r.meta.query,notice:r.meta.notice}));'
+      - name: Verify deployed fallback frontend
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 https://adverse-web.onrender.com/ --output /tmp/adverse-web.html
+          grep -q 'id="root"' /tmp/adverse-web.html
+          asset="$(grep -oE 'assets/[^" ]+\\.js' /tmp/adverse-web.html | head -n 1)"
+          test -n "$asset"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "https://adverse-web.onrender.com/$asset" --output /tmp/adverse-web.js
+          grep -q 'adverse-api-7yim.onrender.com/api/v1' /tmp/adverse-web.js
+      - name: Verify API CORS for fallback frontend
+        run: |
+          set -euo pipefail
+          curl --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 -D /tmp/adverse-cors.headers -o /dev/null -X OPTIONS \\
+            -H 'Origin: https://adverse-web.onrender.com' \\
+            -H 'Access-Control-Request-Method: POST' \\
+            -H 'Access-Control-Request-Headers: content-type' \\
+            https://adverse-api-7yim.onrender.com/api/v1/auth/login
+          grep -qi '^access-control-allow-origin: https://adverse-web.onrender.com' /tmp/adverse-cors.headers
 
   browser-e2e:
     name: Browser smoke tests
