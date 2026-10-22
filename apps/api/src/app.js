@@ -155,7 +155,7 @@ app.use('/api/v1',wrap(async(req,res,next)=>{
   if(cfg.maintenanceMode)return sendError(res,503,'MAINTENANCE_MODE','ADVERSE is temporarily in maintenance mode. Please try again soon.');
   if((req.path==='/search'||req.path==='/public-search'||req.path==='/public-search/media')&&cfg.featureFlags?.search===false)return sendError(res,503,'FEATURE_DISABLED','Search is temporarily unavailable.');
   if((req.path.startsWith('/search/provider-credentials')||req.path.startsWith('/search/providers'))&&cfg.featureFlags?.providerSettings===false)return sendError(res,503,'FEATURE_DISABLED','Provider settings are temporarily unavailable.');
-  if(req.path.startsWith('/investigations/')&&req.path.includes('/monitoring')&&cfg.featureFlags?.monitoring===false)return sendError(res,503,'FEATURE_DISABLED','Monitoring is temporarily unavailable.');
+  if((req.path.startsWith('/investigations/')&&req.path.includes('/monitoring')||req.path.startsWith('/monitoring/')||req.path.startsWith('/cyber-assets/'))&&cfg.featureFlags?.monitoring===false)return sendError(res,503,'FEATURE_DISABLED','Monitoring is temporarily unavailable.');
   next();
 }));
 app.get('/api/v1/health',(_req,res)=>{res.json({ok:true,service:'adverse-api',timestamp:new Date().toISOString()});});
@@ -190,18 +190,22 @@ async function auditAdmin(req,action,targetType='',targetId='',details={}) {
   if(isDb())await AdminAuditEvent.create(event);
   else {const items=globalThis.__ADVERSE_AUDIT__ ||= [];items.unshift(event);if(items.length>2000)items.length=2000;}
 }
+const platformConfigCache=globalThis.__ADVERSE_CONFIG_CACHE__ ||= {value:null,loadedAt:0};
 async function readPlatformConfig(){
+  if(platformConfigCache.value&&Date.now()-platformConfigCache.loadedAt<5000)return platformConfigCache.value;
   if(isDb()){
     const rows=await PlatformConfig.find({key:{$in:['maintenanceMode','featureFlags','usageLimits','retentionDays']}}).lean();
     const out={maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};
     for(const row of rows)out[row.key]=row.value;
-    return out;
+    platformConfigCache.value=out;platformConfigCache.loadedAt=Date.now();return out;
   }
-  return globalThis.__ADVERSE_CONFIG__ ||= {maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};
+  const out=globalThis.__ADVERSE_CONFIG__ ||= {maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};
+  platformConfigCache.value=out;platformConfigCache.loadedAt=Date.now();return out;
 }
 async function writePlatformConfig(key,value,actor){
   if(isDb())await PlatformConfig.updateOne({key},{$set:{value,updatedBy:actor,updatedAt:new Date()}},{upsert:true});
   else {const cfg=globalThis.__ADVERSE_CONFIG__ ||= {maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};cfg[key]=value;}
+  const current=await readPlatformConfig();current[key]=value;platformConfigCache.value=current;platformConfigCache.loadedAt=Date.now();
 }
 const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
 function requireAdmin(req,res,next) {
