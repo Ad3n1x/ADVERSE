@@ -190,3 +190,48 @@ table td{border-color:#24394c!important;color:#d0deed!important}
 @media(prefers-reduced-motion:reduce){
  .panel,.metric-card{transition:none!important}
 }
+
+
+/* Readability hotfix: prioritize legible text over decorative contrast */
+:root{
+ --text:#f0f6ff;--muted:#c0cede;--dim:#a5b5c8;
+}
+body,#root,.app-shell,.main,.content{color:#e7eef8!important}
+h1,h2,h3,h4,h5,h6,strong,b,.page-heading h1,.section-row h2,.panel-heading h2,
+.case-copy b,.result-card h3,.evidence-info h3,.compare-card h3,.timeline-item b,
+.graph-empty b,.modal-heading h2,.auth-card h1{color:#f3f7ff!important}
+p,.page-heading p,.section-row p,.panel-heading p,.case-copy span,.metric-neutral,
+.empty-state p,.case-summary p,.result-card p,.evidence-info p,.compare-card p,
+.provider-note,.graph-records>p,.footer,.modal-heading p,.auth-card>p,
+.muted-copy,.timeline-item small,.evidence-info small,.result-meta{
+ color:#b5c4d6!important;
+}
+.nav-label,.breadcrumbs,.breadcrumbs span,.user-copy span,.brand span,
+.search-hint,.metric-top,.field-label,label,.modal form label,
+.auth-card label,.auth-toggle,.auth-footer,.auth-security{
+ color:#b0c0d3!important;
+}
+.nav-item{color:#c1cede!important}
+.nav-item svg,.icon-button{color:#a9bbcf!important}
+.api-status{color:#c1cede!important}
+.text-button,a,.result-actions a,.evidence-url a,.compare-card a,.capture-row>a,
+.timeline-item a{color:#7fece2!important}
+.muted-tag,.case-status,.shortcut{color:#c5d6e8!important}
+.search-field label{color:#8de8df!important}
+.search-field input{color:#f5f9ff!important}
+.search-field input::placeholder,input::placeholder,textarea::placeholder{
+ color:#9eafc4!important;opacity:1!important;
+}
+input,textarea,select,.modal input,.modal textarea,.modal select,
+.auth-card label input,.inline-search input{
+ color:#f0f6ff!important;background:#091421!important;border-color:#3b536c!important;
+}
+button:disabled{color:#9aaabe!important;opacity:.7!important}
+.metric-value{color:#f6f9ff!important}
+.metric-foot{color:#8fe4d5!important}
+.investigation-item{color:#c3d1e0!important}
+.relationship-row span,.relationship-row small{color:#b8c8d9!important}
+table th{color:#e1ecf8!important}
+table td{color:#d5e1ef!important}
+.notice{color:#d5fff7!important}
+.notice.error-notice{color:#ffd3ce!important}
