@@ -97,7 +97,7 @@ jobs:
           echo "$RUNNER_TEMP/mongodb-database-tools-ubuntu2204-x86_64-100.12.2/bin" >> "$GITHUB_PATH"
           python -m pip install --disable-pip-version-check --no-input 'pymongo>=4.6,<5'
 
-      - name: Decrypt, restore, verify, and clean up isolated test database
+      - name: Decrypt, restore, verify, and clean up temporary test database
         env:
           MONGODB_RESTORE_TEST_URI: mongodb://127.0.0.1:27017
           BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
