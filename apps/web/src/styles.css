@@ -705,3 +705,19 @@ input,textarea,select{accent-color:#70e0c4}
  .app-shell.autonomous-mode .engine-search-bar { flex-wrap:wrap; }
  .app-shell.autonomous-mode .engine-search-bar button { width:100%; justify-content:center; }
 }
+
+
+/* Final view-only polish: one question input, one submit control, readable findings. */
+.app-shell.autonomous-mode .page-heading { display:none!important; }
+.app-shell.autonomous-mode .topbar { display:none!important; }
+.app-shell.autonomous-mode .content > .notice { display:block!important; }
+.app-shell.autonomous-mode .content > .search-engine-hero { margin-top:12px!important; }
+.app-shell.autonomous-mode .search-results-panel .result-actions button,
+.app-shell.autonomous-mode .search-results-panel .panel-tools,
+.app-shell.autonomous-mode .search-results-panel .panel-actions,
+.app-shell.autonomous-mode .search-results-panel input,
+.app-shell.autonomous-mode .search-results-panel select,
+.app-shell.autonomous-mode .search-results-panel textarea { display:none!important; }
+.app-shell.autonomous-mode .search-results-panel .result-actions a { display:inline-flex!important; pointer-events:auto!important; cursor:pointer!important; }
+.app-shell.autonomous-mode .engine-search-bar input { display:block!important; }
+.app-shell.autonomous-mode .engine-search-bar button { display:inline-flex!important; }
