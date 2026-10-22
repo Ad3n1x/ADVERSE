@@ -835,6 +835,7 @@ app.post('/api/v1/internal/cyber-monitoring/run',wrap(async(req,res)=>{
  if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Cyber-monitoring scheduler authentication is required.');
  const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Cyber-monitoring scheduler authentication failed.');
  if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled cyber monitoring requires MongoDB persistence.');
+ const started=Date.now();const job=await JobRun.create({name:'scheduled-cyber-monitoring-cycle',status:'running',startedAt:new Date()});
  const now=new Date();
  const [enabledAssets,dueCount,due]=await Promise.all([
   CyberAsset.countDocuments({enabled:true}),
@@ -843,7 +844,8 @@ app.post('/api/v1/internal/cyber-monitoring/run',wrap(async(req,res)=>{
  ]);
  const results=[];
  for(const asset of due)results.push(await runCyberAssetCheck(asset));
- res.json({data:{checked:results.length,enabledAssets,dueAssets:dueCount,results:results.map(x=>({assetId:String(x.asset?.id||x.asset?._id||''),events:x.observation?.events?.length||0,error:x.observation?.error||''}))}});
+ job.status='success';job.finishedAt=new Date();job.durationMs=Date.now()-started;job.message='Cyber-monitoring cycle completed.';job.metadata={checked:results.length,enabledAssets,dueAssets:dueCount};await job.save();
+ res.json({data:{checked:results.length,enabledAssets,dueAssets:dueCount,results:results.map(x=>({assetId:String(x.asset?.id||x.asset?._id||''),events:x.observation?.events?.length||0,error:x.observation?.error||''}))},job:{id:String(job._id),status:job.status,durationMs:job.durationMs}});
 }));
 
 app.use((req,res)=>sendError(res,404,'NOT_FOUND',`No route for ${req.method} ${req.path}`));
