@@ -4,6 +4,9 @@ ADVERSE uses Node.js, Express, and Mongoose. Routes are grouped by resource; bus
 
 ```text
 src/
+├── controllers/
+│   └── auth/
+│       └── password-reset.controller.js # password reset request handlers
 ├── models/
 │   ├── *.model.js                       # one Mongoose model per domain
 │   └── index.js                         # model barrel exports
@@ -20,6 +23,7 @@ src/
 │   ├── search.routes.js                 # provider credentials and authenticated search
 │   └── utility.routes.js                # archives, domains, timelines and exports
 ├── services/
+│   ├── auth/                            # password reset email delivery
 │   ├── agent/                           # agent run state
 │   ├── discovery/                       # autonomous discovery
 │   ├── media/                           # image/video/people search
@@ -35,8 +39,10 @@ src/
 
 - Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` remains a compatibility export.
 - Route modules receive shared dependencies explicitly from `app.js`; preserve authentication, owner scoping, status codes, response envelopes, rate limits and memory-mode behavior.
-- Search, research, reporting, discovery and monitoring logic belongs in `services/`; old source paths re-export the moved implementations.
+- Search, research, reporting, discovery and monitoring logic belongs in `services/`; password-reset email delivery is isolated from the request handlers.
+- Password-reset HTTP handlers live in `controllers/auth/`; `routes/auth.routes.js` applies rate limiting and async error wrapping before delegating to them.
+- The web workspace uses `app/hooks/useWorkspaceNotifications.ts` for toast/error lifecycle and `features/public-search/visual-file.ts` for browser media preprocessing.
 - The API `check` script syntax-checks the new route/service/model files as well as compatibility exports.
-- The current route modules still contain some request-handler logic inline. A further controller/service split is a separate refactor; avoid changing behavior while extracting controllers.
+- Some non-auth route modules still contain request-handler logic inline. Continue extracting controllers by resource while preserving authentication, ownership checks, response shapes, and memory-mode behavior.
 
 Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
