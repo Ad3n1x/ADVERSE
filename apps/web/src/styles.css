@@ -748,3 +748,33 @@ input,textarea,select{accent-color:#70e0c4}
  .app-shell.autonomous-mode .data-cleanup-controls>span { width:100%; }
  .app-shell.autonomous-mode .data-cleanup-controls button { flex:1; padding:7px 8px; }
 }
+
+
+/* BUG FIX: autonomous-mode overrides must not turn focused tool windows into inline panels. */
+.app-shell.autonomous-mode .tool-popup-active {
+ position:fixed!important;
+ inset:auto!important;
+ top:50%!important;
+ left:50%!important;
+ right:auto!important;
+ bottom:auto!important;
+ width:min(1080px,calc(100vw - 36px))!important;
+ max-width:1080px!important;
+ max-height:calc(100dvh - 104px)!important;
+ margin:0!important;
+ transform:translate(-50%,-50%)!important;
+ overflow:auto!important;
+ overscroll-behavior:contain!important;
+ z-index:9998!important;
+ background:var(--panel, #0d171d)!important;
+ box-shadow:0 30px 100px rgba(0,0,0,.65),0 0 0 1px rgba(112,224,196,.16)!important;
+}
+.app-shell.autonomous-mode .tool-popup-backdrop { display:block!important; position:fixed!important; inset:0!important; z-index:9997!important; }
+.app-shell.autonomous-mode .tool-popup-controls { display:flex!important; position:fixed!important; z-index:9999!important; }
+@media(max-width:600px) {
+ .app-shell.autonomous-mode .tool-popup-active {
+  top:calc(50% + 14px)!important;
+  width:calc(100vw - 18px)!important;
+  max-height:calc(100dvh - 86px)!important;
+ }
+}
