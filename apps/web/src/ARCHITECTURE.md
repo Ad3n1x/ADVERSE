@@ -5,7 +5,11 @@ The client is React + TypeScript. The folder structure now separates the applica
 ```text
 src/
 ├── App.tsx                      # minimal route composition
-├── app/WorkspaceApp.tsx         # authenticated workspace shell (next decomposition target)
+├── app/WorkspaceApp.tsx         # authenticated shell and page composition
+│   └── hooks/
+│       ├── useWorkspaceCollections.ts  # collection selection and request sequencing
+│       ├── useWorkspaceCredentials.ts  # AI and search-provider credential lifecycle
+│       └── useWorkspaceNotifications.ts # toast/error lifecycle
 ├── components/
 │   ├── layout/ToastViewport.tsx
 │   └── ui/Empty.tsx, Modal.tsx
