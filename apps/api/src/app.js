@@ -531,6 +531,7 @@ app.patch('/api/v1/investigations/:id',requireAuth,wrap(async(req,res)=>{if(!awa
 app.delete('/api/v1/investigations/:id',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');if(isDb()){await Promise.all([Investigation.deleteOne({_id:iid,ownerId:req.user.id}),Evidence.deleteMany({investigationId:iid}),Entity.deleteMany({investigationId:iid}),Relationship.deleteMany({investigationId:iid}),Watch.deleteMany({investigationId:iid}),Alert.deleteMany({investigationId:iid}),CyberAsset.deleteMany({investigationId:iid}),CyberEvent.deleteMany({investigationId:iid})]);}else{memory.investigations.delete(iid);for(const c of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [k,v] of memory[c])if(v.investigationId===iid)memory[c].delete(k);}res.status(204).end();}));
 app.delete('/api/v1/investigations',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));if(ids.length){await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}})]);}return res.json({data:{deletedCount:ids.length},message:'All investigations and their dependent records were deleted.'});}const owned=[...memory.investigations.entries()].filter(([,item])=>String(item.ownerId)===uid);const ids=new Set(owned.map(([iid])=>String(iid)));for(const iid of ids)memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(ids.has(String(record.investigationId)))memory[collection].delete(rid);res.json({data:{deletedCount:ids.size},message:'All investigations and their dependent records were deleted.'});}));
 app.get('/api/v1/investigations/:id/overview',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const [evidence,entities,relationships,investigation]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid),investigationGet(iid,req.user.id)]);res.json({data:{evidence,entities,relationships,aiReviewHistory:Array.isArray(investigation?.aiReviewHistory)?investigation.aiReviewHistory:[],timeline:evidence.map(e=>({id:e.id||String(e._id),date:e.publishedAt||e.retrievedAt,title:e.title,type:'evidence',url:e.url,verificationStatus:e.verificationStatus})).sort((a,b)=>new Date(a.date||0)-new Date(b.date||0))}});}));
+app.get('/api/v1/investigations/:id/agent-run-status',requireAuth,wrap(async(req,res)=>{const investigation=await investigationGet(req.params.id,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:investigation.agentRunState||{status:'idle',stage:'idle',detail:'No active research run.',trace:[]}});}));
 app.get('/api/v1/investigations/:id/agent-runs',requireAuth,wrap(async(req,res)=>{const investigation=await investigationGet(req.params.id,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');const runs=Array.isArray(investigation.agentRunHistory)?investigation.agentRunHistory.slice().reverse():[];res.json({data:runs,meta:{count:runs.length,persistence:isDb()?'mongodb':'ephemeral-memory'}});}));
 app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
@@ -543,6 +544,9 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const trace=[];
  const startedAt=Date.now();
  const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
+ const persistAgentState=async state=>{const payload={...state,updatedAt:new Date().toISOString()};if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:payload}});else{const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=payload;}};
+ const recordTrace=async entry=>{trace.push(entry);await persistAgentState({status:'running',stage:entry.stage,detail:entry.detail||('Working on '+entry.stage),startedAt:new Date(startedAt).toISOString(),trace:trace.slice(-20)});};
+ await persistAgentState({status:'running',stage:'starting',detail:'Preparing the investigation and loading known sources.',startedAt:new Date(startedAt).toISOString(),trace:[]});
  const prior=await listFor(Evidence,'evidence',iid);
  const knownUrls=new Set(prior.map(item=>{try{return normalizeResultUrl(item.url).toLowerCase();}catch{return String(item.url||'').toLowerCase();}}));
  const querySeen=new Set();
@@ -561,7 +565,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  for(let round=1;round<=2;round++){
   const current=plan.filter(item=>item.round===round);
   if(!current.length)continue;
-  trace.push({stage:'search',round,status:'running',detail:round===1?'Searching the original question across available public indexes.':'Following promising leads from the first pass and searching them independently.'});
+  await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original question across available public indexes.':'Following promising leads from the first pass and searching them independently.'});
   const settled=await Promise.all(current.map(async item=>{
    try{return {plan:item,result:await searchAllPublic(item.query,providerKeys)};}
    catch{return {plan:item,result:{results:[],meta:{failedSearches:1},error:'Provider search failed'}};}
@@ -570,9 +574,9 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
    providerFailures+=Number(item.result.meta?.failedSearches||0);
    for(const result of (item.result.results||[]).slice(0,14))allResults.push({...result,agentQuery:item.plan.query,agentReason:item.plan.reason});
   }
-  trace.push({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
+  await recordTrace({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
   if(round===1){
-   trace.push({stage:'plan',status:'running',detail:'The analyst is evaluating first-pass results and planning independent follow-up searches.'});
+   await recordTrace({stage:'plan',status:'running',detail:'The analyst is evaluating first-pass results and planning independent follow-up searches.'});
    const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
    let candidates=planned.leads;
    if(!candidates.length){
@@ -590,7 +594,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
    }
    for(const lead of candidates)addQuery(lead.query,lead.reason,2);
    leadPlanningMode=planned.mode;
-   trace.push({stage:'plan',status:'complete',mode:planned.mode,provider:planned.provider,leadCount:plan.filter(item=>item.round===2).length,detail:planned.mode==='ai'?'AI-generated follow-up queries use first-pass source context; each lead remains a hypothesis, not a factual conclusion.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
+   await recordTrace({stage:'plan',status:'complete',mode:planned.mode,provider:planned.provider,leadCount:plan.filter(item=>item.round===2).length,detail:planned.mode==='ai'?'AI-generated follow-up queries use first-pass source context; each lead remains a hypothesis, not a factual conclusion.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
   }
  }
  const merged=new Map();
@@ -605,7 +609,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  }
  const ranked=diversifyPublicResults([...merged.values()],question,{limit:60,maxPerDomain:2});
  const fresh=ranked.filter(item=>!knownUrls.has(item.url.toLowerCase())).slice(0,14);
- trace.push({stage:'triage',status:'complete',candidateCount:ranked.length,newCandidateCount:fresh.length,detail:'Deduplicated public URLs, diversified publishers, and prioritized question-relevant results. Relevance is a heuristic, not a truth verdict.'});
+ await recordTrace({stage:'triage',status:'complete',candidateCount:ranked.length,newCandidateCount:fresh.length,detail:'Deduplicated public URLs, diversified publishers, and prioritized question-relevant results. Relevance is a heuristic, not a truth verdict.'});
  const scrapeCandidates=fresh.slice(0,5);
  const pageResults=await Promise.all(scrapeCandidates.map(async item=>{try{return {url:item.url,page:await scrapePublicPage(item.url)};}catch(error){return {url:item.url,error:cleanText(error?.message,180),page:null};}}));
  const pageMap=new Map(pageResults.map(item=>[item.url,item]));
@@ -625,13 +629,14 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  }
  const scrapedCount=pageResults.filter(item=>item.page).length;
  const followUpLeads=plan.filter(item=>item.round===2).map(item=>({query:item.query,reason:item.reason,status:'searched'}));
- trace.push({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
- trace.push({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
+ await recordTrace({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
+ await recordTrace({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
  const durationMs=Date.now()-startedAt;
  const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
  const runRecord={runId:id(),investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
  if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$push:{agentRunHistory:{$each:[runRecord],$slice:-20}},$set:{updatedAt:new Date()}});
  else {const stored=memory.investigations.get(iid);if(stored){stored.agentRunHistory=Array.isArray(stored.agentRunHistory)?stored.agentRunHistory:[];stored.agentRunHistory.push(runRecord);stored.agentRunHistory=stored.agentRunHistory.slice(-20);stored.updatedAt=new Date().toISOString();}}
+ await persistAgentState({status:'complete',stage:'complete',detail:'Investigation completed and the report was saved.',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),runId:runRecord.runId,report:{title:report.title,savedCount:report.savedCount,scrapedCount:report.scrapedCount,queryCount:report.queries.length,leadCount:report.leads.length},trace:report.trace.slice(-20)});
  res.json({data:report,meta:{runId:runRecord.runId,persisted:true,persistence:isDb()?'mongodb':'ephemeral-memory'}});
 }));
 app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=>{
