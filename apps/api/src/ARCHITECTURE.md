@@ -1,38 +1,42 @@
 # API architecture
 
-ADVERSE uses Node.js, Express, and Mongoose. The source is organized by domain, with compatibility exports retained while the legacy application is migrated.
+ADVERSE uses Node.js, Express, and Mongoose. Routes are grouped by resource; business/domain helpers are grouped under services; Mongoose schemas are split by model. Compatibility exports remain in place so the production entry point and existing imports continue to work during migration.
 
 ```text
 src/
-├── config/                         # runtime configuration (to be extracted)
-├── controllers/                    # HTTP orchestration (to be extracted by resource)
-├── middleware/                     # auth, validation and errors (to be extracted)
 ├── models/
-│   ├── *.model.js                   # one Mongoose model per domain
-│   └── index.js                     # barrel exports
+│   ├── *.model.js                       # one Mongoose model per domain
+│   └── index.js                         # model barrel exports
 ├── routes/
-│   ├── admin.routes.js              # admin sign-in, operations and controls
-│   ├── auth.routes.js               # account auth, recovery and session routes
-│   └── health.routes.js             # liveness and readiness endpoints
+│   ├── admin.routes.js                  # admin authentication and operations
+│   ├── auth.routes.js                   # account auth, recovery and sessions
+│   ├── cyber.routes.js                  # explicitly authorized asset monitoring
+│   ├── health.routes.js                 # liveness and readiness
+│   ├── internal.routes.js               # secret-protected scheduled jobs
+│   ├── investigations.routes.js         # collections, evidence and relationships
+│   ├── monitoring.routes.js             # archive watches and alerts
+│   ├── public-search.routes.js           # public web/media/visual search
+│   ├── research.routes.js               # saved search and autonomous research
+│   ├── search.routes.js                 # provider credentials and authenticated search
+│   └── utility.routes.js                # archives, domains, timelines and exports
 ├── services/
-│   ├── agent/                       # agent run state
-│   ├── discovery/                   # autonomous research discovery
-│   ├── media/                       # image/video/people search
-│   ├── monitoring/                  # scheduled archive monitoring
-│   ├── reporting/                   # report generation
-│   ├── research/                    # follow-up planning, claim analysis and gaps
-│   └── search/                      # provider adapters and search orchestration
-├── app.js                           # Express composition plus legacy routes
-└── server.js                        # process entry point and worker startup
+│   ├── agent/                           # agent run state
+│   ├── discovery/                       # autonomous discovery
+│   ├── media/                           # image/video/people search
+│   ├── monitoring/                      # archive monitoring worker
+│   ├── reporting/                       # report generation
+│   ├── research/                        # follow-up planning, claim analysis, gaps and source assessment
+│   └── search/                          # provider adapters and search orchestration
+├── app.js                               # Express setup, shared middleware and route composition
+└── server.js                            # process entry point and worker startup
 ```
 
-## Active conventions
+## Conventions
 
-- Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` is a compatibility export.
-- Search, research, reporting, discovery, monitoring and agent logic lives under `services/`; old source paths re-export these modules for existing imports.
-- Admin, authentication, health and readiness endpoints are registered through dedicated route modules.
-- Keep the existing `server.js` entry point, environment variable names, response envelopes, authentication, ownership checks, rate limits, and memory-mode fallbacks stable.
-- `app.js` still contains most resource route handlers. The API is not yet fully MVC; extracting those into resource routers/controllers is still required.
-- The API `check` script syntax-checks both compatibility exports and the new domain modules.
+- Each Mongoose model lives in its own file; `models/index.js` is the barrel and `models.js` remains a compatibility export.
+- Route modules receive shared dependencies explicitly from `app.js`; preserve authentication, owner scoping, status codes, response envelopes, rate limits and memory-mode behavior.
+- Search, research, reporting, discovery and monitoring logic belongs in `services/`; old source paths re-export the moved implementations.
+- The API `check` script syntax-checks the new route/service/model files as well as compatibility exports.
+- The current route modules still contain some request-handler logic inline. A further controller/service split is a separate refactor; avoid changing behavior while extracting controllers.
 
 Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
