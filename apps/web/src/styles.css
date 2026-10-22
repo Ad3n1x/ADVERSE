@@ -778,3 +778,11 @@ input,textarea,select{accent-color:#70e0c4}
   max-height:calc(100dvh - 86px)!important;
  }
 }
+
+/* FIX: restore full-width layout for the question-first ADVERSE landing page. */
+.app-shell.autonomous-mode{display:grid!important;grid-template-columns:minmax(0,1fr)!important;width:100%!important;min-width:0!important}
+.app-shell.autonomous-mode>.main{grid-column:1/-1!important;width:100%!important;min-width:0!important;margin:0!important}
+.app-shell.autonomous-mode .content{display:block!important;width:100%!important;max-width:1180px!important;min-width:0!important;box-sizing:border-box!important;margin:0 auto!important;padding:clamp(18px,3vw,36px) clamp(14px,3vw,36px) 60px!important}
+.app-shell.autonomous-mode .search-engine-hero{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.app-shell.autonomous-mode .engine-headline,.app-shell.autonomous-mode .engine-search-bar,.app-shell.autonomous-mode .engine-underbar,.app-shell.autonomous-mode .engine-suggestions{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+.app-shell.autonomous-mode .engine-headline h2{max-width:760px!important;overflow-wrap:normal!important;word-break:normal!important}
