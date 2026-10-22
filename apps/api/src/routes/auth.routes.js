@@ -1,21 +1,19 @@
-import crypto from 'node:crypto';
-import { timingSafeEqual, scryptSync } from 'node:crypto';
 import { sendPasswordResetEmail } from '../services/auth/password-reset-email.js';
+import { createAuthController } from '../controllers/auth/auth.controller.js';
 import { createPasswordResetController } from '../controllers/auth/password-reset.controller.js';
 
-export function registerAuthRoutes(app, {
-  limitAuth, wrap, authSchema, sendError, ownerEmail, isDb, User, memory,
-  id, setSession, tokenFor, requireAuth, Investigation, Evidence, Entity,
-  Relationship, Watch, Alert, CyberAsset, CyberEvent,
-}) {
-  app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{const p=authSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid email and a password of at least 12 characters.',p.error.flatten());const email=p.data.email.toLowerCase();if(email===ownerEmail())return sendError(res,403,'OWNER_EMAIL_RESERVED','This email is reserved for the workspace owner. Use administrator sign-in instead.');const existsUser=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);if(existsUser)return sendError(res,409,'ACCOUNT_EXISTS','An account with this email already exists.');const salt=crypto.randomBytes(16).toString('hex');const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');const user=isDb()?await User.create({email,displayName:p.data.displayName||email.split('@')[0],passwordHash}):{id:id(),email,displayName:p.data.displayName||email.split('@')[0],passwordHash};if(!isDb())memory.users.set(user.id,user);const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.status(201).json({data:safe});}));
-  app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:user.role||'user'};setSession(res,tokenFor(safe));res.json({data:safe});}));
-  
+export function registerAuthRoutes(app, dependencies) {
+  const {
+    limitAuth, wrap, sendError, isDb, User, memory,
+  } = dependencies;
+  const auth = createAuthController(dependencies);
   const passwordReset = createPasswordResetController({ isDb, User, memory, sendError, sendPasswordResetEmail });
-  app.post('/api/v1/auth/forgot-password',limitAuth,wrap(passwordReset.forgotPassword));
-  app.post('/api/v1/auth/reset-password',limitAuth,wrap(passwordReset.resetPassword));
-  
-  app.get('/api/v1/auth/me',requireAuth,wrap(async(req,res)=>{const user=isDb()?await User.findById(req.user.id).select('email displayName role status').lean():memory.users.get(req.user.id);if(!user)return sendError(res,401,'SESSION_EXPIRED','Please sign in again.');const email=String(user.email||'').toLowerCase();res.json({data:{id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:email===ownerEmail()?'owner':(user.role||'user')}});}));
-  app.post('/api/v1/auth/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
-  app.delete('/api/v1/auth/account',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}}),User.deleteOne({_id:uid})]);}else{for(const [iid,item] of memory.investigations)if(String(item.ownerId)===uid){memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(String(record.investigationId)===String(iid))memory[collection].delete(rid);}memory.users.delete(uid);}res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();}));
+
+  app.post('/api/v1/auth/register', limitAuth, wrap(auth.register));
+  app.post('/api/v1/auth/login', limitAuth, wrap(auth.login));
+  app.post('/api/v1/auth/forgot-password', limitAuth, wrap(passwordReset.forgotPassword));
+  app.post('/api/v1/auth/reset-password', limitAuth, wrap(passwordReset.resetPassword));
+  app.get('/api/v1/auth/me', dependencies.requireAuth, wrap(auth.me));
+  app.post('/api/v1/auth/logout', auth.logout);
+  app.delete('/api/v1/auth/account', dependencies.requireAuth, wrap(auth.deleteAccount));
 }
