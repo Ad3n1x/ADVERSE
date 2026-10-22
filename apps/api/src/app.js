@@ -209,7 +209,7 @@ async function writePlatformConfig(key,value,actor){
   const current=await readPlatformConfig();current[key]=value;platformConfigCache.value=current;platformConfigCache.loadedAt=Date.now();
 }
 const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
-const ownerEmail=()=>String(process.env.ADMIN_EMAIL||'adenix271@gmail.com').trim().toLowerCase();
+const ownerEmail=()=>'adenix271@gmail.com';
 function requireAdmin(req,res,next) {
   const user=verifyToken(cookieToken(req));
   if(!user) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
@@ -227,7 +227,7 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   const p=adminLoginSchema.safeParse(req.body);
   if(!p.success) return sendError(res,400,'VALIDATION_ERROR','Enter the configured administrator email and password.');
   const email=p.data.email.toLowerCase();
-  const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
+  const configuredEmail=ownerEmail();
   const configuredPassword=String(process.env.ADMIN_PASSWORD||'');
   if(!configuredEmail || !configuredPassword || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
   const supplied=Buffer.from(p.data.password,'utf8');
@@ -252,13 +252,13 @@ app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
   const [users,totalInvestigations,recentUsers,investigationCounts]=await Promise.all([
     User.countDocuments({}),
     Investigation.countDocuments({}),
-    User.find({}).select('email displayName status createdAt updatedAt').sort({createdAt:-1}).limit(8).lean(),
+    User.find({}).select('email displayName status role createdAt updatedAt').sort({createdAt:-1}).limit(8).lean(),
     Investigation.aggregate([{$group:{_id:'$ownerId',count:{$sum:1}}}])
   ]);
   const counts=new Map(investigationCounts.map(row=>[String(row._id),row.count]));
   res.json({data:{
     metrics:{totalUsers:users,totalInvestigations,usersCreatedLast7Days:await User.countDocuments({createdAt:{$gte:new Date(Date.now()-7*86400000)}})},
-    recentUsers:recentUsers.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),
+    recentUsers:recentUsers.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',role:String(u.email||'').toLowerCase()===ownerEmail()?'owner':(u.role||'user'),createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),
     generatedAt:new Date().toISOString(),
     limitations:['Search-query analytics are not yet recorded, so this view does not claim to show search volume or active users.','Last updated is the account record update timestamp, not a verified last-login time.']
   }});
@@ -270,11 +270,11 @@ app.get('/api/v1/admin/users',requireAdmin,wrap(async(req,res)=>{
   const limit=Math.max(1,Math.min(50,Number.parseInt(String(req.query.limit||'20'),10)||20));
   const needle=q.toLowerCase();
   const filter=q?{$expr:{$or:[{$gte:[{$indexOfCP:[{$toLower:'$email'},needle]},0]},{$gte:[{$indexOfCP:[{$toLower:'$displayName'},needle]},0]}]}}:{};
-  const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName status createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
+  const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName status role createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
   const ids=rows.map(u=>String(u._id));
   const groups=ids.length?await Investigation.aggregate([{$match:{ownerId:{$in:ids}}},{$group:{_id:'$ownerId',count:{$sum:1}}} ]):[];
   const counts=new Map(groups.map(row=>[String(row._id),row.count]));
-  res.json({data:rows.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),meta:{page,limit,total,pages:Math.ceil(total/limit)}});
+  res.json({data:rows.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,status:u.status||'active',role:String(u.email||'').toLowerCase()===ownerEmail()?'owner':(u.role||'user'),createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),meta:{page,limit,total,pages:Math.ceil(total/limit)}});
 }));
 
 app.get('/api/v1/admin/health',requireAdmin,wrap(async(req,res)=>{
