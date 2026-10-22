@@ -178,10 +178,11 @@ app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
   const a=Buffer.from(expected),b=Buffer.from(supplied);
   if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Discovery scheduler authentication failed.');
   if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled discovery requires MongoDB persistence.');
-  const result=await runDiscoveryCycle();
-  res.json({data:result,generatedAt:new Date().toISOString()});
+  const started=Date.now();const job=await JobRun.create({name:'scheduled-discovery-cycle',status:'running',startedAt:new Date()});
+  const result=await runDiscoveryCycle();job.status='success';job.finishedAt=new Date();job.durationMs=Date.now()-started;job.message='Discovery cycle completed.';await job.save();
+  res.json({data:result,job:{id:String(job._id),status:job.status,durationMs:job.durationMs},generatedAt:new Date().toISOString()});
 }));
-app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const result=await runMonitoringCycle();res.json({data:result,generatedAt:new Date().toISOString()});}));
+app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const started=Date.now();const job=await JobRun.create({name:'scheduled-monitoring-cycle',status:'running',startedAt:new Date()});const result=await runMonitoringCycle();job.status='success';job.finishedAt=new Date();job.durationMs=Date.now()-started;job.message='Monitoring cycle completed.';await job.save();res.json({data:result,job:{id:String(job._id),status:job.status,durationMs:job.durationMs},generatedAt:new Date().toISOString()});}));
 
 // Admin authentication is separate from public registration. Configure ADMIN_EMAIL and
 // ADMIN_PASSWORD in the Render service environment.
