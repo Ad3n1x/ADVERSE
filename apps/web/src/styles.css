@@ -1052,3 +1052,55 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
   .data-cleanup-controls{margin:12px 0 16px;padding:10px;border-radius:11px}
   .data-cleanup-controls>button{flex:1 1 100%;width:100%;text-align:center}
 }
+
+
+/* Explicit high-specificity override for IntelliDesk's Manage Saved Data toolbar. */
+#root .app-shell .content .data-cleanup-controls{
+  display:flex!important;align-items:center!important;justify-content:flex-start!important;
+  flex-wrap:wrap!important;gap:9px!important;min-width:0!important;
+  margin:16px 0 22px!important;padding:14px!important;
+  border:1px solid #31534f!important;border-radius:14px!important;
+  background:linear-gradient(135deg,#122624 0%,#101a22 100%)!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.22),inset 0 1px 0 rgba(180,255,238,.06)!important;
+}
+#root .app-shell .content .data-cleanup-controls>span{
+  display:inline-flex!important;align-items:center!important;width:auto!important;
+  margin:0 7px 0 0!important;padding:6px 9px!important;
+  border:1px solid #2a4945!important;border-radius:7px!important;
+  background:#0d1b1b!important;color:#9ce6d7!important;
+  font-family:var(--mono)!important;font-size:10px!important;font-weight:700!important;
+  letter-spacing:.13em!important;line-height:1.4!important;
+}
+#root .app-shell .content .data-cleanup-controls>button{
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  flex:0 1 auto!important;min-width:92px!important;min-height:38px!important;
+  margin:0!important;padding:8px 13px!important;
+  border:1px solid #36534f!important;border-radius:9px!important;
+  background:#192b2a!important;color:#e6fff8!important;
+  font-size:12px!important;font-weight:650!important;line-height:1.35!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+  box-shadow:0 2px 8px rgba(0,0,0,.15)!important;
+}
+#root .app-shell .content .data-cleanup-controls>button:hover:not(:disabled){
+  border-color:#85e2ce!important;background:#24413c!important;color:#ffffff!important;
+}
+#root .app-shell .content .data-cleanup-controls>button:disabled{
+  opacity:.5!important;cursor:not-allowed!important;
+}
+#root .app-shell .content .data-cleanup-controls>button.clear-generated-data{
+  margin-left:auto!important;border-color:#9d5c58!important;
+  background:#351f22!important;color:#ffc2b8!important;
+}
+#root .app-shell .content .data-cleanup-controls>button.clear-generated-data:hover:not(:disabled){
+  border-color:#ff9e91!important;background:#51282a!important;color:#fff0ed!important;
+}
+@media(max-width:760px){
+  #root .app-shell .content .data-cleanup-controls{align-items:stretch!important;padding:11px!important;gap:7px!important}
+  #root .app-shell .content .data-cleanup-controls>span{width:100%!important;margin:0 0 3px!important}
+  #root .app-shell .content .data-cleanup-controls>button{flex:1 1 calc(50% - 7px)!important;min-width:0!important}
+  #root .app-shell .content .data-cleanup-controls>button.clear-generated-data{margin-left:0!important}
+}
+@media(max-width:420px){
+  #root .app-shell .content .data-cleanup-controls{padding:10px!important}
+  #root .app-shell .content .data-cleanup-controls>button{flex:1 1 100%!important;width:100%!important}
+}
