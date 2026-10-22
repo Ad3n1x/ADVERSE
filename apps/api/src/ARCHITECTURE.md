@@ -1,46 +1,31 @@
-# API architecture (MVC-oriented)
+# API architecture
 
-The API is being reorganized incrementally into a conventional Express/Mongoose structure. This first pass moves domain models and side-effect-free research logic into their owning folders while keeping compatibility exports at the old paths so existing routes, workers, and tests keep working during migration.
-
-## Target structure
+The API uses Node.js, Express, and Mongoose. Its source is organized around an incremental MVC migration:
 
 ```text
 src/
-├── config/                 # environment and database configuration
-├── controllers/             # HTTP request/response orchestration
-├── middleware/              # authentication, validation, error handling
-├── models/                  # Mongoose schemas and model exports
-│   └── index.js
-├── routes/                  # Express routers grouped by resource
+├── config/                     # runtime configuration (next extraction)
+├── controllers/                # HTTP response orchestration (next extraction)
+├── middleware/                 # auth, validation and error handling (next extraction)
+├── models/
+│   ├── *.model.js               # one Mongoose model per domain
+│   └── index.js                 # model barrel exports
+├── routes/                     # resource routers (next extraction from app.js)
 ├── services/
-│   ├── agent/               # autonomous run state and orchestration
-│   │   └── agent-run-state.js
-│   ├── media/               # image, video, and people search
-│   │   └── media-search.js
-│   └── research/            # lead planning, claim triage, research gaps
-│       ├── agent-planner.js
-│       ├── claim-analysis.js
-│       └── research-gaps.js
-├── utils/                   # reusable, side-effect-free helpers
-├── validators/              # request schemas
-├── app.js                   # Express app composition (routes are extracted next)
-└── server.js                # process entry point and worker startup
+│   ├── agent/                  # agent run state
+│   ├── media/                  # image/video/people search
+│   └── research/               # follow-up planning, claim analysis, research gaps
+├── utils/                      # shared pure helpers (next extraction)
+├── app.js                      # Express app composition and legacy route registration
+└── server.js                   # process entry point and worker startup
 ```
 
-## Current migration rules
+## Active conventions
 
-- `models/index.js` is the canonical Mongoose model module.
-- New research logic belongs under `services/research/`; media search belongs under `services/media/`; agent run-state logic belongs under `services/agent/`.
-- Root-level files for the moved modules are compatibility exports, not duplicate implementations. Existing imports can be migrated gradually without breaking production paths.
-- `app.js` currently still contains route handlers. The next safe phase is to extract one resource router/controller at a time, keeping response shapes, authentication checks, ownership filters, and status codes unchanged.
-- Do not split or rename deployment entry points casually: Render starts `src/server.js`, which composes `src/app.js`.
+- Each Mongoose model lives in its own file; `models/index.js` is the public model barrel and `models.js` remains a compatibility export for older imports.
+- Research and agent domain logic lives under `services/`; old source paths are compatibility exports while callers migrate gradually.
+- Keep the existing `server.js` entry point, environment variable names, response envelopes, authentication and ownership checks stable.
+- Route/controller extraction is the next API phase. It must preserve status codes, response shapes, rate limits, authorization, and memory-mode fallbacks.
+- The current API composition file is still large; it must not be considered fully MVC until resource routers and controllers are extracted and regression tests pass.
 
-## Validation
-
-Run from the repository root:
-
-```bash
-npm test
-npm run build
-npm run test:e2e
-```
+Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
