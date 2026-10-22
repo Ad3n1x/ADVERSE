@@ -157,11 +157,11 @@ app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
 app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const result=await runMonitoringCycle();res.json({data:result,generatedAt:new Date().toISOString()});}));
 
 // Admin authentication is separate from public registration. Configure ADMIN_EMAIL and
-// ADMIN_PASSWORD_HASH (salt:hex scrypt hash) in the Render service environment.
+// ADMIN_PASSWORD in the Render service environment.
 const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
 function requireAdmin(req,res,next) {
   const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
-  if(!configuredEmail || !String(process.env.ADMIN_PASSWORD_HASH||'').trim()) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
+  if(!configuredEmail || !String(process.env.ADMIN_PASSWORD||'')) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
   const cookie=cookieToken(req);
   const user=verifyToken(cookie);
   if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
@@ -173,13 +173,11 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   if(!p.success) return sendError(res,400,'VALIDATION_ERROR','Enter the configured administrator email and password.');
   const email=p.data.email.toLowerCase();
   const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
-  const encoded=String(process.env.ADMIN_PASSWORD_HASH||'');
-  const [salt,hash]=encoded.split(':');
-  if(!configuredEmail || !salt || !hash || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
-  let expected;
-  try { expected=Buffer.from(hash,'hex'); } catch { return sendError(res,503,'ADMIN_CONFIG_INVALID','Admin password hash is invalid.'); }
-  const candidate=scryptSync(p.data.password,salt,64);
-  if(candidate.length!==expected.length || !timingSafeEqual(candidate,expected)) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  const configuredPassword=String(process.env.ADMIN_PASSWORD||'');
+  if(!configuredEmail || !configuredPassword || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  const supplied=Buffer.from(p.data.password,'utf8');
+  const expected=Buffer.from(configuredPassword,'utf8');
+  if(supplied.length!==expected.length || !timingSafeEqual(supplied,expected)) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
   setSession(res,tokenFor({id:'admin:'+configuredEmail,email:configuredEmail}));
   res.json({data:{email:configuredEmail,role:'admin'}});
 }));
