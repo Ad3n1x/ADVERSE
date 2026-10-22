@@ -165,7 +165,6 @@ function requireAdmin(req,res,next) {
   const cookie=cookieToken(req);
   const user=verifyToken(cookie);
   if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
-  if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
   req.user=user;
   next();
 }
