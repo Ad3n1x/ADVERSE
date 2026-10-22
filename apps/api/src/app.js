@@ -205,7 +205,8 @@ app.get('/api/v1/admin/users',requireAdmin,wrap(async(req,res)=>{
   const q=String(req.query.q||'').trim().slice(0,120);
   const page=Math.max(1,Math.min(10000,Number.parseInt(String(req.query.page||'1'),10)||1));
   const limit=Math.max(1,Math.min(50,Number.parseInt(String(req.query.limit||'20'),10)||20));
-  const filter=q?{$or:[{email:{$regex:q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{'),$options:'i'}},{displayName:{$regex:q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{'),$options:'i'}}]}:{};
+  const needle=q.toLowerCase();
+  const filter=q?{$expr:{$or:[{$gte:[{$indexOfCP:[{$toLower:'$email'},needle]},0]},{$gte:[{$indexOfCP:[{$toLower:'$displayName'},needle]},0]}]}}:{};
   const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
   const ids=rows.map(u=>String(u._id));
   const groups=ids.length?await Investigation.aggregate([{$match:{ownerId:{$in:ids}}},{$group:{_id:'$ownerId',count:{$sum:1}}} ]):[];
