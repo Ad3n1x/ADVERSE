@@ -20,17 +20,17 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByRole('button', { name: /Create collection/ }).click();
   await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
 
-  await page.getByRole('button', { name: /Connections map/i }).click();
+  await expect(page.getByRole('heading', { name: /Within-collection connections/i })).toBeVisible();
   await page.getByRole('button', { name: /Add entity/ }).click();
   await page.getByLabel('Name').fill('Example Corporation');
   await page.getByLabel('Public link (optional)').fill('https://example.org');
   await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
 
-  const filter = page.getByPlaceholder('Filter by entity name, type, or description');
+  const filter = page.getByPlaceholder('Filter by name, type, or description');
   await expect(filter).toBeVisible();
   await filter.fill('Example Corporation');
   const entityOption = page.locator('.graph-entity-option').filter({ hasText: 'Example Corporation' });
   await expect(entityOption).toBeVisible();
   await entityOption.click();
-  await expect(page.getByText('SELECTED ENTITY')).toBeVisible();
+  await expect(page.getByText('SELECTED ITEM')).toBeVisible();
 });
