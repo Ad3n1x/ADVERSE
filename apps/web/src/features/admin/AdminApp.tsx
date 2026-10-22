@@ -1,18 +1,9 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { API, request as call } from '../../lib/api';
+import type { AdminUser, AdminOverview as Overview, AdminTab as Tab, AdminConfig as Config } from '../../types/admin';
 import { Activity, AlertTriangle, ArrowLeft, Database, Download, ExternalLink, Gauge, Link2, LogOut, Play, RefreshCw, Search, Settings2, ShieldCheck, Users, Layers3, CalendarDays, Plug, ClipboardList, Clock3, Trash2, UserCheck, UserX, Wrench } from 'lucide-react';
 
-const API=(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/,'');
-type AdminUser={id:string;email:string;displayName:string;role?:'owner'|'admin'|'user';status?:'active'|'suspended';createdAt?:string;lastUpdatedAt?:string;investigations:number};
-type Overview={metrics:{totalUsers:number;totalInvestigations:number;usersCreatedLast7Days:number};recentUsers:AdminUser[];generatedAt:string;limitations:string[]};
-type Tab='overview'|'users'|'search'|'providers'|'incidents'|'jobs'|'settings'|'security';
-type Config={maintenanceMode:boolean;featureFlags:{search:boolean;providerSettings:boolean;monitoring:boolean};usageLimits:{searchesPerMinute:number};retentionDays:number};
-async function call<T>(path:string,init?:RequestInit):Promise<T>{
- const response=await fetch(API+path,{...init,credentials:'include',headers:{'Content-Type':'application/json',...(init?.headers||{})}});
- if(!response.ok){let message='Request failed';try{const body=await response.json();message=body.error?.message||message;}catch{}throw new Error(message);}
- if(response.status===204)return undefined as T;
- return response.json();
-}
 const dateLabel=(value?:string)=>value?new Date(value).toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 const emptyConfig:Config={maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};
 export default function AdminApp(){
