@@ -578,9 +578,19 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
   if(isFreshRunningAgentRun(stored.agentRunState||{}))return sendError(res,409,'AGENT_ALREADY_RUNNING','This investigation already has a research run in progress.');
   stored.agentRunState=initialState;
  }
- res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Research agent started. Progress is saved as the run proceeds.'}});
- void (async()=>{
  const providerKeys=await getUserProviderKeys(req.user.id);
+ let initialSearch={results:[],meta:{query:question,providers:[],coverage:'Initial search unavailable; the autonomous research agent will continue with configured providers.'}};
+ try{
+  const live=await searchAllPublic(question,providerKeys);
+  const ranked=diversifyPublicResults(Array.isArray(live.results)?live.results:[],question,{limit:24,maxPerDomain:3});
+  const seen=new Set();
+  initialSearch.results=ranked.map(({_searchScore,_searchOrder,...item})=>item).filter(item=>{
+   try{const url=normalizeResultUrl(validatePublicUrl(item.url).href);if(seen.has(url))return false;seen.add(url);item.url=url;return true;}catch{return false;}
+  }).slice(0,24);
+  initialSearch.meta={query:question,providers:[...new Set(initialSearch.results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],coverage:live.meta?.coverage||'Initial public-source search completed.',successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0};
+ }catch(error){initialSearch.meta.error=String(error?.message||'Initial search provider unavailable.');}
+ res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Search received. Initial results and autonomous investigation are running as one workflow.',initialSearch}});
+ void (async()=>{
  const trace=[];
  const startedAt=Date.now();
  const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
