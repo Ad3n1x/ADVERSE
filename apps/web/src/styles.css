@@ -1104,3 +1104,138 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
   #root .app-shell .content .data-cleanup-controls{padding:10px!important}
   #root .app-shell .content .data-cleanup-controls>button{flex:1 1 100%!important;width:100%!important}
 }
+
+
+/* ADVERSE spacing system — consistent rhythm across every workspace and screen. */
+:root{
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;
+  --space-5:20px;--space-6:24px;--space-7:28px;--space-8:32px;
+}
+#root .app-shell{gap:0}
+#root .main{min-width:0}
+#root .content{
+  padding:clamp(20px,2.4vw,34px) clamp(18px,2.8vw,40px) 42px;
+}
+#root .page-heading{
+  gap:clamp(16px,2vw,26px);margin:0 0 28px;
+}
+#root .page-heading h1{margin:0 0 8px;line-height:1.12}
+#root .page-heading p{margin:0;max-width:760px;line-height:1.75}
+#root .heading-actions{gap:10px}
+#root .work-grid{gap:20px;align-items:start}
+#root .work-grid>*,#root .panel,#root .metric-card,#root .settings-panel,
+#root .search-results-panel,#root .graph-panel,#root .investigations-panel,
+#root .activity-panel,#root .cyber-panel,#root .evidence-vault-panel,
+#root .monitoring-panel,#root .agent-run-panel{
+  min-width:0;
+}
+#root .panel{margin:0 0 20px}
+#root .panel-heading{
+  gap:12px;padding:18px 20px;align-items:center;
+}
+#root .panel-heading>div{min-width:0}
+#root .panel-heading h2,#root .panel-heading h3{margin:0;line-height:1.35}
+#root .panel-heading p{margin:6px 0 0;line-height:1.65}
+#root .panel-body,#root .panel-content{padding:20px}
+#root .section-row{gap:12px;margin:0 0 16px}
+#root .section-row h2,#root .section-row h3{margin:0;line-height:1.4}
+#root .section-row p{margin:5px 0 0;line-height:1.65}
+#root .panel-tools,#root .panel-actions,#root .result-actions,
+#root .heading-actions,#root .top-actions{gap:9px}
+#root .metric-grid{gap:14px;margin:0 0 22px}
+#root .metric-card{padding:18px}
+#root .metric-card>*+*{margin-top:9px}
+#root .metric-value{margin:14px 0 10px;line-height:1.1}
+#root .search-engine-hero{margin:0 0 22px}
+#root .engine-kicker{gap:10px;margin-bottom:18px}
+#root .engine-headline{margin:0 0 22px}
+#root .engine-headline h2{margin:0 0 10px;line-height:1.05}
+#root .engine-headline p{margin:0;line-height:1.7}
+#root .engine-search-bar{gap:12px}
+#root .engine-underbar{gap:12px;margin-top:12px}
+#root .engine-suggestions{gap:8px;margin-top:16px}
+#root .search-results-toolbar{gap:12px;margin:0 0 16px}
+#root .search-results-panel{margin-top:20px}
+#root .engine-result-card,#root .find-result-card,#root .result-card{
+  padding:17px;gap:14px;margin:0 0 12px;
+}
+#root .engine-result-main>*+*,#root .find-result-card>*+*{margin-top:8px}
+#root .find-results-head{gap:12px;margin:0 0 18px}
+#root .find-result-list{gap:14px}
+#root .find-result-source{gap:8px;margin-bottom:8px}
+#root .find-result-foot{gap:10px;margin-top:14px}
+#root .find-trust-note{margin-top:18px;padding:14px;line-height:1.7}
+#root .query-expansion-panel{margin:18px 0;padding:16px;gap:12px}
+#root .query-chip-list{gap:8px}
+#root .trust-layer{margin-top:22px;padding:20px;gap:16px}
+#root .trust-layer-heading{gap:10px;margin-bottom:14px}
+#root .trust-signal-grid{gap:12px}
+#root .trust-signal{padding:14px;min-width:0}
+#root .provider-credentials-grid,#root .tools-modal-grid{gap:14px}
+#root .provider-credential-card{padding:17px;gap:12px}
+#root .provider-credential-heading{gap:10px;margin-bottom:12px}
+#root .settings-row{gap:14px;padding:16px 0}
+#root .stack-form{gap:18px}
+#root .stack-form>label{gap:8px;line-height:1.5}
+#root .stack-form input,#root .stack-form textarea,#root .stack-form select{margin-top:2px}
+#root .capture-compare,#root .diff-results,#root .dns-results{gap:16px;padding:18px;margin-top:18px}
+#root .diff-columns{gap:16px}
+#root .verification-instructions{gap:12px;padding:16px;margin-top:16px}
+#root .graph-controls,#root .graph-layout-controls{gap:10px;margin:0 0 14px}
+#root .force-graph-shell{margin:12px 0 18px;border-radius:12px;overflow:hidden}
+#root .graph-inspector{gap:10px;margin-top:16px;padding:16px}
+#root .graph-entity-list,#root .graph-relationship-list{display:grid;gap:8px}
+#root .selected-entity,#root .selected-links{margin-top:14px;padding:14px;line-height:1.7}
+#root .review-summary,#root .review-limitations,#root .ai-review-results{margin-top:16px;padding:16px;line-height:1.7}
+#root .review-actions{gap:10px;margin-top:16px}
+#root .overlap-list{gap:10px}
+#root .overlap-row{gap:12px;padding:12px}
+#root .watch-list{gap:10px}
+#root .watch-row{gap:12px;padding:14px}
+#root .watch-details{gap:6px;min-width:0}
+#root .cyber-form{gap:14px;margin-bottom:20px}
+#root .cyber-metrics{gap:12px;margin:18px 0}
+#root .cyber-event-list{gap:10px}
+#root .cyber-event{gap:12px;padding:15px}
+#root .cyber-event-body{min-width:0;line-height:1.65}
+#root .investigations-panel,#root .activity-panel,#root .monitoring-panel{gap:16px}
+#root .case-card,#root .investigation-card{padding:16px;gap:12px}
+#root .modal-backdrop{padding:20px}
+#root .modal{padding:22px;gap:16px}
+#root .modal h2,#root .modal h3{margin:0;line-height:1.35}
+#root .modal p{line-height:1.7}
+#root .modal form{display:flex;flex-direction:column;gap:14px}
+#root .modal form label{display:flex;flex-direction:column;gap:7px}
+#root .toast-viewport{gap:10px}
+#root .app-toast{gap:12px;padding:13px 15px}
+#root .app-toast p{margin:0;line-height:1.55}
+#root button,#root input,#root textarea,#root select{line-height:1.45}
+#root button{min-height:34px}
+#root p{line-height:1.7}
+#root h1,#root h2,#root h3,#root h4{letter-spacing:-.015em}
+@media(max-width:760px){
+  #root .content{padding:20px 14px 30px}
+  #root .page-heading{gap:14px;margin-bottom:22px}
+  #root .work-grid{gap:14px}
+  #root .panel{margin-bottom:15px}
+  #root .panel-heading{padding:15px;gap:10px}
+  #root .panel-body,#root .panel-content{padding:15px}
+  #root .metric-grid{gap:10px;margin-bottom:16px}
+  #root .metric-card{padding:14px}
+  #root .engine-result-card,#root .find-result-card,#root .result-card{padding:14px;gap:11px}
+  #root .trust-layer{padding:15px;gap:13px}
+  #root .trust-signal-grid,#root .provider-credentials-grid,#root .tools-modal-grid{gap:10px}
+  #root .provider-credential-card{padding:14px}
+  #root .capture-compare,#root .diff-results,#root .dns-results{padding:14px;gap:12px}
+  #root .modal-backdrop{padding:12px}
+  #root .modal{padding:16px}
+}
+@media(max-width:420px){
+  #root .content{padding:17px 12px 26px}
+  #root .panel-heading{padding:13px}
+  #root .panel-body,#root .panel-content{padding:12px}
+  #root .metric-card{padding:12px}
+  #root .engine-result-card,#root .find-result-card,#root .result-card{padding:12px}
+  #root .modal{padding:14px}
+  #root .section-row{gap:9px}
+}
