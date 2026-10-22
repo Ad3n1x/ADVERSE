@@ -5,7 +5,7 @@
 export function createUtilityController({
   sendError, searchOrganizations, waybackCaptures, validatePublicUrl, compareArchivedText,
   publicDns, exists, Evidence, Entity, Relationship, investigationGet, listFor,
-  isDb, Investigation, createReportPdf, csvCell, memory,
+  createReportPdf, csvCell,
 }) {
   async function searchOrganizationsHandler(req, res) {
     const query = String(req.query.q || '').slice(0, 200);
