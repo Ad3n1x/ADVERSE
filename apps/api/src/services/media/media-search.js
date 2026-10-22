@@ -1,4 +1,5 @@
-const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
+const decodeEntityOnce = (value) => String(value || '').replace(/&(?:amp|quot|#39|apos|lt|gt);/gi, (entity) => ({ '&amp;': '&', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&lt;': '<', '&gt;': '>' }[entity.toLowerCase()] || entity));
+const clean = (value, max = 1200) => decodeEntityOnce(value).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 async function get(url, timeout = 10000) {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'user-agent': 'ADVERSE-Discovery/1.0 (+https://github.com/Ad3n1x/ADVERSE)', accept: 'application/json, application/atom+xml, application/xml, text/xml' } });
   if (!response.ok) throw new Error('Provider returned HTTP ' + response.status);
