@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Bell, Check, Clock3, ExternalLink, Globe2, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+import { Bell, Check, Clock3, ExternalLink, Globe2, Plus, RefreshCw, ShieldCheck, Trash2, X } from 'lucide-react';
 import { request } from '../../lib/api';
 import Empty from '../../components/ui/Empty';
 import type { Investigation, MonitorAlert, WatchRecord } from '../../types/research';
