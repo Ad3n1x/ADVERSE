@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
-import { timingSafeEqual, createHmac } from 'node:crypto';
+import { timingSafeEqual, createHmac, scryptSync } from 'node:crypto';
 import { z } from 'zod';
 import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
@@ -36,8 +36,8 @@ const relationshipSchema=z.object({fromEntityId:z.string().min(1),toEntityId:z.s
 const sendError=(res,status,code,message,details)=>res.status(status).json({error:{code,message,...(details?{details}: {})}});
 const csvCell=(value)=>{const text=String(value??'');const safe=/^[=+\-@\t\r]/.test(text)?"'"+text:text;return '"'+safe.replaceAll('"','""')+'"';};
 const jwtSecret=()=>process.env.JWT_SECRET||(process.env.NODE_ENV==='production'?'': 'adverse-local-development-secret-change-before-deploy');
-function tokenFor(user){const secret=jwtSecret();if(!secret)throw new Error('JWT_SECRET must be configured.');const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');const body=Buffer.from(JSON.stringify({sub:String(user.id||user._id),email:user.email,exp:Math.floor(Date.now()/1000)+604800})).toString('base64url');const sig=createHmac('sha256',secret).update(head+'.'+body).digest('base64url');return head+'.'+body+'.'+sig;}
-function verifyToken(token){try{const [head,body,sig]=token.split('.');const expected=createHmac('sha256',jwtSecret()).update(head+'.'+body).digest();const supplied=Buffer.from(sig,'base64url');if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return null;const p=JSON.parse(Buffer.from(body,'base64url').toString());if(!p.sub||p.exp<Math.floor(Date.now()/1000))return null;return {id:p.sub,email:p.email};}catch{return null;}}
+function tokenFor(user){const secret=jwtSecret();if(!secret)throw new Error('JWT_SECRET must be configured.');const head=Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url');const body=Buffer.from(JSON.stringify({sub:String(user.id||user._id),email:user.email,...(user.role?{role:user.role}:{}),exp:Math.floor(Date.now()/1000)+604800})).toString('base64url');const sig=createHmac('sha256',secret).update(head+'.'+body).digest('base64url');return head+'.'+body+'.'+sig;}
+function verifyToken(token){try{const [head,body,sig]=token.split('.');const expected=createHmac('sha256',jwtSecret()).update(head+'.'+body).digest();const supplied=Buffer.from(sig,'base64url');if(expected.length!==supplied.length||!timingSafeEqual(expected,supplied))return null;const p=JSON.parse(Buffer.from(body,'base64url').toString());if(!p.sub||p.exp<Math.floor(Date.now()/1000))return null;return {id:p.sub,email:p.email,role:p.role||'user'};}catch{return null;}}
 function cookieToken(req){const raw=(req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('adverse_session='));if(!raw)return '';try{return decodeURIComponent(raw.slice('adverse_session='.length));}catch{return '';}}
 function setSession(res,token){res.setHeader('Set-Cookie',`adverse_session=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=604800${process.env.NODE_ENV==='production'?'; Secure':''}`);}
 const providerKeyNames=['BRAVE_SEARCH_API_KEY','TAVILY_API_KEY','EXA_API_KEY','GOOGLE_CSE_API_KEY','GOOGLE_CSE_CX','BING_SEARCH_API_KEY','SERPAPI_API_KEY','NEWSAPI_API_KEY','YOUTUBE_API_KEY'];
@@ -164,7 +164,7 @@ function requireAdmin(req,res,next) {
   if(!configuredEmail || !String(process.env.ADMIN_PASSWORD||'')) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
   const cookie=cookieToken(req);
   const user=verifyToken(cookie);
-  if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+  if(!user || user.email!==configuredEmail || user.role!=='admin') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
   req.user=user;
   next();
 }
@@ -178,8 +178,17 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   const supplied=Buffer.from(p.data.password,'utf8');
   const expected=Buffer.from(configuredPassword,'utf8');
   if(supplied.length!==expected.length || !timingSafeEqual(supplied,expected)) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
-  setSession(res,tokenFor({id:'admin:'+configuredEmail,email:configuredEmail}));
-  res.json({data:{email:configuredEmail,role:'admin'}});
+  let account=isDb()?await User.findOne({email:configuredEmail}):[...memory.users.values()].find(u=>u.email===configuredEmail);
+  if(!account){
+    const salt=crypto.randomBytes(16).toString('hex');
+    const passwordHash=salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
+    const displayName='ADVERSE Admin';
+    account=isDb()?await User.create({email:configuredEmail,displayName,passwordHash}):{id:id(),email:configuredEmail,displayName,passwordHash};
+    if(!isDb())memory.users.set(account.id,account);
+  }
+  const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
+  setSession(res,tokenFor(safe));
+  res.json({data:safe});
 }));
 app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
   if(!isDb()) return sendError(res,503,'DATABASE_REQUIRED','Admin analytics require MongoDB persistence.');
