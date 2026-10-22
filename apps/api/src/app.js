@@ -163,8 +163,8 @@ function requireAdmin(req,res,next) {
   const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
   if(!configuredEmail || !String(process.env.ADMIN_PASSWORD_HASH||'').trim()) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
   const cookie=cookieToken(req);
-  const bearer=String(req.headers.authorization||'').replace(/^Bearer\\s+/i,'');
-  const user=verifyToken(cookie||bearer);
+  const user=verifyToken(cookie);
+  if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
   if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
   req.user=user;
   next();
