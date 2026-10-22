@@ -309,13 +309,14 @@ app.get('/api/v1/admin/audit',requireAdmin,wrap(async(req,res)=>{
   res.json({data:rows.map(x=>({id:String(x._id||x.id||''),actorEmail:x.actorEmail||'',action:x.action,targetType:x.targetType||'',targetId:x.targetId||'',details:x.details||{},createdAt:x.createdAt}))});
 }));
 app.patch('/api/v1/admin/users/:id/role',requireAdmin,wrap(async(req,res)=>{
-   if(req.user.role!=='owner' || String(req.user.email||'').toLowerCase()!==ownerEmail())return sendError(res,403,'OWNER_REQUIRED','Only the ADVERSE account owner can grant or revoke administrator access.');
    const role=String(req.body?.role||'');
    if(!['user','admin'].includes(role))return sendError(res,400,'INVALID_ROLE','Role must be user or admin.');
+   const isOwner=req.user.role==='owner' && String(req.user.email||'').toLowerCase()===ownerEmail();
    if(isDb()){
      const target=await User.findById(req.params.id).select('email displayName role').lean();
      if(!target)return sendError(res,404,'USER_NOT_FOUND','User account not found.');
      if(String(target.email||'').toLowerCase()===ownerEmail())return sendError(res,400,'OWNER_ROLE_LOCKED','The owner account cannot be demoted here.');
+     if(!isOwner && !(role==='user' && target.role==='admin'))return sendError(res,403,'OWNER_REQUIRED','Only the owner can grant administrator access. Administrators may revoke another administrator.');
      await User.updateOne({_id:req.params.id},{$set:{role}});
      await auditAdmin(req,role==='admin'?'user.admin_granted':'user.admin_revoked','user',req.params.id,{email:target.email,role});
      return res.json({data:{id:String(target._id),email:target.email,role}});
@@ -323,6 +324,7 @@ app.patch('/api/v1/admin/users/:id/role',requireAdmin,wrap(async(req,res)=>{
    const target=memory.users.get(req.params.id);
    if(!target)return sendError(res,404,'USER_NOT_FOUND','User account not found.');
    if(String(target.email||'').toLowerCase()===ownerEmail())return sendError(res,400,'OWNER_ROLE_LOCKED','The owner account cannot be demoted here.');
+   if(!isOwner && !(role==='user' && target.role==='admin'))return sendError(res,403,'OWNER_REQUIRED','Only the owner can grant administrator access. Administrators may revoke another administrator.');
    target.role=role;memory.users.set(req.params.id,target);
    await auditAdmin(req,role==='admin'?'user.admin_granted':'user.admin_revoked','user',req.params.id,{email:target.email,role});
    res.json({data:{id:String(target.id),email:target.email,role}});
