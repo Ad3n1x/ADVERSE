@@ -533,7 +533,7 @@ app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=
  const iid=req.params.id;
  if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');
  const geminiKey=String(process.env.GEMINI_API_KEY||'').trim();
- const geminiModel=String(process.env.GEMINI_MODEL||'gemini-3.8-flash').trim();
+ const geminiModel=String(process.env.GEMINI_MODEL||'gemini-2.5-flash').trim();
  let base=String(process.env.AI_PROVIDER_BASE_URL||'').trim();while(base.endsWith('/'))base=base.slice(0,-1);
  const apiKey=String(process.env.AI_PROVIDER_API_KEY||'').trim();
  const model=String(process.env.AI_PROVIDER_MODEL||'').trim();
