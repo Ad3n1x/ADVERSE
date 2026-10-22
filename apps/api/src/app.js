@@ -16,6 +16,7 @@ import { runDiscoveryCycle } from './discovery.js';
 import { createReportPdf } from './pdf.js';
 import { analyzeEvidenceClaims } from './claim-analysis.js';
 import { analyzeResearchGaps } from './research-gaps.js';
+import { planAgentFollowUps } from './agent-planner.js';
 
 export const app = express();
 app.disable('x-powered-by');
@@ -545,6 +546,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const knownUrls=new Set(prior.map(item=>{try{return normalizeResultUrl(item.url).toLowerCase();}catch{return String(item.url||'').toLowerCase();}}));
  const querySeen=new Set();
  const plan=[];
+ let leadPlanningMode='heuristic';
  const addQuery=(value,reason,round)=>{
   const q=cleanText(value,180);
   const k=q.toLowerCase();
@@ -569,16 +571,25 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
   }
   trace.push({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
   if(round===1){
-   const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
-   const seenHosts=new Set();
-   for(const result of seed){
-    if(plan.length>=5)break;
-    let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
-    if(!host||seenHosts.has(host))continue;
-    seenHosts.add(host);
-    const candidate=cleanText(result.title,150);
-    if(candidate.length>=12&&candidate.toLowerCase()!==question.toLowerCase())addQuery(candidate,'Lead discovered in '+host,2);
+   trace.push({stage:'plan',status:'running',detail:'The analyst is evaluating first-pass results and planning independent follow-up searches.'});
+   const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
+   let candidates=planned.leads;
+   if(!candidates.length){
+    const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
+    const seenHosts=new Set();
+    candidates=[];
+    for(const result of seed){
+     if(candidates.length>=3)break;
+     let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
+     if(!host||seenHosts.has(host))continue;
+     seenHosts.add(host);
+     const candidate=cleanText(result.title,150);
+     if(candidate.length>=12&&candidate.toLowerCase()!==question.toLowerCase())candidates.push({query:candidate,reason:'Heuristic fallback lead from '+host});
+    }
    }
+   for(const lead of candidates)addQuery(lead.query,lead.reason,2);
+   leadPlanningMode=planned.mode;
+   trace.push({stage:'plan',status:'complete',mode:planned.mode,provider:planned.provider,leadCount:plan.filter(item=>item.round===2).length,detail:planned.mode==='ai'?'AI-generated follow-up queries use first-pass source context; each lead remains a hypothesis, not a factual conclusion.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
   }
  }
  const merged=new Map();
@@ -616,7 +627,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  trace.push({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
  trace.push({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
  const durationMs=Date.now()-startedAt;
- res.json({data:{investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()}});
+ res.json({data:{investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()}});
 }));
 app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
