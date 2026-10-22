@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import AdminApp from './AdminApp';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Command, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
 
@@ -15,7 +16,7 @@ async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=awai
 type ToastKind='success'|'error'|'info';
 type ToastItem={id:number;message:string;kind:ToastKind};
 function ToastViewport({toasts,onDismiss}:{toasts:ToastItem[];onDismiss:(id:number)=>void}){return <div className="toast-viewport" aria-live="polite" aria-atomic="false">{toasts.map(t=><div className={'app-toast toast-'+t.kind} key={t.id} role={t.kind==='error'?'alert':'status'}><span className="toast-indicator"/><p>{t.message}</p><button type="button" aria-label="Dismiss notification" onClick={()=>onDismiss(t.id)}><X size={15}/></button></div>)}</div>;}
-function App(){
+function WorkspaceApp(){
  const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'|'forgot'|'reset'>('login'),[showAuth,setShowAuth]=useState(false),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState(''),[resetToken,setResetToken]=useState(''),[authMessage,setAuthMessage]=useState('');
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const token=params.get('reset');if(token){setResetToken(token);setAuthMode('reset');setShowAuth(true);setAuthMessage('');}},[]);
  const [tab,setTab]=useState<Tab>('Find Anything'),[cases,setCases]=useState<Investigation[]>([]),[caseId,setCaseId]=useState(''),[evidence,setEvidence]=useState<Evidence[]>([]),[entities,setEntities]=useState<Entity[]>([]),[relationships,setRelationships]=useState<Relationship[]>([]),[apiStatus,setApiStatus]=useState('checking'),[aiProviderStatus,setAiProviderStatus]=useState('Checking configuration'),[error,setError]=useState(''),[notice,setNotice]=useState(''),[toasts,setToasts]=useState<ToastItem[]>([]);
@@ -245,4 +246,5 @@ function Graph({entities,relationships,onSelect,selectedId,query,layoutKey}:{ent
   <div className="graph-relationship-list"><div className="section-kicker">VISIBLE RELATIONSHIPS</div>{visibleRelations.length?visibleRelations.map((r,i)=>{const from=visible.find(e=>key(e)===r.fromEntityId);const to=visible.find(e=>key(e)===r.toEntityId);const edgeKey=key(r)||r.fromEntityId+'-'+r.toEntityId+'-'+i;return <button type="button" className={'graph-relationship-option'+(selectedRelationshipId===edgeKey?' selected':'')} aria-pressed={selectedRelationshipId===edgeKey} onClick={()=>setSelectedRelationshipId(edgeKey)} key={edgeKey}><span>{from?.name||'Unknown entity'} <b>{r.type}</b> {to?.name||'Unknown entity'}</span><small>{r.verificationStatus||'unverified'} · {r.evidenceIds?.length||0} evidence reference(s)</small></button>}):<p className="muted-copy">No relationships connect the currently visible entities.</p>}</div>
  </div>
 }
+function App(){ return window.location.pathname.replace(/\\/+$/, '') === '/admin' ? <AdminApp /> : <WorkspaceApp />; }
 export default App;
