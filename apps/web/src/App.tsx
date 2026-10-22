@@ -3,12 +3,11 @@ import Graph from './features/graph/Graph';
 import ToastViewport from './components/layout/ToastViewport';
 import type { CyberAssetRecord, CyberEventRecord, MonitorAlert, PublicSearchResult, SearchHistoryEntry, WatchRecord } from './types/research';
 import AdminApp from './AdminApp';
+import { API, request } from './lib/api';
+import { getRecordId as key } from './lib/ids';
 import type { Capture, Entity, Evidence, Investigation, Relationship, SearchResult, Tab, ToastItem, ToastKind } from './types/research';
 import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
 
-const API=(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
-const key=(x:{id?:string;_id?:string})=>x.id||x._id||'';
-async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(API+path,{...init,credentials:'include',headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let message='Request failed';try{const b=await r.json();message=b.error?.message||message;if(b.error?.details?.fieldErrors)message+=' '+JSON.stringify(b.error.details.fieldErrors);}catch{}throw new Error(message);}if(r.status===204)return undefined as T;return r.json();}
 function WorkspaceApp(){
  const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'|'forgot'|'reset'>('login'),[showAuth,setShowAuth]=useState(false),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState(''),[accountRole,setAccountRole]=useState('user'),[resetToken,setResetToken]=useState(''),[authMessage,setAuthMessage]=useState('');
  useEffect(()=>{const params=new URLSearchParams(window.location.search);const token=params.get('reset');if(token){setResetToken(token);setAuthMode('reset');setShowAuth(true);setAuthMessage('');}},[]);
