@@ -305,6 +305,25 @@ app.get('/api/v1/admin/audit',requireAdmin,wrap(async(req,res)=>{
   const rows=isDb()?await AdminAuditEvent.find({}).sort({createdAt:-1}).limit(limit).lean():(globalThis.__ADVERSE_AUDIT__||[]).slice(0,limit);
   res.json({data:rows.map(x=>({id:String(x._id||x.id||''),actorEmail:x.actorEmail||'',action:x.action,targetType:x.targetType||'',targetId:x.targetId||'',details:x.details||{},createdAt:x.createdAt}))});
 }));
+app.patch('/api/v1/admin/users/:id/role',requireAdmin,wrap(async(req,res)=>{
+   if(req.user.role!=='owner' || String(req.user.email||'').toLowerCase()!==ownerEmail())return sendError(res,403,'OWNER_REQUIRED','Only the ADVERSE account owner can grant or revoke administrator access.');
+   const role=String(req.body?.role||'');
+   if(!['user','admin'].includes(role))return sendError(res,400,'INVALID_ROLE','Role must be user or admin.');
+   if(isDb()){
+     const target=await User.findById(req.params.id).select('email displayName role').lean();
+     if(!target)return sendError(res,404,'USER_NOT_FOUND','User account not found.');
+     if(String(target.email||'').toLowerCase()===ownerEmail())return sendError(res,400,'OWNER_ROLE_LOCKED','The owner account cannot be demoted here.');
+     await User.updateOne({_id:req.params.id},{$set:{role}});
+     await auditAdmin(req,role==='admin'?'user.admin_granted':'user.admin_revoked','user',req.params.id,{email:target.email,role});
+     return res.json({data:{id:String(target._id),email:target.email,role}});
+   }
+   const target=memory.users.get(req.params.id);
+   if(!target)return sendError(res,404,'USER_NOT_FOUND','User account not found.');
+   if(String(target.email||'').toLowerCase()===ownerEmail())return sendError(res,400,'OWNER_ROLE_LOCKED','The owner account cannot be demoted here.');
+   target.role=role;memory.users.set(req.params.id,target);
+   await auditAdmin(req,role==='admin'?'user.admin_granted':'user.admin_revoked','user',req.params.id,{email:target.email,role});
+   res.json({data:{id:String(target.id),email:target.email,role}});
+}));
 app.patch('/api/v1/admin/users/:id/status',requireAdmin,wrap(async(req,res)=>{
   const status=String(req.body?.status||'');
   if(!['active','suspended'].includes(status))return sendError(res,400,'INVALID_STATUS','Status must be active or suspended.');
@@ -498,7 +517,7 @@ app.post('/api/v1/auth/reset-password',limitAuth,wrap(async(req,res)=>{
  res.json({data:{message:'Password updated. You can now sign in with your new password.'}});
 }));
 
-app.get('/api/v1/auth/me',requireAuth,wrap(async(req,res)=>{const user=isDb()?await User.findById(req.user.id).select('email displayName').lean():memory.users.get(req.user.id);if(!user)return sendError(res,401,'SESSION_EXPIRED','Please sign in again.');res.json({data:{id:String(user.id||user._id),email:user.email,displayName:user.displayName}});}));
+app.get('/api/v1/auth/me',requireAuth,wrap(async(req,res)=>{const user=isDb()?await User.findById(req.user.id).select('email displayName role status').lean():memory.users.get(req.user.id);if(!user)return sendError(res,401,'SESSION_EXPIRED','Please sign in again.');const email=String(user.email||'').toLowerCase();res.json({data:{id:String(user.id||user._id),email:user.email,displayName:user.displayName,role:email===ownerEmail()?'owner':(user.role||'user')}});}));
 app.post('/api/v1/auth/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
 app.delete('/api/v1/auth/account',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}}),User.deleteOne({_id:uid})]);}else{for(const [iid,item] of memory.investigations)if(String(item.ownerId)===uid){memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(String(record.investigationId)===String(iid))memory[collection].delete(rid);}memory.users.delete(uid);}res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();}));
 app.use('/api/v1/investigations',requireAuth);
