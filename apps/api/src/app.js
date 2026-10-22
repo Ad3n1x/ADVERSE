@@ -1,4 +1,5 @@
 import express from 'express';
+import { createHealthRouter } from './routes/health.routes.js';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -161,18 +162,7 @@ app.use('/api/v1',wrap(async(req,res,next)=>{
   if((req.path.startsWith('/investigations/')&&req.path.includes('/monitoring')||req.path.startsWith('/monitoring/')||req.path.startsWith('/cyber-assets/'))&&cfg.featureFlags?.monitoring===false)return sendError(res,503,'FEATURE_DISABLED','Monitoring is temporarily unavailable.');
   next();
 }));
-app.get('/api/v1/health',(_req,res)=>{res.json({ok:true,service:'adverse-api',timestamp:new Date().toISOString()});});
-
-// Readiness is intentionally stricter than liveness. Render should only route traffic
-// when production persistence and the session secret are actually available.
-app.get('/api/v1/ready',(_req,res)=>{
-  const production=process.env.NODE_ENV==='production';
-  const databaseReady=isDb()&&mongoose.connection.readyState===1;
-  const sessionSecretReady=Boolean(String(process.env.JWT_SECRET||'').trim());
-  const ready=(!production||(databaseReady&&sessionSecretReady));
-  const payload={ok:ready,status:ready?'ready':'not_ready',service:'adverse-api',checks:{database:databaseReady?'ok':production?'unavailable':'optional_in_development',sessionSecret:sessionSecretReady?'configured':'missing'},timestamp:new Date().toISOString()};
-  res.status(ready?200:503).json(payload);
-});
+app.use('/api/v1', createHealthRouter({ isDb, mongoose }));
 
 app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
   const expected=String(process.env.DISCOVERY_CRON_SECRET||'');
