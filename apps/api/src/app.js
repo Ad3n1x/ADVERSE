@@ -282,9 +282,10 @@ app.get('/api/v1/admin/health',requireAdmin,wrap(async(req,res)=>{
 app.get('/api/v1/admin/metrics',requireAdmin,wrap(async(req,res)=>{
   if(!isDb())return res.json({data:{window:String(req.query.window||'24h'),totalRequests:0,searches:0,errors:0,averageLatencyMs:0,p95LatencyMs:null,byRoute:[],timeline:[],note:'Persistent metrics require MongoDB; request telemetry is in-memory only in development.'}});
   const windowKey=String(req.query.window||'24h');const duration=windowKey==='30d'?30*86400000:windowKey==='7d'?7*86400000:86400000;const since=new Date(Date.now()-duration);
-  const [total,searches,errors,summary,byRoute,timeline,latencies]=await Promise.all([
+  const [total,searches,errors,rateLimited,summary,byRoute,timeline,latencies]=await Promise.all([
     SearchMetric.countDocuments({createdAt:{$gte:since}}),
     SearchMetric.countDocuments({kind:'search',createdAt:{$gte:since}}),
+    SearchMetric.countDocuments({status:429,createdAt:{$gte:since}}),
     SearchMetric.countDocuments({createdAt:{$gte:since},$or:[{status:{$gte:500}},{errorCode:{$ne:''}}]}),
     SearchMetric.aggregate([{$match:{createdAt:{$gte:since}}},{$group:{_id:null,avg:{$avg:'$durationMs'},max:{$max:'$durationMs'}}}]),
     SearchMetric.aggregate([{$match:{createdAt:{$gte:since}}},{$group:{_id:'$route',count:{$sum:1},errors:{$sum:{$cond:[{$gte:['$status',500]},1,0]}},avgLatency:{$avg:'$durationMs'}}},{$sort:{count:-1}},{$limit:20}]),
@@ -292,7 +293,7 @@ app.get('/api/v1/admin/metrics',requireAdmin,wrap(async(req,res)=>{
     SearchMetric.find({createdAt:{$gte:since}}).select('durationMs').sort({durationMs:1}).limit(5000).lean()
   ]);
   const p95=latencies.length?latencies[Math.min(latencies.length-1,Math.floor(latencies.length*.95))].durationMs:null;
-  res.json({data:{window:windowKey,totalRequests:total,searches,errors,averageLatencyMs:Math.round(summary[0]?.avg||0),maxLatencyMs:summary[0]?.max||0,p95LatencyMs:p95,byRoute:byRoute.map(x=>({route:x._id,count:x.count,errors:x.errors,averageLatencyMs:Math.round(x.avgLatency||0)})),timeline:timeline.map(x=>({at:x._id,requests:x.requests,errors:x.errors})),generatedAt:new Date().toISOString()}});
+  res.json({data:{window:windowKey,totalRequests:total,searches,errors,rateLimited,averageLatencyMs:Math.round(summary[0]?.avg||0),maxLatencyMs:summary[0]?.max||0,p95LatencyMs:p95,byRoute:byRoute.map(x=>({route:x._id,count:x.count,errors:x.errors,averageLatencyMs:Math.round(x.avgLatency||0)})),timeline:timeline.map(x=>({at:x._id,requests:x.requests,errors:x.errors})),generatedAt:new Date().toISOString()}});
 }));
 app.get('/api/v1/admin/audit',requireAdmin,wrap(async(req,res)=>{
   const limit=Math.max(1,Math.min(100,Number.parseInt(String(req.query.limit||'50'),10)||50));
