@@ -235,3 +235,25 @@ table th{color:#e1ecf8!important}
 table td{color:#d5e1ef!important}
 .notice{color:#d5fff7!important}
 .notice.error-notice{color:#ffd3ce!important}
+
+
+/* IntelliDesk search: keep the field visually integrated with the dark console,
+   including Chrome's white autofill treatment. */
+.engine-search-bar input,
+.engine-search-bar input:focus{
+ background:transparent!important;
+ color:#f5f9ff!important;
+ border:0!important;
+ box-shadow:none!important;
+ -webkit-text-fill-color:#f5f9ff!important;
+ caret-color:#55d9d0!important;
+}
+.engine-search-bar input::placeholder{color:#a3b6c9!important;opacity:1!important}
+.engine-search-bar input:-webkit-autofill,
+.engine-search-bar input:-webkit-autofill:hover,
+.engine-search-bar input:-webkit-autofill:focus{
+ -webkit-text-fill-color:#f5f9ff!important;
+ -webkit-box-shadow:0 0 0 1000px #09131b inset!important;
+ box-shadow:0 0 0 1000px #09131b inset!important;
+ caret-color:#55d9d0!important;
+}
