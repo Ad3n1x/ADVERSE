@@ -12,8 +12,7 @@ export function registerAdminRoutes(app, {
   csvCell, crypto,
 }) {
   const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
-  const ownerEmail=()=>String(process.env.ADMIN_EMAIL||'adenix271@gmail.com').trim().toLowerCase();
-  function requireAdmin(req,res,next) {
+    function requireAdmin(req,res,next) {
     const user=verifyToken(cookieToken(req));
     if(!user) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
     Promise.resolve().then(async()=>{
