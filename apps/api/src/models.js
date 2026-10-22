@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const { Schema, model, models } = mongoose;
-const userSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, displayName: { type: String, required: true, maxlength: 80 }, passwordHash: { type: String, required: true }, passwordResetTokenHash: { type: String, default: '', index: true }, passwordResetExpiresAt: { type: Date, default: null }, providerCredentialsEncrypted: { type: String, default: '' } }, { timestamps: true, versionKey: false });
+const userSchema = new Schema({ email: { type: String, required: true, unique: true, lowercase: true, trim: true }, displayName: { type: String, required: true, maxlength: 80 }, passwordHash: { type: String, required: true }, passwordResetTokenHash: { type: String, default: '', index: true }, passwordResetExpiresAt: { type: Date, default: null }, providerCredentialsEncrypted: { type: String, default: '' }, status: { type: String, enum: ['active','suspended'], default: 'active', index: true } }, { timestamps: true, versionKey: false });
 export const User = models.User || model('User', userSchema);
 const stamp = { timestamps: true, versionKey: false };
 const evidenceSchema = new Schema({
@@ -105,3 +105,80 @@ cyberEventSchema.index({ investigationId: 1, observedAt: -1 });
 export const CyberAsset = models.CyberAsset || model('CyberAsset', cyberAssetSchema);
 export const CyberEvent = models.CyberEvent || model('CyberEvent', cyberEventSchema);
 
+
+
+// Admin and operations telemetry. No passwords, tokens, raw search queries, or provider secrets are stored here.
+const adminAuditSchema = new Schema({
+  actorId: { type: String, default: 'system', index: true },
+  actorEmail: { type: String, default: '' },
+  action: { type: String, required: true, maxlength: 100, index: true },
+  targetType: { type: String, default: '', maxlength: 80 },
+  targetId: { type: String, default: '', maxlength: 160 },
+  details: { type: Schema.Types.Mixed, default: {} },
+  ipHash: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now, index: true }
+}, { versionKey: false });
+adminAuditSchema.index({ createdAt: -1 });
+export const AdminAuditEvent = models.AdminAuditEvent || model('AdminAuditEvent', adminAuditSchema);
+
+const searchMetricSchema = new Schema({
+  kind: { type: String, enum: ['search','request','provider_test','link_check'], default: 'request', index: true },
+  route: { type: String, required: true, maxlength: 160, index: true },
+  method: { type: String, maxlength: 10, default: 'GET' },
+  status: { type: Number, default: 0, index: true },
+  durationMs: { type: Number, default: 0 },
+  userId: { type: String, default: '', index: true },
+  provider: { type: String, default: '' },
+  resultCount: { type: Number, default: 0 },
+  errorCode: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now, index: true }
+}, { versionKey: false });
+searchMetricSchema.index({ createdAt: -1 });
+searchMetricSchema.index({ kind: 1, createdAt: -1 });
+export const SearchMetric = models.SearchMetric || model('SearchMetric', searchMetricSchema);
+
+const platformConfigSchema = new Schema({
+  key: { type: String, required: true, unique: true, index: true },
+  value: { type: Schema.Types.Mixed, default: {} },
+  updatedBy: { type: String, default: '' },
+  updatedAt: { type: Date, default: Date.now }
+}, { versionKey: false });
+export const PlatformConfig = models.PlatformConfig || model('PlatformConfig', platformConfigSchema);
+
+const incidentSchema = new Schema({
+  title: { type: String, required: true, maxlength: 200 },
+  description: { type: String, default: '', maxlength: 4000 },
+  severity: { type: String, enum: ['low','medium','high','critical'], default: 'medium', index: true },
+  status: { type: String, enum: ['open','investigating','resolved'], default: 'open', index: true },
+  source: { type: String, default: 'admin', maxlength: 80 },
+  createdBy: { type: String, default: '' },
+  resolvedAt: { type: Date, default: null },
+  createdAt: { type: Date, default: Date.now, index: true },
+  updatedAt: { type: Date, default: Date.now }
+}, { versionKey: false });
+incidentSchema.index({ status: 1, createdAt: -1 });
+export const Incident = models.Incident || model('Incident', incidentSchema);
+
+const jobRunSchema = new Schema({
+  name: { type: String, required: true, maxlength: 120, index: true },
+  status: { type: String, enum: ['running','success','failed','skipped'], default: 'running', index: true },
+  startedAt: { type: Date, default: Date.now },
+  finishedAt: { type: Date, default: null },
+  durationMs: { type: Number, default: 0 },
+  message: { type: String, default: '', maxlength: 1000 },
+  metadata: { type: Schema.Types.Mixed, default: {} }
+}, { versionKey: false });
+jobRunSchema.index({ startedAt: -1 });
+export const JobRun = models.JobRun || model('JobRun', jobRunSchema);
+
+const linkCheckSchema = new Schema({
+  url: { type: String, required: true, maxlength: 2048 },
+  normalizedUrl: { type: String, required: true, maxlength: 2048, index: true },
+  status: { type: Number, default: 0 },
+  ok: { type: Boolean, default: false, index: true },
+  latencyMs: { type: Number, default: 0 },
+  checkedAt: { type: Date, default: Date.now, index: true },
+  error: { type: String, default: '', maxlength: 300 }
+}, { versionKey: false });
+linkCheckSchema.index({ checkedAt: -1 });
+export const LinkCheck = models.LinkCheck || model('LinkCheck', linkCheckSchema);
