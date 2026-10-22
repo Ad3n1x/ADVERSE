@@ -1,20 +1,12 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AdminApp from './AdminApp';
+import type { Capture, Entity, Evidence, Investigation, Relationship, SearchResult, Tab, ToastItem, ToastKind } from './types/research';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Server, Trash2 } from 'lucide-react';
 
-type Investigation={id:string;title:string;question:string;createdAt:string;status:string;notes?:string};
-type Evidence={id?:string;_id?:string;title:string;url:string;sourceType:string;publisher:string;publishedAt?:string|null;retrievedAt:string;excerpt:string;verificationStatus:string;captureTimestamp?:string};
-type Entity={id?:string;_id?:string;name:string;type:string;description:string;canonicalUrl:string;evidenceIds:string[]};
-type Relationship={id?:string;_id?:string;fromEntityId:string;toEntityId:string;type:string;evidenceIds:string[];confidence:string;rationale:string;verificationStatus:string};
-type SearchResult={title:string;url:string;excerpt:string;publisher:string;retrievedAt:string;publishedAt?:string|null;sourceType:string;provider?:string;providers?:string[];matchedQueries?:string[];queryReasons?:string[];providerErrors?:string[];imageUrl?:string;thumbnailUrl?:string;license?:string;entityId?:string;videoId?:string;linkCheck?:{status:'reachable'|'not_confirmed'|'not_checked';checkedAt:string|null;note:string};linkSignals?:{transport:string;hostname:string;signals:string[]};sourceContext?:{host:string;category:string;label:string;reason:string;signals:string[]};corroboration?:{independentMatches:number;domains:string[];method:string}};
-type Capture={timestamp:string;original:string;statuscode:string;archivedUrl:string};
-type Tab='Intelligence Desk'|'Settings';
 const API=(import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '');
 const key=(x:{id?:string;_id?:string})=>x.id||x._id||'';
 async function request<T>(path:string,init?:RequestInit):Promise<T>{const r=await fetch(API+path,{...init,credentials:'include',headers:{'Content-Type':'application/json',...(init?.headers||{})}});if(!r.ok){let message='Request failed';try{const b=await r.json();message=b.error?.message||message;if(b.error?.details?.fieldErrors)message+=' '+JSON.stringify(b.error.details.fieldErrors);}catch{}throw new Error(message);}if(r.status===204)return undefined as T;return r.json();}
-type ToastKind='success'|'error'|'info';
-type ToastItem={id:number;message:string;kind:ToastKind};
 function ToastViewport({toasts,onDismiss}:{toasts:ToastItem[];onDismiss:(id:number)=>void}){return <div className="toast-viewport" aria-live="polite" aria-atomic="false">{toasts.map(t=><div className={'app-toast toast-'+t.kind} key={t.id} role={t.kind==='error'?'alert':'status'}><span className="toast-indicator"/><p>{t.message}</p><button type="button" aria-label="Dismiss notification" onClick={()=>onDismiss(t.id)}><X size={15}/></button></div>)}</div>;}
 function WorkspaceApp(){
  const [authState,setAuthState]=useState<'checking'|'anonymous'|'authenticated'>('checking'),[authMode,setAuthMode]=useState<'login'|'register'|'forgot'|'reset'>('login'),[showAuth,setShowAuth]=useState(false),[authEmail,setAuthEmail]=useState(''),[authPassword,setAuthPassword]=useState(''),[displayName,setDisplayName]=useState(''),[userEmail,setUserEmail]=useState(''),[accountRole,setAccountRole]=useState('user'),[resetToken,setResetToken]=useState(''),[authMessage,setAuthMessage]=useState('');
