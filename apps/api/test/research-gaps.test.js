@@ -23,3 +23,11 @@ test('detects missing dates, unverified sources, and publisher concentration', (
   assert.ok(result.gaps.some(g => g.id === 'publisher-concentration'));
   assert.equal(result.publisherDomainCount, 2);
 });
+
+test('normalizes www and non-www publisher hosts to one domain', () => {
+  const result = analyzeResearchGaps({ evidence: [
+    { id: 'www', url: 'https://www.one.example/a', title: 'A', verificationStatus: 'unverified' },
+    { id: 'bare', url: 'https://one.example/b', title: 'B', verificationStatus: 'unverified' }
+  ] });
+  assert.equal(result.publisherDomainCount, 1);
+});
