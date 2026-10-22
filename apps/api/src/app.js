@@ -533,6 +533,25 @@ app.delete('/api/v1/investigations/:id',requireAuth,wrap(async(req,res)=>{const 
 app.delete('/api/v1/investigations',requireAuth,wrap(async(req,res)=>{const uid=String(req.user.id);if(isDb()){const owned=await Investigation.find({ownerId:uid}).select('_id').lean();const ids=owned.map(item=>String(item._id));if(ids.length){await Promise.all([Investigation.deleteMany({ownerId:uid}),Evidence.deleteMany({investigationId:{$in:ids}}),Entity.deleteMany({investigationId:{$in:ids}}),Relationship.deleteMany({investigationId:{$in:ids}}),Watch.deleteMany({investigationId:{$in:ids}}),Alert.deleteMany({investigationId:{$in:ids}}),CyberAsset.deleteMany({investigationId:{$in:ids}}),CyberEvent.deleteMany({investigationId:{$in:ids}})]);}return res.json({data:{deletedCount:ids.length},message:'All investigations and their dependent records were deleted.'});}const owned=[...memory.investigations.entries()].filter(([,item])=>String(item.ownerId)===uid);const ids=new Set(owned.map(([iid])=>String(iid)));for(const iid of ids)memory.investigations.delete(iid);for(const collection of ['evidence','entities','relationships','watches','alerts','cyberAssets','cyberEvents'])for(const [rid,record] of memory[collection])if(ids.has(String(record.investigationId)))memory[collection].delete(rid);res.json({data:{deletedCount:ids.size},message:'All investigations and their dependent records were deleted.'});}));
 app.get('/api/v1/investigations/:id/overview',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const [evidence,entities,relationships,investigation]=await Promise.all([listFor(Evidence,'evidence',iid),listFor(Entity,'entities',iid),listFor(Relationship,'relationships',iid),investigationGet(iid,req.user.id)]);res.json({data:{evidence,entities,relationships,aiReviewHistory:Array.isArray(investigation?.aiReviewHistory)?investigation.aiReviewHistory:[],timeline:evidence.map(e=>({id:e.id||String(e._id),date:e.publishedAt||e.retrievedAt,title:e.title,type:'evidence',url:e.url,verificationStatus:e.verificationStatus})).sort((a,b)=>new Date(a.date||0)-new Date(b.date||0))}});}));
 app.get('/api/v1/investigations/:id/agent-run-status',requireAuth,wrap(async(req,res)=>{const investigation=await investigationGet(req.params.id,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:investigation.agentRunState||{status:'idle',stage:'idle',detail:'No active research run.',trace:[]}});}));
+app.post('/api/v1/investigations/:id/agent-run/cancel',requireAuth,wrap(async(req,res)=>{
+ const iid=req.params.id;
+ const investigation=await investigationGet(iid,req.user.id);
+ if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');
+ const current=investigation.agentRunState||{};
+ if(current.status!=='running')return sendError(res,409,'NO_ACTIVE_AGENT_RUN','There is no active investigation run to cancel.');
+ const now=new Date().toISOString();
+ const detail='Run cancelled by the user. Source records already saved remain available.';
+ const next={...current,status:'cancelled',stage:'cancelled',detail,updatedAt:now,finishedAt:now,trace:[...(Array.isArray(current.trace)?current.trace:[]),{stage:'cancelled',status:'cancelled',detail,at:now}].slice(-60)};
+ if(isDb()){
+  const updated=await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':current.runId,'agentRunState.status':'running'},{$set:{agentRunState:next}},{new:true});
+  if(!updated)return sendError(res,409,'AGENT_RUN_CHANGED','The run state changed before cancellation. Refresh the investigation.');
+ }else{
+  const stored=memory.investigations.get(iid);
+  if(!stored||stored.agentRunState?.runId!==current.runId||stored.agentRunState?.status!=='running')return sendError(res,409,'AGENT_RUN_CHANGED','The run state changed before cancellation. Refresh the investigation.');
+  stored.agentRunState=next;
+ }
+ res.json({data:next});
+}));
 app.get('/api/v1/investigations/:id/agent-runs',requireAuth,wrap(async(req,res)=>{const investigation=await investigationGet(req.params.id,req.user.id);if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');const runs=Array.isArray(investigation.agentRunHistory)?investigation.agentRunHistory.slice().reverse():[];res.json({data:runs,meta:{count:runs.length,persistence:isDb()?'mongodb':'ephemeral-memory'}});}));
 app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
@@ -565,7 +584,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const trace=[];
  const startedAt=Date.now();
  const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
- const persistAgentState=async state=>{const payload={runId,...state,updatedAt:new Date().toISOString()};if(isDb()){const updated=await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':runId},{$set:{agentRunState:payload}});if(!updated)throw new Error('Investigation run lease was lost; stopping this worker.');}else{const stored=memory.investigations.get(iid);if(!stored||stored.agentRunState?.runId!==runId)throw new Error('Investigation run lease was lost; stopping this worker.');stored.agentRunState=payload;}return payload;};
+ const persistAgentState=async state=>{const payload={runId,...state,updatedAt:new Date().toISOString()};if(isDb()){const updated=await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':runId,'agentRunState.status':'running'},{$set:{agentRunState:payload}});if(!updated)throw new Error('Investigation run lease was lost or cancelled; stopping this worker.');}else{const stored=memory.investigations.get(iid);if(!stored||stored.agentRunState?.runId!==runId||stored.agentRunState?.status!=='running')throw new Error('Investigation run lease was lost or cancelled; stopping this worker.');stored.agentRunState=payload;}return payload;};
  const recordTrace=async entry=>{trace.push(entry);await persistAgentState({status:'running',stage:entry.stage,detail:entry.detail||('Working on '+entry.stage),startedAt:new Date(startedAt).toISOString(),trace:trace.slice(-60)});};
  await persistAgentState({status:'running',stage:'starting',detail:'Preparing the investigation and loading known sources.',startedAt:new Date(startedAt).toISOString(),trace:[]});
  const prior=await listFor(Evidence,'evidence',iid);
@@ -658,7 +677,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$push:{agentRunHistory:{$each:[runRecord],$slice:-20}},$set:{updatedAt:new Date()}});
  else {const stored=memory.investigations.get(iid);if(stored){stored.agentRunHistory=Array.isArray(stored.agentRunHistory)?stored.agentRunHistory:[];stored.agentRunHistory.push(runRecord);stored.agentRunHistory=stored.agentRunHistory.slice(-20);stored.updatedAt=new Date().toISOString();}}
  await persistAgentState({status:'complete',stage:'complete',detail:'Investigation completed and the report was saved.',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),runId:runRecord.runId,report,trace:report.trace.slice(-60)});
- })().catch(async error=>{const failed={runId,status:'failed',stage:'failed',detail:String(error?.message||'Research run failed.').slice(0,300),finishedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),trace:[]};try{if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':runId},{$set:{agentRunState:failed}});else{const stored=memory.investigations.get(iid);if(stored&&stored.agentRunState?.runId===runId)stored.agentRunState=failed;}}catch{}console.error('ADVERSE autonomous research run failed',String(error?.message||error).slice(0,300));});
+ })().catch(async error=>{const failed={runId,status:'failed',stage:'failed',detail:String(error?.message||'Research run failed.').slice(0,300),finishedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),trace:[]};try{if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':runId,'agentRunState.status':'running'},{$set:{agentRunState:failed}});else{const stored=memory.investigations.get(iid);if(stored&&stored.agentRunState?.runId===runId)stored.agentRunState=failed;}}catch{}console.error('ADVERSE autonomous research run failed',String(error?.message||error).slice(0,300));});
 }));
 app.post('/api/v1/investigations/:id/ai-review',requireAuth,wrap(async(req,res)=>{
  const iid=req.params.id;
