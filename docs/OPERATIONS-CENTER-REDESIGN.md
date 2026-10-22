@@ -24,11 +24,12 @@ Keep the ADVERSE identity and turn the product into a public-source intelligence
 - Bounded agent trace retention increased to 60 entries.
 - API startup marks orphaned running investigations as interrupted, preserving the run ID and trace so the user can restart without being told the old process is still active.
 - The workspace restores active, failed, or interrupted status when reopening an investigation.
+- Users can request cooperative cancellation of an active run; cancellation preserves sources already saved and prevents stale workers from overwriting the cancelled state.
 - Regression tests cover run lease freshness and interrupted-run recovery.
 
 ### Next engineering gates
 - Move background investigation execution into a durable queue with worker leases, retries, and safe resumption. Current recovery marks work interrupted; it does not resume an in-flight provider request automatically.
-- Add explicit pause/cancel controls backed by cooperative cancellation.
+- Add pause/resume controls backed by a durable job queue.
 - Normalize event records into an append-only operation timeline instead of storing only the latest run trace in the investigation document.
 - Improve entity/event extraction with provenance constraints and reviewable candidate links.
 - Add multi-stage mission planning, configurable budgets, and a visible task board.
