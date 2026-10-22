@@ -565,7 +565,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const trace=[];
  const startedAt=Date.now();
  const cleanText=(value,max=240)=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
- const persistAgentState=async state=>{const payload={runId,...state,updatedAt:new Date().toISOString()};if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$set:{agentRunState:payload}});else{const stored=memory.investigations.get(iid);if(stored)stored.agentRunState=payload;}};
+ const persistAgentState=async state=>{const payload={runId,...state,updatedAt:new Date().toISOString()};if(isDb()){const updated=await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id,'agentRunState.runId':runId},{$set:{agentRunState:payload}});if(!updated)throw new Error('Investigation run lease was lost; stopping this worker.');}else{const stored=memory.investigations.get(iid);if(!stored||stored.agentRunState?.runId!==runId)throw new Error('Investigation run lease was lost; stopping this worker.');stored.agentRunState=payload;}return payload;};
  const recordTrace=async entry=>{trace.push(entry);await persistAgentState({status:'running',stage:entry.stage,detail:entry.detail||('Working on '+entry.stage),startedAt:new Date(startedAt).toISOString(),trace:trace.slice(-60)});};
  await persistAgentState({status:'running',stage:'starting',detail:'Preparing the investigation and loading known sources.',startedAt:new Date(startedAt).toISOString(),trace:[]});
  const prior=await listFor(Evidence,'evidence',iid);
