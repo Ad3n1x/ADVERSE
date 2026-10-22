@@ -2,8 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { ExternalLink, Network, Search } from 'lucide-react';
 import type { Entity, Evidence, Relationship } from '../../types/research';
-
-const key = (item: { id?: string; _id?: string }) => item.id || item._id || '';
+import { getRecordId as key } from '../../lib/ids';
 const ForceGraph2DComponent = ForceGraph2D as any;
 function Graph({entities,evidence,relationships,onSelect,selectedId,query,layoutKey}:{entities:Entity[];evidence:Evidence[];relationships:Relationship[];onSelect:(entity:Entity)=>void;selectedId:string;query:string;layoutKey:string}){
  const [relationshipFilter,setRelationshipFilter]=useState('all');
