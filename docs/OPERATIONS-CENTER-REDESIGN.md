@@ -15,13 +15,15 @@ Keep the ADVERSE identity and turn the product into a public-source intelligence
 
 ## Delivery status
 
-### Implemented in the current release
-- Existing responsive ADVERSE frontend redesigned toward a mission-first operations desk.
+### Implemented in this release
+- Responsive ADVERSE frontend moved toward a mission-first operations desk, with a command-center landing page and dedicated investigation workspace.
 - Search and investigation launch entry points preserved.
 - Existing public-source provider federation, source records, entity/relationship graph, archive lookup, monitoring, and reports retained.
 - Atomic MongoDB claim for a fresh agent run to reduce duplicate concurrent runs.
+- Agent state writes are guarded by the active run ID, preventing an obsolete worker from overwriting a newer run's status.
 - Bounded agent trace retention increased to 60 entries.
 - API startup marks orphaned running investigations as interrupted, preserving the run ID and trace so the user can restart without being told the old process is still active.
+- The workspace restores active, failed, or interrupted status when reopening an investigation.
 - Regression tests cover run lease freshness and interrupted-run recovery.
 
 ### Next engineering gates
