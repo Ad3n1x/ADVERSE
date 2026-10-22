@@ -1,9 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { API } from '../../lib/api';
+import { HISTORY_KEY, SAVED_KEY } from '../../lib/storageKeys';
 import type { PublicSearchResult, SearchHistoryEntry } from '../../types/research';
-const HISTORY_KEY='adverse.find-anything.history.v1';
-const SAVED_KEY='adverse.find-anything.saved.v1';
 function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback;}catch{return fallback;}}
 function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  const [query,setQuery]=useState(''),[results,setResults]=useState<PublicSearchResult[]>([]),[meta,setMeta]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState('');
