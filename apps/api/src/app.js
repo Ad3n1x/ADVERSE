@@ -232,16 +232,28 @@ app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   const email=p.data.email.toLowerCase();
   const configuredEmail=ownerEmail();
   const configuredPassword=String(process.env.ADMIN_PASSWORD||'');
-  if(!configuredEmail || !configuredPassword || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
-  const supplied=Buffer.from(p.data.password,'utf8');
-  const expected=Buffer.from(configuredPassword,'utf8');
-  if(supplied.length!==expected.length || !timingSafeEqual(supplied,expected)) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  const configuredPasswordHash=String(process.env.ADMIN_PASSWORD_HASH||'').trim();
+  if(!configuredEmail || (!configuredPassword && !configuredPasswordHash) || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  let passwordValid=false;
+  if(configuredPasswordHash){
+    const match=configuredPasswordHash.match(/^([a-f0-9]{32}):([a-f0-9]{128})$/i);
+    if(match){
+      const expectedHash=Buffer.from(match[2],'hex');
+      const suppliedHash=scryptSync(p.data.password,match[1],expectedHash.length);
+      passwordValid=expectedHash.length===suppliedHash.length&&timingSafeEqual(expectedHash,suppliedHash);
+    }
+  }else{
+    const supplied=Buffer.from(p.data.password,'utf8');
+    const expected=Buffer.from(configuredPassword,'utf8');
+    passwordValid=supplied.length===expected.length&&timingSafeEqual(supplied,expected);
+  }
+  if(!passwordValid) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
   let account=isDb()?await User.findOne({email:configuredEmail}):[...memory.users.values()].find(u=>u.email===configuredEmail);
   if(!account){
     const salt=crypto.randomBytes(16).toString('hex');
-    const passwordHash=salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
+    const passwordHash=configuredPasswordHash||salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
     const displayName='ADVERSE Admin';
-    account=isDb()?await User.create({email:configuredEmail,displayName,passwordHash}):{id:id(),email:configuredEmail,displayName,passwordHash};
+    account=isDb()?await User.create({email:configuredEmail,displayName,passwordHash,role:'admin'}):{id:id(),email:configuredEmail,displayName,passwordHash,role:'admin'};
     if(!isDb())memory.users.set(account.id,account);
   }
   const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
