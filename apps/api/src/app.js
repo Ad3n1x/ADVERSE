@@ -595,17 +595,17 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  const addQuery=(value,reason,round)=>{
   const q=cleanText(value,180);
   const k=q.toLowerCase();
-  if(q.length<3||querySeen.has(k)||plan.length>=5)return;
+  if(q.length<3||querySeen.has(k)||plan.length>=8)return;
   querySeen.add(k);plan.push({query:q,reason,round});
  };
  addQuery(question,'Primary investigation question',1);
  if(title.toLowerCase()!==question.toLowerCase())addQuery(title,'Investigation title cross-check',1);
  const allResults=[];
  let providerFailures=0;
- for(let round=1;round<=2;round++){
+ for(let round=1;round<=3;round++){
   const current=plan.filter(item=>item.round===round);
   if(!current.length)continue;
-  await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original question across available public indexes.':'Following promising leads from the first pass and searching them independently.'});
+  await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original mission across available public indexes.':'Following promising leads from round '+(round-1)+' and cross-checking them against additional public sources.'});
   const settled=await Promise.all(current.map(async item=>{
    try{return {plan:item,result:await searchAllPublic(item.query,providerKeys)};}
    catch{return {plan:item,result:{results:[],meta:{failedSearches:1},error:'Provider search failed'}};}
@@ -615,8 +615,8 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
    for(const result of (item.result.results||[]).slice(0,14))allResults.push({...result,agentQuery:item.plan.query,agentReason:item.plan.reason});
   }
   await recordTrace({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
-  if(round===1){
-   await recordTrace({stage:'plan',status:'running',detail:'The analyst is evaluating first-pass results and planning independent follow-up searches.'});
+  if(round<3){
+   await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
    const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
    let candidates=planned.leads;
    if(!candidates.length){
@@ -632,9 +632,10 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
      if(candidate.length>=12&&candidate.toLowerCase()!==question.toLowerCase())candidates.push({query:candidate,reason:'Heuristic fallback lead from '+host});
     }
    }
-   for(const lead of candidates)addQuery(lead.query,lead.reason,2);
-   leadPlanningMode=planned.mode;
-   await recordTrace({stage:'plan',status:'complete',mode:planned.mode,provider:planned.provider,leadCount:plan.filter(item=>item.round===2).length,detail:planned.mode==='ai'?'AI-generated follow-up queries use first-pass source context; each lead remains a hypothesis, not a factual conclusion.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
+   for(const lead of candidates)addQuery(lead.query,lead.reason,round+1);
+   if(planned.mode==='ai')leadPlanningMode='ai';
+   const nextLeadCount=plan.filter(item=>item.round===round+1).length;
+   await recordTrace({stage:'plan',round,status:'complete',mode:planned.mode,provider:planned.provider,leadCount:nextLeadCount,detail:planned.mode==='ai'?'AI-generated follow-up queries are hypotheses to test, not factual conclusions.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
   }
  }
  const merged=new Map();
@@ -672,7 +673,7 @@ app.post('/api/v1/investigations/:id/agent-run',requireAuth,wrap(async(req,res)=
  await recordTrace({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
  await recordTrace({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
  const durationMs=Date.now()-startedAt;
- const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:2,queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,coverage:'Bounded multi-hop research across available public indexes. It follows up to three leads surfaced in the first pass; this is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
+ const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:Math.max(1,...plan.map(item=>item.round)),queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,coverage:'Bounded multi-hop research across available public indexes, with up to two follow-up rounds and eight total queries. This is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','Lead queries are generated from source titles and publisher diversity, not a guarantee of relevance.','Retrieved text and source records remain unverified until a person checks the original context.','Search coverage and freshness depend on available public indexes and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
  const runRecord={runId,investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
  if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$push:{agentRunHistory:{$each:[runRecord],$slice:-20}},$set:{updatedAt:new Date()}});
  else {const stored=memory.investigations.get(iid);if(stored){stored.agentRunHistory=Array.isArray(stored.agentRunHistory)?stored.agentRunHistory:[];stored.agentRunHistory.push(runRecord);stored.agentRunHistory=stored.agentRunHistory.slice(-20);stored.updatedAt=new Date().toISOString();}}
