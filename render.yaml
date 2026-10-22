@@ -15,6 +15,10 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
       - key: MONITORING_CRON_SECRET
         sync: false
       - key: CYBER_MONITORING_CRON_SECRET
