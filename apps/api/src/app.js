@@ -209,14 +209,19 @@ async function writePlatformConfig(key,value,actor){
   const current=await readPlatformConfig();current[key]=value;platformConfigCache.value=current;platformConfigCache.loadedAt=Date.now();
 }
 const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
+const ownerEmail=()=>String(process.env.ADMIN_EMAIL||'adenix271@gmail.com').trim().toLowerCase();
 function requireAdmin(req,res,next) {
-  const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
-  if(!configuredEmail || !String(process.env.ADMIN_PASSWORD||'')) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
-  const cookie=cookieToken(req);
-  const user=verifyToken(cookie);
-  if(!user || user.email!==configuredEmail || user.role!=='admin') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
-  req.user=user;
-  next();
+  const user=verifyToken(cookieToken(req));
+  if(!user) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+  Promise.resolve().then(async()=>{
+    const email=String(user.email||'').toLowerCase();
+    let account=isDb()?await User.findById(user.id).select('email role status').lean():memory.users.get(user.id);
+    if(!account || (account.status||'active')==='suspended') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+    const isOwner=email===ownerEmail() && String(account.email||'').toLowerCase()===ownerEmail();
+    if(!isOwner && account.role!=='admin') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+    req.user={...user,email:account.email,role:isOwner?'owner':'admin',id:String(account._id||account.id)};
+    next();
+  }).catch(next);
 }
 app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
   const p=adminLoginSchema.safeParse(req.body);
