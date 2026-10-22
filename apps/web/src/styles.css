@@ -629,3 +629,15 @@ input,textarea,select{accent-color:#70e0c4}
  .compass-links>button>svg:last-child{display:none}
 }
 @media(max-width:360px){.compass-links{grid-template-columns:1fr}}
+
+/* Popup tool launcher */
+.tools-modal-intro{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.65}
+.tools-modal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.tools-modal-grid>button{display:flex;align-items:center;gap:11px;min-width:0;padding:13px 12px;text-align:left;color:var(--text);background:linear-gradient(145deg,#111d22,#0c1317);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:border-color .16s,background .16s,transform .16s}
+.tools-modal-grid>button:hover{border-color:#4a827c;background:#14252a;transform:translateY(-1px)}
+.tool-modal-icon{width:34px;height:34px;display:grid;place-items:center;flex:0 0 34px;border-radius:9px;background:#17302f;color:var(--mint)}
+.tools-modal-grid>button>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.tools-modal-grid b{font-size:12px;font-weight:650}
+.tools-modal-grid small{font-size:10px;line-height:1.45;color:var(--muted)}
+.tools-modal-grid>button>svg:last-child{flex:0 0 auto;color:var(--dim)}
+@media(max-width:520px){.tools-modal-grid{grid-template-columns:1fr}.tools-modal-grid>button{padding:11px}.tools-modal-grid small{font-size:11px}}
