@@ -721,3 +721,30 @@ input,textarea,select{accent-color:#70e0c4}
 .app-shell.autonomous-mode .search-results-panel .result-actions a { display:inline-flex!important; pointer-events:auto!important; cursor:pointer!important; }
 .app-shell.autonomous-mode .engine-search-bar input { display:block!important; }
 .app-shell.autonomous-mode .engine-search-bar button { display:inline-flex!important; }
+
+
+/* Generated-data controls stay available; research operation controls remain hidden. */
+.app-shell.autonomous-mode .data-cleanup-controls {
+ display:flex!important; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:8px;
+ margin:12px 0 18px; padding:10px 12px; border:1px solid var(--line,rgba(140,160,180,.22));
+ border-radius:12px; background:rgba(20,30,45,.24);
+}
+.app-shell.autonomous-mode .data-cleanup-controls>span {
+ margin-right:4px; font-size:10px; letter-spacing:1px; color:var(--muted,#94a3b8); font-weight:700;
+}
+.app-shell.autonomous-mode .data-cleanup-controls button {
+ display:inline-flex!important; align-items:center; justify-content:center; min-height:32px;
+ border:1px solid var(--line,rgba(140,160,180,.3)); border-radius:8px; padding:6px 11px;
+ background:transparent; color:inherit; font:inherit; font-size:12px; cursor:pointer;
+}
+.app-shell.autonomous-mode .data-cleanup-controls .clear-generated-data { border-color:rgba(239,100,100,.5); color:#f2a0a0; }
+.app-shell.autonomous-mode .tool-popup-active button { display:none!important; }
+.app-shell.autonomous-mode .tool-popup-active button.danger-button,
+.app-shell.autonomous-mode .tool-popup-active button[aria-label^="Delete"],
+.app-shell.autonomous-mode .tool-popup-active .investigation-delete-button { display:inline-flex!important; }
+.app-shell.autonomous-mode .tool-popup-active .panel-tools .danger-button { display:inline-flex!important; }
+@media(max-width:600px) {
+ .app-shell.autonomous-mode .data-cleanup-controls { gap:6px; padding:9px; }
+ .app-shell.autonomous-mode .data-cleanup-controls>span { width:100%; }
+ .app-shell.autonomous-mode .data-cleanup-controls button { flex:1; padding:7px 8px; }
+}
