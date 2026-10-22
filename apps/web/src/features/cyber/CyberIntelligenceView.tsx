@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Clock3, ExternalLink, Plus, Radar, RefreshCw, Server, ShieldCheck } from 'lucide-react';
+import { Clock3, ExternalLink, Plus, Radar, RefreshCw, Server, ShieldCheck, X } from 'lucide-react';
 import { request } from '../../lib/api';
 import Empty from '../../components/ui/Empty';
 import type { CyberAssetRecord, CyberEventRecord, Investigation } from '../../types/research';
