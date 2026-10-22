@@ -641,3 +641,13 @@ input,textarea,select{accent-color:#70e0c4}
 .tools-modal-grid small{font-size:10px;line-height:1.45;color:var(--muted)}
 .tools-modal-grid>button>svg:last-child{flex:0 0 auto;color:var(--dim)}
 @media(max-width:520px){.tools-modal-grid{grid-template-columns:1fr}.tools-modal-grid>button{padding:11px}.tools-modal-grid small{font-size:11px}}
+
+/* Focused tool windows: lift the selected working panel above the workspace */
+.tool-popup-backdrop{position:fixed;inset:0;z-index:9997;background:rgba(2,7,11,.78);backdrop-filter:blur(7px);animation:tool-backdrop-in .16s ease-out}
+.tool-popup-active{position:fixed!important;z-index:9998!important;top:50%!important;left:50%!important;right:auto!important;bottom:auto!important;width:min(1080px,calc(100vw - 36px))!important;max-width:1080px!important;max-height:calc(100dvh - 104px)!important;margin:0!important;transform:translate(-50%,-50%)!important;overflow:auto!important;overscroll-behavior:contain!important;box-shadow:0 30px 100px rgba(0,0,0,.65),0 0 0 1px rgba(112,224,196,.12)!important;scroll-margin:0!important}
+.search-engine-hero.tool-popup-active{padding:clamp(20px,3vw,34px)!important}
+.tool-popup-controls{position:fixed;z-index:9999;top:12px;right:18px;display:flex;align-items:center;gap:12px;padding:7px 8px 7px 12px;border:1px solid #29434b;border-radius:10px;background:rgba(9,18,25,.96);box-shadow:0 12px 38px rgba(0,0,0,.35);backdrop-filter:blur(14px)}
+.tool-popup-controls>span{font:500 9px var(--mono);letter-spacing:1px;color:#8bb7b4}
+.tool-popup-controls .secondary-button{min-height:32px;padding:7px 10px}
+@keyframes tool-backdrop-in{from{opacity:0}to{opacity:1}}
+@media(max-width:600px){.tool-popup-active{width:calc(100vw - 18px)!important;max-height:calc(100dvh - 86px)!important;top:calc(50% + 14px)!important}.tool-popup-controls{top:8px;right:9px;gap:7px;padding:5px}.tool-popup-controls>span{font-size:8px;letter-spacing:.6px}.tool-popup-controls .secondary-button{min-height:30px;padding:6px 8px;font-size:10px}}
