@@ -57,13 +57,6 @@ test('authenticated workspace keeps navigation, account settings, and panels usa
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
 
   await page.locator('.account-shortcut').click();
-  console.log('SETTINGS_DEBUG', JSON.stringify({
-    title: await page.locator('.page-heading h1').textContent().catch(() => null),
-    settingsRows: await page.locator('.settings-row').count(),
-    settingsHeadingCount: await page.getByRole('heading', { name: /Your settings/i }).count(),
-    tabText: await page.locator('.breadcrumbs b').textContent().catch(() => null),
-    contentClass: await page.locator('.content').getAttribute('class').catch(() => null),
-  }));
   await expect(page.getByRole('heading', { name: /Your settings/i })).toBeVisible();
 
   const settingsDimensions = await page.evaluate(() => ({
