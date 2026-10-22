@@ -1,4 +1,4 @@
-const hostOf = (url) => { try { return new URL(url).hostname.toLowerCase().replace(/^www\\./,''); } catch { return 'unknown'; } };
+const hostOf = (url) => { try { return new URL(url).hostname.toLowerCase().replace(/^www\./,''); } catch { return 'unknown'; } };
 
 /**
  * Produce transparent investigation research gaps from saved evidence and claim triage.
