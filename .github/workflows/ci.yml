@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 https://adverse-web.onrender.com/ --output /tmp/adverse-web.html
           grep -q 'id="root"' /tmp/adverse-web.html
-          asset="$(grep -oE 'assets/[^" ]+\\.js' /tmp/adverse-web.html | head -n 1)"
+          asset="$(grep -oE 'assets/[^" ]+\.js' /tmp/adverse-web.html | head -n 1)"
           test -n "$asset"
           curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 "https://adverse-web.onrender.com/$asset" --output /tmp/adverse-web.js
           grep -q 'adverse-api-7yim.onrender.com/api/v1' /tmp/adverse-web.js
