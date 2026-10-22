@@ -47,7 +47,6 @@ jobs:
       - name: Build production frontend
         run: npm run build -w @adverse/web
 
-
   production-smoke:
     name: Live API health and readiness
     runs-on: ubuntu-latest
@@ -78,11 +77,7 @@ jobs:
       - name: Verify API CORS for fallback frontend
         run: |
           set -euo pipefail
-          curl --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 -D /tmp/adverse-cors.headers -o /dev/null -X OPTIONS \\
-            -H 'Origin: https://adverse-web.onrender.com' \\
-            -H 'Access-Control-Request-Method: POST' \\
-            -H 'Access-Control-Request-Headers: content-type' \\
-            https://adverse-api-7yim.onrender.com/api/v1/auth/login
+          curl --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 -D /tmp/adverse-cors.headers -o /dev/null -X OPTIONS -H 'Origin: https://adverse-web.onrender.com' -H 'Access-Control-Request-Method: POST' -H 'Access-Control-Request-Headers: content-type' https://adverse-api-7yim.onrender.com/api/v1/auth/login
           grep -qi '^access-control-allow-origin: https://adverse-web.onrender.com' /tmp/adverse-cors.headers
 
   browser-e2e:
