@@ -1291,3 +1291,10 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 #root .graph-source-link:hover,#root .graph-source-link:focus-visible{color:#d1fff3;text-decoration:underline}
 #root .graph-source-link svg{flex:0 0 auto;margin-top:2px}
 #root .graph-relationship-select small{color:#82918b;font-size:9px;line-height:1.5}
+
+/* Existing research import controls */
+#root .import-option{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid var(--line,rgba(255,255,255,.12));border-radius:10px;background:rgba(255,255,255,.025);cursor:pointer}
+#root .import-option input[type="checkbox"]{width:16px;height:16px;flex:0 0 auto;margin:3px 0 0;accent-color:#8bd9c9}
+#root .import-option span{display:flex;flex-direction:column;gap:4px;min-width:0}
+#root .import-option b{font-size:12px}
+#root .import-option small{font-size:11px;line-height:1.5;color:var(--muted,#9aa8a1)}
