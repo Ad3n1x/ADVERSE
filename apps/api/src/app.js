@@ -155,6 +155,65 @@ app.post('/api/v1/internal/discovery/run',wrap(async(req,res)=>{
   res.json({data:result,generatedAt:new Date().toISOString()});
 }));
 app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const result=await runMonitoringCycle();res.json({data:result,generatedAt:new Date().toISOString()});}));
+
+// Admin authentication is separate from public registration. Configure ADMIN_EMAIL and
+// ADMIN_PASSWORD_HASH (salt:hex scrypt hash) in the Render service environment.
+const adminLoginSchema = z.object({ email:z.string().trim().email().max(254), password:z.string().min(1).max(256) });
+function requireAdmin(req,res,next) {
+  const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
+  if(!configuredEmail || !String(process.env.ADMIN_PASSWORD_HASH||'').trim()) return sendError(res,503,'ADMIN_NOT_CONFIGURED','Admin access has not been configured on the server.');
+  const cookie=cookieToken(req);
+  const bearer=String(req.headers.authorization||'').replace(/^Bearer\\s+/i,'');
+  const user=verifyToken(cookie||bearer);
+  if(!user || user.email!==configuredEmail || user.id!=='admin:'+configuredEmail) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+  req.user=user;
+  next();
+}
+app.post('/api/v1/admin/login',limitAuth,wrap(async(req,res)=>{
+  const p=adminLoginSchema.safeParse(req.body);
+  if(!p.success) return sendError(res,400,'VALIDATION_ERROR','Enter the configured administrator email and password.');
+  const email=p.data.email.toLowerCase();
+  const configuredEmail=String(process.env.ADMIN_EMAIL||'').trim().toLowerCase();
+  const encoded=String(process.env.ADMIN_PASSWORD_HASH||'');
+  const [salt,hash]=encoded.split(':');
+  if(!configuredEmail || !salt || !hash || email!==configuredEmail) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  let expected;
+  try { expected=Buffer.from(hash,'hex'); } catch { return sendError(res,503,'ADMIN_CONFIG_INVALID','Admin password hash is invalid.'); }
+  const candidate=scryptSync(p.data.password,salt,64);
+  if(candidate.length!==expected.length || !timingSafeEqual(candidate,expected)) return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');
+  setSession(res,tokenFor({id:'admin:'+configuredEmail,email:configuredEmail}));
+  res.json({data:{email:configuredEmail,role:'admin'}});
+}));
+app.get('/api/v1/admin/overview',requireAdmin,wrap(async(req,res)=>{
+  if(!isDb()) return sendError(res,503,'DATABASE_REQUIRED','Admin analytics require MongoDB persistence.');
+  const [users,totalInvestigations,recentUsers,investigationCounts]=await Promise.all([
+    User.countDocuments({}),
+    Investigation.countDocuments({}),
+    User.find({}).select('email displayName createdAt updatedAt').sort({createdAt:-1}).limit(8).lean(),
+    Investigation.aggregate([{$group:{_id:'$ownerId',count:{$sum:1}}}])
+  ]);
+  const counts=new Map(investigationCounts.map(row=>[String(row._id),row.count]));
+  res.json({data:{
+    metrics:{totalUsers:users,totalInvestigations,usersCreatedLast7Days:await User.countDocuments({createdAt:{$gte:new Date(Date.now()-7*86400000)}})},
+    recentUsers:recentUsers.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),
+    generatedAt:new Date().toISOString(),
+    limitations:['Search-query analytics are not yet recorded, so this view does not claim to show search volume or active users.','Last updated is the account record update timestamp, not a verified last-login time.']
+  }});
+}));
+app.get('/api/v1/admin/users',requireAdmin,wrap(async(req,res)=>{
+  if(!isDb()) return sendError(res,503,'DATABASE_REQUIRED','User management requires MongoDB persistence.');
+  const q=String(req.query.q||'').trim().slice(0,120);
+  const page=Math.max(1,Math.min(10000,Number.parseInt(String(req.query.page||'1'),10)||1));
+  const limit=Math.max(1,Math.min(50,Number.parseInt(String(req.query.limit||'20'),10)||20));
+  const filter=q?{$or:[{email:{$regex:q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{'),$options:'i'}},{displayName:{$regex:q.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{'),$options:'i'}}]}:{};
+  const [total,rows]=await Promise.all([User.countDocuments(filter),User.find(filter).select('email displayName createdAt updatedAt').sort({createdAt:-1}).skip((page-1)*limit).limit(limit).lean()]);
+  const ids=rows.map(u=>String(u._id));
+  const groups=ids.length?await Investigation.aggregate([{$match:{ownerId:{$in:ids}}},{$group:{_id:'$ownerId',count:{$sum:1}}} ]):[];
+  const counts=new Map(groups.map(row=>[String(row._id),row.count]));
+  res.json({data:rows.map(u=>({id:String(u._id),email:u.email,displayName:u.displayName,createdAt:u.createdAt,lastUpdatedAt:u.updatedAt,investigations:counts.get(String(u._id))||0})),meta:{page,limit,total,pages:Math.ceil(total/limit)}});
+}));
+app.post('/api/v1/admin/logout',(req,res)=>{res.setHeader('Set-Cookie',`adverse_session=; HttpOnly; Path=/; SameSite=${process.env.NODE_ENV==='production'?'None':'Strict'}; Max-Age=0${process.env.NODE_ENV==='production'?'; Secure':''}`);res.status(204).end();});
+
 app.post('/api/v1/auth/register',limitAuth,wrap(async(req,res)=>{const p=authSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Use a valid email and a password of at least 12 characters.',p.error.flatten());const email=p.data.email.toLowerCase();const existsUser=isDb()?await User.findOne({email}):[...memory.users.values()].find(u=>u.email===email);if(existsUser)return sendError(res,409,'ACCOUNT_EXISTS','An account with this email already exists.');const salt=crypto.randomBytes(16).toString('hex');const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');const user=isDb()?await User.create({email,displayName:p.data.displayName||email.split('@')[0],passwordHash}):{id:id(),email,displayName:p.data.displayName||email.split('@')[0],passwordHash};if(!isDb())memory.users.set(user.id,user);const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.status(201).json({data:safe});}));
 app.post('/api/v1/auth/login',limitAuth,wrap(async(req,res)=>{const p=authSchema.pick({email:true,password:true}).safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Enter a valid email and password.');const email=p.data.email.toLowerCase();const user=isDb()?await User.findOne({email}).lean():[...memory.users.values()].find(u=>u.email===email);if(!user)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const [salt,hash]=(user.passwordHash||'').split(':');if(!salt||!hash)return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const candidate=scryptSync(p.data.password,salt,64);const expected=Buffer.from(hash,'hex');if(candidate.length!==expected.length||!timingSafeEqual(candidate,expected))return sendError(res,401,'INVALID_CREDENTIALS','Email or password is incorrect.');const safe={id:String(user.id||user._id),email:user.email,displayName:user.displayName};setSession(res,tokenFor(safe));res.json({data:safe});}));
 
