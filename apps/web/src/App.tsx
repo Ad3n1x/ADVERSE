@@ -246,5 +246,5 @@ function Graph({entities,relationships,onSelect,selectedId,query,layoutKey}:{ent
   <div className="graph-relationship-list"><div className="section-kicker">VISIBLE RELATIONSHIPS</div>{visibleRelations.length?visibleRelations.map((r,i)=>{const from=visible.find(e=>key(e)===r.fromEntityId);const to=visible.find(e=>key(e)===r.toEntityId);const edgeKey=key(r)||r.fromEntityId+'-'+r.toEntityId+'-'+i;return <button type="button" className={'graph-relationship-option'+(selectedRelationshipId===edgeKey?' selected':'')} aria-pressed={selectedRelationshipId===edgeKey} onClick={()=>setSelectedRelationshipId(edgeKey)} key={edgeKey}><span>{from?.name||'Unknown entity'} <b>{r.type}</b> {to?.name||'Unknown entity'}</span><small>{r.verificationStatus||'unverified'} · {r.evidenceIds?.length||0} evidence reference(s)</small></button>}):<p className="muted-copy">No relationships connect the currently visible entities.</p>}</div>
  </div>
 }
-function App(){ return window.location.pathname.replace(/\\/+$/, '') === '/admin' ? <AdminApp /> : <WorkspaceApp />; }
+function App(){ return (window.location.pathname === '/admin' || window.location.pathname === '/admin/') ? <AdminApp /> : <WorkspaceApp />; }
 export default App;
