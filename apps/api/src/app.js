@@ -213,7 +213,7 @@ registerAdminRoutes(app, {
   getUserProviderKeys, providerKeyNames, aiCredentialNames, validatePublicUrl,
   inspectPublicLink, assessSourceContext, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, runMonitoringCycle, createReportPdf,
-  csvCell, crypto,
+  csvCell, crypto, auditAdmin, validatePublicUrlResolution,
 });
 registerAuthRoutes(app, {
   limitAuth, wrap, authSchema, sendError, ownerEmail, isDb, User, memory,
