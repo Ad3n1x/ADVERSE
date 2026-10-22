@@ -203,6 +203,7 @@ async function writePlatformConfig(key,value,actor){
   else {const cfg=globalThis.__ADVERSE_CONFIG__ ||= {maintenanceMode:false,featureFlags:{search:true,providerSettings:true,monitoring:true},usageLimits:{searchesPerMinute:30},retentionDays:90};cfg[key]=value;}
   const current=await readPlatformConfig();current[key]=value;platformConfigCache.value=current;platformConfigCache.loadedAt=Date.now();
 }
+const ownerEmail=()=>String(process.env.ADMIN_EMAIL||'adenix271@gmail.com').trim().toLowerCase();
 registerAdminRoutes(app, {
   limitAuth, wrap, sendError, ownerEmail, isDb, User, memory,
   verifyToken, cookieToken, setSession, tokenFor, scryptSync, timingSafeEqual,
