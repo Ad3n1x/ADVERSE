@@ -45,5 +45,5 @@ export function useWorkspaceNotifications() {
     setError('');
   };
 
-  return { toasts, setError, notify };
+  return { toasts, setToasts, error, setError, notify };
 }
