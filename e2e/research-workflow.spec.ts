@@ -23,7 +23,7 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByRole('button', { name: /Graph & links/i }).click();
   await expect(page.getByRole('heading', { name: /Within-collection connections/i })).toBeVisible();
   await page.getByRole('button', { name: /Add entity/ }).click();
-  await page.getByLabel('Name').fill('Example Corporation');
+  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Example Corporation');
   await page.getByLabel('Public link (optional)').fill('https://example.org');
   await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
 
