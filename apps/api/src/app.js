@@ -986,7 +986,7 @@ app.post('/api/v1/investigations/:id/research',requireAuth,limitProvider,wrap(as
       const evidenceId=String(source.id||source._id||'');
       if(!evidenceId||!source.url)continue;
       let parsed;try{parsed=new URL(source.url);}catch{continue;}
-      const host=parsed.hostname.toLowerCase().replace(/^www\\./,'');
+      const host=parsed.hostname.toLowerCase().replace(/^www\./,'');
       const publisherName=String(source.publisher||host).trim().slice(0,200)||host;
       const docName=String(source.title||source.url).trim().slice(0,200)||source.url;
       let publisher=entityByUrl.get(('https://'+host).toLowerCase())||entityByNameType.get(publisherName.toLowerCase()+'|domain')||entityByNameType.get(publisherName.toLowerCase()+'|organization');
