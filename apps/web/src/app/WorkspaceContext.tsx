@@ -35,6 +35,8 @@ export type WorkspaceContextValue = Record<string, any> & {
   setSearchPlan: Dispatch<SetStateAction<{ query: string; reason: string }[]>>;
   captures: Capture[];
   setCaptures: Dispatch<SetStateAction<Capture[]>>;
+  diffData: { added: string[]; removed: string[]; method: string; limitation: string } | null;
+  setDiffData: Dispatch<SetStateAction<{ added: string[]; removed: string[]; method: string; limitation: string } | null>>;
   orgResults: any[];
   setOrgResults: Dispatch<SetStateAction<any[]>>;
   providerCatalog: any[];
