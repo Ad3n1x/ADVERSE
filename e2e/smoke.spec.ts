@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('public search page loads with an accessible search field', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole('textbox', { name: 'Search anything online' })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Search anything online' })).toBeVisible();
   await expect(page.getByRole('button', { name: /find it/i })).toBeVisible();
 });
 
