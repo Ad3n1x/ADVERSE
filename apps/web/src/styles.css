@@ -1615,3 +1615,54 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
     width: 100%;
   }
 }
+
+
+/* Fix the selected-item card in the connections panel (mobile grid was collapsing). */
+#root .connections-panel .selected-entity {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-items: start;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 16px;
+  overflow: hidden;
+}
+#root .connections-panel .selected-entity > div:first-child {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+#root .connections-panel .selected-entity h3,
+#root .connections-panel .selected-entity p,
+#root .connections-panel .selected-entity span,
+#root .connections-panel .selected-entity small {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+#root .connections-panel .selected-entity > div:nth-child(2) {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+#root .connections-panel .selected-entity .selected-links {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+#root .connections-panel .selected-entity .selected-links > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 5px;
+  min-width: 0;
+}
