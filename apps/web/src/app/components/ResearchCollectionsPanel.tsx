@@ -1,6 +1,6 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Empty from '../components/ui/Empty';
-import { getRecordId as key } from '../lib/ids';
+import Empty from '../../components/ui/Empty';
+import { getRecordId as key } from '../../lib/ids';
 import { ArrowDownRight, BookOpen, Plus, Sparkles, Trash2 } from 'lucide-react';
 
 /** Research Collections Panel extracted from the workspace shell. */
