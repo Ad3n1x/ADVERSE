@@ -1567,3 +1567,51 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 #root .graph-inapp-fallback{padding:8px 12px;background:#101b20;color:#9eb4b0;font-size:10px;text-align:center}
 #root .graph-inapp-fallback a{color:#86ddca;text-decoration:underline}
 @media(max-width:620px){#root .force-graph-shell{min-height:420px}#root .graph-inapp-backdrop{padding:0}#root .graph-inapp-viewer{width:100%;height:100dvh;max-height:100dvh;border-radius:0;border-left:0;border-right:0}#root .graph-inapp-header{align-items:flex-start;padding:11px;gap:9px}#root .graph-inapp-heading strong{font-size:12px}#root .graph-inapp-heading small{max-width:52vw;font-size:9px}#root .graph-inapp-actions{gap:5px}#root .graph-inapp-actions a,#root .graph-inapp-actions button{min-height:34px;padding:7px 8px;font-size:10px}}
+
+
+/* Mobile tool-panel overflow fix: prevent narrow grid tracks from collapsing labels vertically. */
+#root .tool-popup-active {
+  box-sizing: border-box !important;
+  width: min(760px, calc(100vw - 20px)) !important;
+  max-width: calc(100vw - 20px) !important;
+  min-width: 0 !important;
+  overflow-x: hidden !important;
+}
+#root .tool-popup-active,
+#root .tool-popup-active * {
+  box-sizing: border-box;
+}
+#root .tool-popup-active :is(section, article, main, form, fieldset, .grid, [class*="grid"], [class*="columns"], [class*="content"], [class*="body"]) {
+  min-width: 0;
+  max-width: 100%;
+}
+#root .tool-popup-active :is([style*="grid-template-columns"], [class*="grid"], [class*="columns"]) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)) !important;
+}
+#root .tool-popup-active :is(h1, h2, h3, h4, p, label, span, strong, small, code, pre) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+#root .tool-popup-active :is(input, textarea, select, button) {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  #root .tool-popup-active {
+    width: calc(100vw - 20px) !important;
+    max-height: calc(100dvh - 100px) !important;
+    padding-inline: 12px;
+  }
+  #root .tool-popup-active :is([style*="grid-template-columns"], [class*="grid"], [class*="columns"]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  #root .tool-popup-active :is(.tool-popup-controls, [class*="header"], [class*="actions"]) {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  #root .tool-popup-active :is(input, textarea, select) {
+    width: 100%;
+  }
+}
