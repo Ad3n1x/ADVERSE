@@ -1,0 +1,62 @@
+name: Build ADVERSE iOS App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ios-app/**"
+      - ".github/workflows/build-adverse-ios.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build iOS app
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          xcode-select -p
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios-app
+        run: xcodegen generate
+
+      - name: Build unsigned iOS app
+        working-directory: ios-app
+        run: |
+          xcodebuild \
+            -project ADVERSE.xcodeproj \
+            -scheme ADVERSE \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA for inspection
+        run: |
+          APP_PATH="ios-app/build/DerivedData/Build/Products/Release-iphoneos/ADVERSE.app"
+          test -d "$APP_PATH"
+          mkdir -p ios-app/build/Payload
+          cp -R "$APP_PATH" ios-app/build/Payload/ADVERSE.app
+          cd ios-app/build
+          zip -r ADVERSE-iOS-unsigned.ipa Payload
+
+      - name: Upload unsigned build
+        uses: actions/upload-artifact@v4
+        with:
+          name: ADVERSE-iOS-unsigned
+          path: ios-app/build/ADVERSE-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
