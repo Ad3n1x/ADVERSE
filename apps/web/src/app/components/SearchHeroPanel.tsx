@@ -1,6 +1,4 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Graph from '../../features/graph/Graph';
-import { getRecordId as key } from '../../lib/ids';
 import { Activity, ArrowUpRight, Check, Database, Fingerprint, Globe2, Layers3, Plus, Search, ShieldCheck, Waypoints, Network, RefreshCw, Radar, Trash2 } from 'lucide-react';
 
 /** Search Hero Panel view. */
