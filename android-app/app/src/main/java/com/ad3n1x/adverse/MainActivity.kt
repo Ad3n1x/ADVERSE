@@ -7,17 +7,22 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import android.widget.FrameLayout
-import android.view.Gravity
+import android.widget.Gravity
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.graphics.Color
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
+    private lateinit var splashOverlay: FrameLayout
     private val homeUrl = "https://adverse-web.onrender.com/"
     private val nativeUserAgentMarker = " ADVERSENativeAndroid/1"
 
@@ -43,6 +48,13 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP
         )
         root.addView(progress, progressParams)
+
+        // Native welcome screen stays above the WebView until the first page is ready.
+        splashOverlay = createWelcomeScreen()
+        root.addView(splashOverlay, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT
+        ))
         setContentView(root)
 
         webView.settings.javaScriptEnabled = true
@@ -78,11 +90,115 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                progress.visibility = View.GONE
+                // Enforce APK-only cleanup in the native wrapper as well as the web UI.
+                // This prevents a stale/cached website bundle from showing download/install promo content.
+                val hideAppPromotion = """
+                    (function() {
+                      var style = document.getElementById('adverse-native-app-cleanup');
+                      if (!style) {
+                        style = document.createElement('style');
+                        style.id = 'adverse-native-app-cleanup';
+                        style.textContent = '.adverse-home-download, .find-footer { display: none !important; }';
+                        (document.head || document.documentElement).appendChild(style);
+                      }
+                      document.querySelectorAll('.adverse-home-download, .find-footer').forEach(function(el) {
+                        el.style.setProperty('display', 'none', 'important');
+                        el.setAttribute('aria-hidden', 'true');
+                      });
+                      return true;
+                    })();
+                """.trimIndent()
+                view?.evaluateJavascript(hideAppPromotion) {
+                    progress.visibility = View.GONE
+                    if (::splashOverlay.isInitialized) {
+                        splashOverlay.animate()
+                            .alpha(0f)
+                            .setDuration(220)
+                            .withEndAction {
+                                (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
+                            }
+                            .start()
+                    }
+                }
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
+            ) {
+                if (request?.isForMainFrame == true && ::splashOverlay.isInitialized) {
+                    splashOverlay.animate().alpha(0f).setDuration(180).withEndAction {
+                        (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
+                    }.start()
+                }
             }
         }
 
         handleIntent(intent)
+    }
+
+    private fun createWelcomeScreen(): FrameLayout {
+        val overlay = FrameLayout(this)
+        overlay.setBackgroundColor(Color.rgb(11, 13, 16))
+
+        val content = LinearLayout(this)
+        content.orientation = LinearLayout.VERTICAL
+        content.gravity = Gravity.CENTER
+        content.setPadding(dp(24), dp(24), dp(24), dp(24))
+
+        val logo = ImageView(this)
+        logo.setImageResource(R.drawable.adverse_fingerprint)
+        logo.contentDescription = "ADVERSE fingerprint logo"
+        logo.scaleType = ImageView.ScaleType.FIT_CENTER
+        content.addView(logo, LinearLayout.LayoutParams(dp(88), dp(88)).apply {
+            bottomMargin = dp(20)
+        })
+
+        val title = TextView(this)
+        title.text = "ADVERSE"
+        title.setTextColor(Color.rgb(244, 247, 251))
+        title.textSize = 25f
+        title.letterSpacing = 0.16f
+        title.gravity = Gravity.CENTER
+        content.addView(title, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
+
+        val subtitle = TextView(this)
+        subtitle.text = "FIND ANYTHING"
+        subtitle.setTextColor(Color.rgb(185, 245, 107))
+        subtitle.textSize = 11f
+        subtitle.letterSpacing = 0.22f
+        subtitle.gravity = Gravity.CENTER
+        content.addView(subtitle, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(7) })
+
+        val spinner = ProgressBar(this)
+        spinner.indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(185, 245, 107))
+        content.addView(spinner, LinearLayout.LayoutParams(dp(28), dp(28)).apply {
+            topMargin = dp(30)
+        })
+
+        val loading = TextView(this)
+        loading.text = "Preparing your workspace…"
+        loading.setTextColor(Color.rgb(154, 163, 174))
+        loading.textSize = 12f
+        loading.gravity = Gravity.CENTER
+        content.addView(loading, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        ).apply { topMargin = dp(12) })
+
+        overlay.addView(content, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER
+        ))
+        return overlay
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -102,7 +218,7 @@ class MainActivity : Activity() {
     }
 
     private fun extractUrl(text: String): String? {
-        val match = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE).find(text) ?: return null
+        val match = Regex("https?://[^\\s<>\\"']+", RegexOption.IGNORE_CASE).find(text) ?: return null
         return match.value.trimEnd(',', '.', ';', ')', '!', '?')
     }
 
