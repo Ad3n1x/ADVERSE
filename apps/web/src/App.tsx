@@ -2,6 +2,7 @@ import AdminApp from './features/admin/AdminApp';
 import WorkspaceApp from './app/WorkspaceApp';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import ConnectionStatus from './components/ConnectionStatus';
+import SharedLinkHandler from './components/SharedLinkHandler';
 
 export default function App() {
   const isAdminRoute =
@@ -13,6 +14,7 @@ export default function App() {
     <>
       {isAdminRoute ? <AdminApp /> : <WorkspaceApp />}
       <ConnectionStatus />
+      <SharedLinkHandler />
       <PwaInstallPrompt />
     </>
   );
