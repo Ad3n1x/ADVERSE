@@ -1,8 +1,9 @@
+import { analyzeVisualFrame } from '../services/media/visual-analysis.js';
 export function registerPublicSearchRoutes(app, {
   limitProvider, wrap, sendError, validatePublicUrl, inspectPublicLink,
   assessSourceContext, titleSimilarity, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, searchImages, searchVideos,
-  searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth, analyzeVisualFrame,
+  searchPeople, scrapePublicPage, getUserProviderKeys , optionalAuth,
 }) {
   app.post('/api/v1/public-search/visual-match',limitProvider,wrap(async(req,res)=>{
     const body=req.body||{};
