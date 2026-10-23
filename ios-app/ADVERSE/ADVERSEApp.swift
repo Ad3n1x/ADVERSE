@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WebKit
 
 @main
@@ -15,7 +16,7 @@ struct ADVERSEWebView: View {
     var body: some View {
         WebView()
             .ignoresSafeArea(edges: [.bottom])
-            .background(Color(red: 11 / 255, green: 13 / 255, blue: 16 / 255))
+            .background(Color(red: 11.0 / 255.0, green: 13.0 / 255.0, blue: 16.0 / 255.0))
     }
 }
 
@@ -25,7 +26,7 @@ private struct WebView: UIViewRepresentable {
         configuration.allowsInlineMediaPlayback = true
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.backgroundColor = UIColor(red: 11 / 255, green: 13 / 255, blue: 16 / 255, alpha: 1)
+        webView.backgroundColor = UIColor(red: 11.0 / 255.0, green: 13.0 / 255.0, blue: 16.0 / 255.0, alpha: 1)
         webView.isOpaque = false
         webView.scrollView.backgroundColor = webView.backgroundColor
         webView.scrollView.contentInsetAdjustmentBehavior = .never
