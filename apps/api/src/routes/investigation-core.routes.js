@@ -143,7 +143,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
          const seenHosts=new Set();
          for(const result of seed){
           if(candidates.length>=3)break;
-          let host='';try{host=new URL(result.url).hostname.replace(/^www\\./,'');}catch{}
+          let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
           if(!host||seenHosts.has(host))continue;
           seenHosts.add(host);
           const candidate=cleanText(result.title,150);
