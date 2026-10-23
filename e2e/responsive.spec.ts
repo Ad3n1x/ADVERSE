@@ -5,7 +5,7 @@ test.describe('public Find Anything responsive experience', () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible();
-    const search = page.getByRole('textbox', { name: 'Search anything online' });
+    const search = page.getByRole('combobox', { name: 'Search anything online' });
     await expect(search).toBeVisible();
     await expect(page.getByRole('button', { name: /find it/i })).toBeVisible();
 
@@ -23,7 +23,7 @@ test.describe('public Find Anything responsive experience', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
     await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Search anything online' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Search anything online' })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
       content: document.documentElement.scrollWidth,
