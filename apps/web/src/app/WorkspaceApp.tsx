@@ -1,21 +1,14 @@
-import { FormEvent, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useWorkspaceUiState } from './hooks/useWorkspaceUiState';
 import { WorkspaceContext } from './WorkspaceContext';
-import WorkspaceSettingsPanel from './components/WorkspaceSettingsPanel';
 import WorkspaceMain from './components/WorkspaceMain';
 import WorkspaceDialogs from './components/WorkspaceDialogs';
-import Graph from '../features/graph/Graph';
 import ToastViewport from '../components/layout/ToastViewport';
 import PublicSearchScreen from '../features/public-search/PublicSearchScreen';
-import MonitoringView from '../features/monitoring/MonitoringView';
-import CyberIntelligenceView from '../features/cyber/CyberIntelligenceView';
 import AuthScreen from '../features/auth/AuthScreen';
-import Empty from '../components/ui/Empty';
-import Modal from '../components/ui/Modal';
-import { API, request } from '../lib/api';
-import { HISTORY_KEY, SAVED_KEY } from '../lib/storageKeys';
+import { request } from '../lib/api';
 import { getRecordId as key } from '../lib/ids';
-import type { Capture, Evidence, Investigation, SearchResult, Tab } from '../types/research';
+import type { Evidence, SearchResult, Tab } from '../types/research';
 import { useWorkspaceNotifications } from './hooks/useWorkspaceNotifications';
 import { useWorkspaceCollections } from './hooks/useWorkspaceCollections';
 import { useWorkspaceCredentials } from './hooks/useWorkspaceCredentials';
@@ -30,7 +23,7 @@ import { createWorkspaceAuthActions } from './handlers/createWorkspaceAuthAction
 import { createWorkspaceRecordActions } from './handlers/createWorkspaceRecordActions';
 import { createWorkspaceCollectionActions } from './handlers/createWorkspaceCollectionActions';
 import { createWorkspaceAccountActions } from './handlers/createWorkspaceAccountActions';
-import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, ChevronDown, CircleHelp, Clock3, Database, Download, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, Settings2, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Trash2 } from 'lucide-react';
+import { ChevronDown, ExternalLink, Fingerprint, Settings2, ShieldCheck, Radar } from 'lucide-react';
 function WorkspaceApp(){
  const { toasts, setToasts, error, setError, notify } = useWorkspaceNotifications();
  const { authState, setAuthState, authMode, setAuthMode, showAuth, setShowAuth, authEmail, setAuthEmail, authPassword, setAuthPassword, displayName, setDisplayName, userEmail, setUserEmail, accountRole, setAccountRole, resetToken, setResetToken, authMessage, setAuthMessage, tab, setTab, createOpen, setCreateOpen, toolsOpen, setToolsOpen, toolPopupSelector, setToolPopupSelector, caseTitle, setCaseTitle, question, setQuestion, addEntityToCollectionOpen, setAddEntityToCollectionOpen, addEntityTargetCollectionId, setAddEntityTargetCollectionId, importResearchOpen, setImportResearchOpen, importSourceCollectionId, setImportSourceCollectionId, importDestinationCollectionId, setImportDestinationCollectionId, importEvidenceEnabled, importGraphEnabled, importResearchBusy, setImportResearchBusy, importFeedback, setImportFeedback, query, setQuery, searchMode, setSearchMode, searchResults, setSearchResults, searchPlan, setSearchPlan, searchMeta, setSearchMeta, searching, setSearching, researching, setResearching, visualFile, setVisualFile, visualPreview, setVisualPreview, visualBusy, setVisualBusy, archiveUrl, setArchiveUrl, captures, setCaptures, archiveNote, setArchiveNote, compareFrom, setCompareFrom, compareTo, setCompareTo, diffData, setDiffData, domainUrl, setDomainUrl, domainData, setDomainData, orgQuery, setOrgQuery, orgResults, setOrgResults, orgSearching, setOrgSearching, historyAsOf, setHistoryAsOf, historyGraph, setHistoryGraph, historyLoading, setHistoryLoading, evOpen, setEvOpen, evTitle, setEvTitle, evUrl, setEvUrl, evExcerpt, setEvExcerpt, entityOpen, setEntityOpen, entityName, setEntityName, entityType, setEntityType, entityUrl, setEntityUrl, relOpen, setRelOpen, relFrom, setRelFrom, relTo, setRelTo, relType, setRelType, relEvidence, setRelEvidence, reportFormat, setReportFormat, crossReview, setCrossReview, crossReviewLoading, setCrossReviewLoading, claimMap, setClaimMap, claimMapLoading, setClaimMapLoading, aiReviewLoading, setAiReviewLoading, researchGaps, setResearchGaps, researchGapsLoading, setResearchGapsLoading, graphQuery, setGraphQuery, selectedEntityId, setSelectedEntityId, visualInputRef } = useWorkspaceUiState();
