@@ -13,7 +13,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import android.widget.FrameLayout
-import android.widget.Gravity
+import android.view.Gravity
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -218,7 +218,7 @@ class MainActivity : Activity() {
     }
 
     private fun extractUrl(text: String): String? {
-        val match = Regex("https?://[^\s<>\"']+", RegexOption.IGNORE_CASE).find(text) ?: return null
+        val match = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE).find(text) ?: return null
         return match.value.trimEnd(',', '.', ';', ')', '!', '?')
     }
 
