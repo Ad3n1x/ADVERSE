@@ -95,7 +95,8 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
     const pairs=[];
     for(let i=0;i<group.claims.length;i++)for(let j=i+1;j<group.claims.length;j++){
       const a=group.claims[i],b=group.claims[j];
-      if(a.sourceId===b.sourceId||sourceUrlKey(a.url)===sourceUrlKey(b.url))continue;
+      const urlA=sourceUrlKey(a.url),urlB=sourceUrlKey(b.url);
+      if(a.sourceId===b.sourceId||(urlA&&urlA===urlB))continue;
       const numsA=a.numbers,numsB=b.numbers;
       const numericConflict=numsA.length&&numsB.length&&numsA.some(n=>!numsB.includes(n))&&numsB.some(n=>!numsA.includes(n));
       const polarityConflict=oppositePolarity(a.text,b.text)&&similarity(a.text,b.text)>=0.55;
