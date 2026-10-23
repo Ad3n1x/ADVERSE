@@ -1,0 +1,33 @@
+name: ADVERSE quality gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: adverse-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-tests-and-production-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Run API regression tests
+        run: npm test
+      - name: Build production frontend and check API syntax
+        run: npm run build
