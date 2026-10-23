@@ -20,6 +20,13 @@ export default defineConfig({
         orientation: 'any',
         start_url: '/',
         scope: '/',
+        launch_handler: { client_mode: ['navigate-existing', 'auto'] },
+        share_target: {
+          action: '/?share_target=1',
+          method: 'GET',
+          enctype: 'application/x-www-form-urlencoded',
+          params: { title: 'title', text: 'text', url: 'url' }
+        },
         icons: [
           { src: '/pwa-icon-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
           { src: '/pwa-icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
