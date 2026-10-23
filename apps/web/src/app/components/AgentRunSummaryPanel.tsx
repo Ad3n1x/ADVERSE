@@ -1,5 +1,4 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import { getRecordId as key } from '../../lib/ids';
 
 /** Agent Run Summary Panel view. */
 export default function AgentRunSummaryPanel() {
