@@ -8,7 +8,7 @@ import PublicSearchScreen from '../features/public-search/PublicSearchScreen';
 import AuthScreen from '../features/auth/AuthScreen';
 import { request } from '../lib/api';
 import { getRecordId as key } from '../lib/ids';
-import type { Evidence, SearchResult, Tab } from '../types/research';
+import type { Tab } from '../types/research';
 import { useWorkspaceNotifications } from './hooks/useWorkspaceNotifications';
 import { useWorkspaceCollections } from './hooks/useWorkspaceCollections';
 import { useWorkspaceCredentials } from './hooks/useWorkspaceCredentials';
