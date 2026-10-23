@@ -6,7 +6,6 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.webkit.SafeBrowsingResponse
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -15,12 +14,12 @@ import android.widget.ProgressBar
 import android.widget.FrameLayout
 import android.view.Gravity
 import android.graphics.Color
-import android.widget.TextView
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var progress: ProgressBar
     private val homeUrl = "https://adverse-web.onrender.com/"
+    private val nativeUserAgentMarker = " ADVERSENativeAndroid/1"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +54,11 @@ class MainActivity : Activity() {
         webView.settings.allowContentAccess = false
         webView.settings.setGeolocationEnabled(false)
         webView.settings.safeBrowsingEnabled = true
+        // UI hint only, not an authentication or security mechanism.
+        val defaultUserAgent = webView.settings.userAgentString.orEmpty()
+        if (!defaultUserAgent.contains("ADVERSENativeAndroid/1")) {
+            webView.settings.userAgentString = defaultUserAgent + nativeUserAgentMarker
+        }
         webView.isVerticalScrollBarEnabled = false
         webView.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -65,10 +69,7 @@ class MainActivity : Activity() {
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val uri = request.url
-                if (uri.scheme == "https" || uri.scheme == "http") {
-                    // Keep browsing in ADVERSE instead of bouncing every link into Chrome.
-                    return false
-                }
+                if (uri.scheme == "https" || uri.scheme == "http") return false
                 return true
             }
 
@@ -101,7 +102,7 @@ class MainActivity : Activity() {
     }
 
     private fun extractUrl(text: String): String? {
-        val match = Regex("https?://[^\\s<>\"']+", RegexOption.IGNORE_CASE).find(text) ?: return null
+        val match = Regex("https?://[^\\s<>\\"']+", RegexOption.IGNORE_CASE).find(text) ?: return null
         return match.value.trimEnd(',', '.', ';', ')', '!', '?')
     }
 
@@ -109,20 +110,14 @@ class MainActivity : Activity() {
         if (value.isNullOrBlank()) return null
         return try {
             val uri = Uri.parse(value)
-            if ((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) {
-                uri.toString()
-            } else null
+            if ((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) uri.toString() else null
         } catch (_: Exception) {
             null
         }
     }
 
     override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
-        }
+        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
