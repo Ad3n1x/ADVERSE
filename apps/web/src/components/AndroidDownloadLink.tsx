@@ -1,4 +1,4 @@
-import { ArrowUpRight, Fingerprint, Smartphone } from 'lucide-react';
+import { ArrowUpRight, Fingerprint } from 'lucide-react';
 
 const DOWNLOAD_PAGE_URL = 'https://adverse-web.onrender.com/download';
 
