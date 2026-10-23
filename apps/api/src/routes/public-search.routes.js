@@ -1,6 +1,6 @@
 import { analyzeVisualFrame } from '../services/media/visual-analysis.js';
 import { improvePublicSearchRanking } from '../services/search/relevance-ranking.js';
-import { findIndexedPublicResults, indexPublicSearchResults } from '../services/search/public-search-index.js';
+import { findIndexedPublicResults, indexPublicSearchResults, suggestIndexedSearches } from '../services/search/public-search-index.js';
 
 export function registerPublicSearchRoutes(app, {
   limitProvider, wrap, sendError, validatePublicUrl, inspectPublicLink,
@@ -68,6 +68,16 @@ export function registerPublicSearchRoutes(app, {
       resultCount: results.length,
       notice: 'Results come from public third-party indexes. Image rights, identity matches, accuracy, and content safety are not guaranteed; open the original source and check its terms.',
     } });
+  }));
+
+  app.get('/api/v1/public-search/suggestions', limitProvider, wrap(async (req, res) => {
+    const q = String(req.query.q || '').trim().slice(0, 120);
+    if (q.length < 2) return res.json({ data: [], meta: { query: q, indexEnabled: globalThis.__ADVERSE_MONGO_READY__ === true } });
+    const data = await suggestIndexedSearches(q, 6).catch(error => {
+      console.warn('ADVERSE search suggestions unavailable:', String(error?.message || 'suggestions failed').slice(0, 180));
+      return [];
+    });
+    res.json({ data, meta: { query: q, indexEnabled: globalThis.__ADVERSE_MONGO_READY__ === true } });
   }));
 
   app.get('/api/v1/public-search', optionalAuth, limitProvider, wrap(async (req, res) => {
