@@ -3,13 +3,6 @@ import type { SearchResult } from '../../types/research';
 import { compressVisualFile } from '../../features/public-search/visual-file';
 import { request } from '../../lib/api';
 
-type VisualSearchMeta = {
-  visualMatch: true;
-  description: string;
-  queries: string[];
-  notice: string;
-};
-
 type Dependencies = {
   visualFile: File | null;
   setVisualBusy: Dispatch<SetStateAction<boolean>>;
