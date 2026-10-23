@@ -9,11 +9,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build and publish Android APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,10 +39,27 @@ jobs:
         working-directory: android-app
         run: gradle --no-daemon assembleDebug
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ADVERSE-android-debug
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Prepare public download
+        run: cp android-app/app/build/outputs/apk/debug/app-debug.apk /tmp/ADVERSE.apk
+
+      - name: Publish public APK download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: ADVERSE Android Latest Build
+          body: |
+            Download the latest ADVERSE Android app build.
+            This is a debug APK, not a Play Store release.
+          prerelease: true
+          make_latest: false
+          files: /tmp/ADVERSE.apk
+          overwrite_files: true
+          fail_on_unmatched_files: true
