@@ -9,3 +9,4 @@ import './pwa-install.css';
 import './connection-status.css';
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
+import './shared-link-handler.css';
