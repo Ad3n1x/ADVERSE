@@ -18,7 +18,7 @@ function splitSentences(text) {
     .split(/(?<=[.!?])\s+(?=[A-Z0-9“"'])|[\r\n]+/).map(s=>s.replaceAll('<PERIOD>','.').trim())
     .filter(s=>s.length>=35&&s.length<=600);
 }
-function numbers(text) { return (text.match(/(?:[$€£₦]\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|%|percent))?|\b\d[\d,.]*\s?(?:%|percent|million|billion|thousand|people|votes|years|days|hours|kilometres|kilometers|km|miles|dollars|naira)\b|\b(?:19|20)\d{2}\b)/gi)||[]).map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()); }
+function numbers(text) { return (text.match(/(?:[$€£₦]\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|%|percent))?|\b\d[\d,.]*\s?(?:%|percent|million|billion|thousand|people|votes|years|days|hours|kilometres|kilometers|km|miles|dollars|naira)\b|\b(?:19|20)\d{2}\b|\b\d[\d,.]*\b)/gi)||[]).map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()); }
 function oppositePolarity(a,b) { return NEGATIONS.test(a)!==NEGATIONS.test(b); }
 function sourceUrlKey(value) {
   try {
