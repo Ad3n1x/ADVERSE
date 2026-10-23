@@ -2,23 +2,45 @@ export function registerPublicSearchRoutes(app, {
   limitProvider, wrap, sendError, validatePublicUrl, inspectPublicLink,
   assessSourceContext, titleSimilarity, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, searchImages, searchVideos,
-  searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth,
+  searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth, analyzeVisualFrame,
 }) {
   app.post('/api/v1/public-search/visual-match',limitProvider,wrap(async(req,res)=>{
-   const body=req.body||{};const dataUrl=String(body.imageDataUrl||'');const mediaType=String(body.mediaType||'image');
-   if(!['image','video-frame'].includes(mediaType))return sendError(res,400,'INVALID_MEDIA_TYPE','Unsupported visual media type.');
-   const match=dataUrl.match(/^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/);
-   if(!match)return sendError(res,400,'INVALID_IMAGE','Provide a JPEG, PNG, or WebP image.');
-   if(match[2].length>210000)return sendError(res,413,'IMAGE_TOO_LARGE','Image too large after compression.');
-   const key=String(process.env.GEMINI_API_KEY||'').trim();if(!key)return sendError(res,503,'VISION_NOT_CONFIGURED','Add GEMINI_API_KEY to the API service environment to enable visual search.');
-   const model=String(process.env.GEMINI_MODEL||'gemini-2.5-flash').trim();
-   const prompt='Describe visible objects, setting, and distinctive details in this image for public visual discovery. Do not identify private people or infer sensitive traits. Return only JSON with description and 3 to 5 search queries.';
-   const response=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(model)+':generateContent',{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt},{inlineData:{mimeType:'image/'+match[1],data:match[2]}}]}],generationConfig:{temperature:0.1,maxOutputTokens:500,responseMimeType:'application/json'}}),signal:AbortSignal.timeout(25000)});
-   const raw=await response.text();let payload;try{payload=JSON.parse(raw);}catch{payload=null;}if(!response.ok)return sendError(res,502,'VISION_PROVIDER_FAILED','Visual analysis provider failed. Check the Gemini key, model, and quota.');
-   let analysis;try{analysis=JSON.parse((payload?.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join(''));}catch{return sendError(res,502,'VISION_INVALID_RESPONSE','Could not read the visual analysis. Try another image.');}
-   const description=String(analysis.description||'').slice(0,800);const queries=[...new Set((Array.isArray(analysis.queries)?analysis.queries:[]).map(q=>String(q||'').trim().slice(0,160)).filter(q=>q.length>=3))].slice(0,5);if(!queries.length&&description)queries.push(description.slice(0,160));
-   const groups=await Promise.all(queries.map(async q=>{const out=await Promise.all([searchImages(q,8).catch(()=>[]),searchVideos(q,6).catch(()=>[])]);return {query:q,items:[...out[0],...out[1]]};}));const found=new Map();for(const group of groups)for(const item of group.items){if(item.url&&!found.has(item.url))found.set(item.url,{...item,matchedQuery:group.query,matchType:'visual-description'});}
-   const data=[...found.values()].slice(0,40);res.json({data,meta:{description,queries,resultCount:data.length,matchMethod:'vision-description-search',notice:'These are visually or contextually related candidates from public indexes, not pixel-level reverse-image matches or confirmed identities.'}});
+    const body=req.body||{};
+    let analysis;
+    try {
+      analysis = await analyzeVisualFrame({
+        imageDataUrl: body.imageDataUrl,
+        mediaType: body.mediaType || 'image',
+      });
+    } catch (error) {
+      return sendError(res,error.status||502,error.code||'VISION_PROVIDER_FAILED',error.message||'Visual analysis failed.');
+    }
+
+    const groups = await Promise.all(analysis.queries.map(async query => {
+      const [images,videos] = await Promise.all([
+        searchImages(query,8).catch(()=>[]),
+        searchVideos(query,6).catch(()=>[]),
+      ]);
+      return { query, items:[...images,...videos] };
+    }));
+    const found = new Map();
+    for (const group of groups) {
+      for (const item of group.items) {
+        if (item.url && !found.has(item.url)) {
+          found.set(item.url,{...item,matchedQuery:group.query,matchType:'visual-description'});
+        }
+      }
+    }
+    const data = [...found.values()].slice(0,40);
+    res.json({data,meta:{
+      description:analysis.description,
+      extractedText:analysis.extractedText,
+      visualDetails:analysis.visualDetails,
+      queries:analysis.queries,
+      resultCount:data.length,
+      matchMethod:'vision-ocr-description-search',
+      notice:'ADVERSE read visible text and analyzed sampled frames, then searched public indexes. Matches are related candidates, not proof of identity or exact copies.',
+    }});
   }));
   app.get('/api/v1/public-search/media',limitProvider,wrap(async(req,res)=>{
     const q=String(req.query.q||'').trim().slice(0,200);
