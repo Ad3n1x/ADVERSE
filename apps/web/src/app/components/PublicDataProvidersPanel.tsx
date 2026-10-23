@@ -1,6 +1,4 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import { API } from '../../lib/api';
-import { getRecordId as key } from '../../lib/ids';
 import { Archive, Bell, Database, ExternalLink, Globe2, Plus, Search, Sparkles, Trash2 } from 'lucide-react';
 
 /** Public Data Providers Panel extracted from the workspace shell. */
