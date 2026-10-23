@@ -12,6 +12,7 @@ export function registerPublicSearchRoutes(app, {
       analysis = await analyzeVisualFrame({
         imageDataUrl: body.imageDataUrl,
         mediaType: body.mediaType || 'image',
+        userQuestion: String(body.userQuestion || '').slice(0, 500),
       });
     } catch (error) {
       return sendError(res,error.status||502,error.code||'VISION_PROVIDER_FAILED',error.message||'Visual analysis failed.');
