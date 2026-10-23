@@ -1,5 +1,5 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import { ArrowUpRight, Bell, Check, ExternalLink, Globe2, Plus, Search, ShieldCheck, Network } from 'lucide-react';
+import { ArrowUpRight, Bell, Check, ExternalLink, Globe2, Plus, ShieldCheck, Network } from 'lucide-react';
 
 /** Search Results Panel view. */
 export default function SearchResultsPanel() {
