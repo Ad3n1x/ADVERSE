@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: adverse-android-release
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Build and publish Android APK
