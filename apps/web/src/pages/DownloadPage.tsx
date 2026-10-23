@@ -1,11 +1,12 @@
-import { Apple, Check, ExternalLink, Fingerprint, Globe, ShieldCheck } from 'lucide-react';
+import { Android, Apple, Check, Download, ExternalLink, Fingerprint, Globe, ShieldCheck } from 'lucide-react';
 import '../download-page.css';
 
 const HOME_URL = 'https://adverse-web.onrender.com/';
+const APK_URL = 'https://github.com/Ad3n1x/ADVERSE/releases/download/android-latest/ADVERSE.apk';
 
 export default function DownloadPage() {
   return (
-    <main className="adverse-download-page adverse-iphone-install-page">
+    <main className="adverse-download-page adverse-device-download-page">
       <header className="adverse-download-header">
         <a href={HOME_URL} className="adverse-download-brand" aria-label="ADVERSE home">
           <span className="adverse-download-brand-icon"><Fingerprint size={27} /></span>
@@ -14,39 +15,42 @@ export default function DownloadPage() {
         <a className="adverse-download-home" href={HOME_URL}>Open workspace <ExternalLink size={15} /></a>
       </header>
 
-      <section className="adverse-download-hero adverse-iphone-hero">
-        <span className="adverse-download-eyebrow">IPHONE PWA · HOME SCREEN APP</span>
-        <h1>ADVERSE,<br /><em>one tap away.</em></h1>
-        <p>Install the ADVERSE web app on your iPhone. It opens from your Home Screen in its own app-like window, using the familiar fingerprint identity — no App Store or separate download needed.</p>
+      <section className="adverse-download-hero adverse-device-hero">
+        <span className="adverse-download-eyebrow">ADVERSE · MOBILE ACCESS</span>
+        <h1>Your research.<br /><em>Your device.</em></h1>
+        <p>Choose your device to take ADVERSE with you. Android users can download the APK; iPhone and iPad users can add the web app to their Home Screen. Both connect to the same ADVERSE service.</p>
         <div className="adverse-download-mark" aria-hidden="true"><Fingerprint size={45} strokeWidth={1.7} /></div>
       </section>
 
-      <section className="adverse-iphone-install-panel" aria-labelledby="adverse-iphone-install-title">
-        <div className="adverse-iphone-panel-heading">
-          <span className="adverse-download-platform-icon"><Apple size={24} /></span>
-          <div>
-            <span className="adverse-download-status">IPHONE & IPAD · PWA</span>
-            <h2 id="adverse-iphone-install-title">Add ADVERSE to Home Screen</h2>
+      <section className="adverse-device-options" aria-label="Choose your device">
+        <article className="adverse-download-card adverse-download-card-featured">
+          <div className="adverse-download-card-top">
+            <span className="adverse-download-platform-icon"><Download size={24} /></span>
+            <span className="adverse-download-status">ANDROID · APK</span>
           </div>
-        </div>
+          <h2>ADVERSE for Android</h2>
+          <p>Download the Android companion app directly to your phone. If Android asks, allow installation from this source for this APK.</p>
+          <a className="adverse-download-primary" href={APK_URL}><Download size={17} /> Download Android APK</a>
+          <small className="adverse-download-note">Debug build · Not Play Store signed. Only install if you trust this source.</small>
+          <a className="adverse-download-secondary adverse-device-secondary" href="https://github.com/Ad3n1x/ADVERSE/releases/tag/android-latest" target="_blank" rel="noreferrer"><ExternalLink size={15} /> View build details</a>
+        </article>
 
-        <a className="adverse-download-primary adverse-iphone-open" href={HOME_URL}>
-          <Globe size={18} /> Open ADVERSE in Safari
-        </a>
-        <p className="adverse-iphone-callout"><ShieldCheck size={17} /> Safari is recommended for adding a web app to iPhone.</p>
-
-        <ol className="adverse-iphone-steps">
-          <li><span className="adverse-iphone-step-number">1</span><div><strong>Open ADVERSE in Safari</strong><p>Tap the button above. If this page opened inside another app, open the link in Safari instead.</p></div></li>
-          <li><span className="adverse-iphone-step-number">2</span><div><strong>Tap the Share button</strong><p>Find the Share icon in Safari’s toolbar. Depending on your iOS version, it may be inside the page menu.</p></div></li>
-          <li><span className="adverse-iphone-step-number">3</span><div><strong>Choose “Add to Home Screen”</strong><p>If it is not visible, scroll through the Share actions or use “Edit Actions” if available.</p></div></li>
-          <li><span className="adverse-iphone-step-number">4</span><div><strong>Tap “Add”</strong><p>If “Open as Web App” appears, keep it enabled. The ADVERSE fingerprint icon will appear on your Home Screen.</p></div></li>
-        </ol>
-
-        <div className="adverse-iphone-success">
-          <Check size={18} />
-          <p><strong>Ready.</strong> Launch ADVERSE from the fingerprint icon on your Home Screen whenever you need it.</p>
-        </div>
-        <small className="adverse-download-note">This installs ADVERSE’s iPhone web app from Safari. It uses the same live ADVERSE service and requires an internet connection for live research features.</small>
+        <article className="adverse-download-card adverse-device-iphone-card">
+          <div className="adverse-download-card-top">
+            <span className="adverse-download-platform-icon"><Apple size={24} /></span>
+            <span className="adverse-download-status">IPHONE & IPAD · WEB APP</span>
+          </div>
+          <h2>Add ADVERSE to Home Screen</h2>
+          <p>On iPhone or iPad, open ADVERSE in Safari and add it to your Home Screen. No App Store download is needed.</p>
+          <a className="adverse-download-primary" href={HOME_URL}><Globe size={17} /> Open ADVERSE in Safari</a>
+          <ol className="adverse-download-steps">
+            <li><strong>Open in Safari</strong> — use the button above.</li>
+            <li><strong>Tap Share</strong> — find Safari’s Share icon.</li>
+            <li><strong>Choose “Add to Home Screen”</strong> — scroll the actions if needed.</li>
+            <li><strong>Tap “Add”</strong> — launch ADVERSE from the new Home Screen icon.</li>
+          </ol>
+          <small className="adverse-download-note">This is the iPhone web app, not a native App Store release. It uses the same ADVERSE service.</small>
+        </article>
       </section>
 
       <footer className="adverse-download-footer">
