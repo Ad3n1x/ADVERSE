@@ -1683,3 +1683,15 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .find-applied-filters{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px;color:#90aa9e;font-size:11px}.find-applied-filters code{padding:2px 6px;border:1px solid #345348;border-radius:5px;color:#b4e8d5;background:#13211c}.find-operator-warning{color:#f1c48d!important;font-size:11px}
 
 .find-query-plan{margin:14px 0;padding:12px 14px;border:1px solid #263e35;border-radius:10px;background:rgba(14,26,21,.65);color:#a9bdb3;font-size:12px}.find-query-plan summary{display:flex;align-items:center;gap:7px;cursor:pointer;color:#bfe8d5;font-weight:600;list-style:none}.find-query-plan summary::-webkit-details-marker{display:none}.find-query-plan>p{line-height:1.65;margin:9px 0}.find-query-plan ol{display:grid;gap:7px;margin:10px 0 0;padding-left:24px}.find-query-plan li{padding-left:3px}.find-query-plan li code{display:block;overflow-wrap:anywhere;color:#d9e9e1}.find-query-plan li span{display:block;margin-top:2px;color:#78988a;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+
+
+/* Investigative reporting route map */
+.investigative-route-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0 18px}
+.investigative-route-card{min-width:0;padding:13px;border:1px solid #2d4038;border-radius:9px;background:#111b17}
+.investigative-route-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.investigative-route-top b{font-size:12px;line-height:1.5}
+.investigative-route-top span{flex-shrink:0;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:#9bd9be}
+.investigative-route-card p,.investigative-route-card small{display:block;margin:7px 0 0;font-size:11px;line-height:1.65;color:#9fb3a9;overflow-wrap:anywhere}
+.investigative-route-card code{display:block;margin-top:5px;padding:7px;border-radius:6px;background:#0b1210;color:#dce9e2;font-size:10px;line-height:1.5;overflow-wrap:anywhere;white-space:normal}
+.investigative-route-card .route-manual-step{color:#e1c797;border-left:2px solid #876a37;padding-left:8px}
+@media(max-width:680px){.investigative-route-list{grid-template-columns:minmax(0,1fr)}}
