@@ -38,7 +38,7 @@ app.set('trust proxy', 1);
 app.use(helmet({ crossOriginResourcePolicy:{policy:'cross-origin'} }));
 const allowedWebOrigins = () => String(process.env.WEB_ORIGIN || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')).split(',').map(value => value.trim()).filter(Boolean);
 app.use(cors({ origin(origin, callback) { if (!origin || allowedWebOrigins().includes(origin)) return callback(null, true); return callback(null, false); }, credentials: true }));
-app.use(express.json({ limit:'256kb' }));
+app.use(express.json({ limit:'512kb' }));
 app.use((req,res,next)=>{const started=Date.now();res.on('finish',()=>{if(res.statusCode>=500)console.error(JSON.stringify({event:'request_error',method:req.method,path:req.path,status:res.statusCode,durationMs:Date.now()-started}));});next();});
 const id=()=>crypto.randomUUID();
 const isDb=()=>globalThis.__ADVERSE_MONGO_READY__===true;
