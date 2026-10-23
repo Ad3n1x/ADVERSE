@@ -1674,3 +1674,6 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .claim-source-signals strong{color:#c4e8db;font-weight:650}
 .claim-source-signals span{color:#e0c99a;text-transform:uppercase;font-size:9px;letter-spacing:.04em}
 @media(max-width:620px){.claim-source-signals{padding:9px}}
+
+/* Public search suggestions */
+.find-search-wrap{position:relative;z-index:8}.find-suggestions{position:absolute;z-index:30;top:calc(100% + 8px);left:0;right:0;max-height:min(360px,55vh);overflow:auto;border:1px solid #35544b;border-radius:14px;background:#0d1515;box-shadow:0 24px 60px rgba(0,0,0,.38);padding:6px}.find-suggestions>button{display:flex;width:100%;align-items:center;gap:12px;text-align:left;padding:11px 12px;border:0;border-radius:9px;background:transparent;color:#dceae4;cursor:pointer}.find-suggestions>button:hover,.find-suggestions>button.active,.find-suggestions>button[aria-selected=true]{background:#1b2b27;color:#a3f0d9}.find-suggestions>button>span{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px;font-size:13px}.find-suggestions>button small{color:#829b90;font-size:10px}.find-suggestions>button>svg:last-child{color:#83cdb8}
