@@ -1,23 +1,64 @@
-import { ArrowUpRight, Fingerprint } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowUpRight, Fingerprint, X } from 'lucide-react';
 
 const DOWNLOAD_PAGE_URL = 'https://adverse-web.onrender.com/download';
+const DISMISSED_KEY = 'adverse-download-confirmed';
 
 export default function AndroidDownloadLink() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(DISMISSED_KEY) === 'yes';
+    } catch {
+      return false;
+    }
+  });
+  const [asking, setAsking] = useState(true);
+
+  const confirmDownloaded = () => {
+    try {
+      window.localStorage.setItem(DISMISSED_KEY, 'yes');
+    } catch {
+      // Keep the button dismissible for this session even if storage is unavailable.
+    }
+    setDismissed(true);
+  };
+
+  if (dismissed) return null;
+
   return (
-    <a
-      className="adverse-android-download"
-      href={DOWNLOAD_PAGE_URL}
-      aria-label="Get ADVERSE for Android, iPhone, or web"
-      title="Get ADVERSE for your device"
-    >
-      <span className="adverse-android-download__icon" aria-hidden="true">
-        <Fingerprint size={19} strokeWidth={2.2} />
-      </span>
-      <span className="adverse-android-download__label">
-        <strong>Get ADVERSE</strong>
-        <small>Android · iPhone · Web</small>
-      </span>
-      <ArrowUpRight className="adverse-android-download__arrow" size={18} />
-    </a>
+    <aside className="adverse-download-nudge" aria-label="ADVERSE download">
+      {asking && (
+        <div className="adverse-download-nudge__question" role="dialog" aria-label="Download confirmation">
+          <button
+            className="adverse-download-nudge__close"
+            type="button"
+            aria-label="Close download question"
+            onClick={() => setAsking(false)}
+          >
+            <X size={16} />
+          </button>
+          <strong>Have you downloaded ADVERSE?</strong>
+          <span>Already got it? We’ll get this reminder out of your way.</span>
+          <div className="adverse-download-nudge__actions">
+            <button type="button" onClick={confirmDownloaded}>Yes, I have</button>
+            <button type="button" className="is-secondary" onClick={() => window.location.assign(DOWNLOAD_PAGE_URL)}>
+              Not yet
+            </button>
+          </div>
+        </div>
+      )}
+      {!asking && (
+        <button className="adverse-android-download" type="button" onClick={() => setAsking(true)}>
+          <span className="adverse-android-download__icon" aria-hidden="true">
+            <Fingerprint size={19} strokeWidth={2.2} />
+          </span>
+          <span className="adverse-android-download__label">
+            <strong>Get ADVERSE</strong>
+            <small>Android · iPhone · Web</small>
+          </span>
+          <ArrowUpRight className="adverse-android-download__arrow" size={18} />
+        </button>
+      )}
+    </aside>
   );
 }
