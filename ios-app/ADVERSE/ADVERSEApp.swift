@@ -56,6 +56,10 @@ private struct ADVERSEBrowser: UIViewRepresentable {
         private var spinner: UIActivityIndicatorView?
         private var progressView: UIProgressView?
         private var progressObservation: NSKeyValueObservation?
+        private var canGoBackObservation: NSKeyValueObservation?
+        private var canGoForwardObservation: NSKeyValueObservation?
+        private weak var backButton: UIButton?
+        private weak var forwardButton: UIButton?
         private var hasLoadedInitialPage = false
 
         func attach(to webView: WKWebView) {
@@ -66,7 +70,14 @@ private struct ADVERSEBrowser: UIViewRepresentable {
                 DispatchQueue.main.async {
                     self?.progressView?.progress = Float(view.estimatedProgress)
                     self?.progressView?.isHidden = view.estimatedProgress >= 1
+                    self?.updateNavigationButtons()
                 }
+            }
+            canGoBackObservation = webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] _, _ in
+                DispatchQueue.main.async { self?.updateNavigationButtons() }
+            }
+            canGoForwardObservation = webView.observe(\.canGoForward, options: [.initial, .new]) { [weak self] _, _ in
+                DispatchQueue.main.async { self?.updateNavigationButtons() }
             }
         }
 
@@ -102,9 +113,13 @@ private struct ADVERSEBrowser: UIViewRepresentable {
             bar.accessibilityIdentifier = "adverse.pageProgress"
             progressView = bar
 
-            webView.scrollView.refreshControl?.tintColor = ADVERSEStyle.lime
-            webView.scrollView.refreshControl?.accessibilityLabel = "Refresh ADVERSE"
-            webView.scrollView.refreshControl?.addTarget(self, action: #selector(refreshPage), for: .valueChanged)
+            let refreshControl = UIRefreshControl()
+            refreshControl.tintColor = ADVERSEStyle.lime
+            refreshControl.accessibilityLabel = "Refresh ADVERSE"
+            refreshControl.addTarget(self, action: #selector(refreshPage), for: .valueChanged)
+            webView.scrollView.refreshControl = refreshControl
+
+            setupNavigationToolbar(in: webView)
 
             let activity = UIActivityIndicatorView(style: .large)
             activity.color = ADVERSEStyle.lime
@@ -115,6 +130,89 @@ private struct ADVERSEBrowser: UIViewRepresentable {
                 activity.centerYAnchor.constraint(equalTo: webView.centerYAnchor)
             ])
             spinner = activity
+        }
+
+        private func setupNavigationToolbar(in webView: WKWebView) {
+            let toolbar = UIView()
+            toolbar.backgroundColor = UIColor(red: 14 / 255, green: 18 / 255, blue: 22 / 255, alpha: 0.98)
+            toolbar.translatesAutoresizingMaskIntoConstraints = false
+            toolbar.accessibilityIdentifier = "adverse.nativeNavigationToolbar"
+            webView.addSubview(toolbar)
+
+            let back = makeToolbarButton(symbol: "chevron.left", label: "Go back", action: #selector(goBack))
+            let forward = makeToolbarButton(symbol: "chevron.right", label: "Go forward", action: #selector(goForward))
+            let home = makeToolbarButton(symbol: "house", label: "Open ADVERSE home", action: #selector(goHome))
+            let share = makeToolbarButton(symbol: "square.and.arrow.up", label: "Share current page", action: #selector(sharePage))
+            backButton = back
+            forwardButton = forward
+
+            let stack = UIStackView(arrangedSubviews: [back, forward, home, share])
+            stack.axis = .horizontal
+            stack.alignment = .center
+            stack.distribution = .equalSpacing
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            toolbar.addSubview(stack)
+
+            NSLayoutConstraint.activate([
+                toolbar.leadingAnchor.constraint(equalTo: webView.leadingAnchor),
+                toolbar.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
+                toolbar.bottomAnchor.constraint(equalTo: webView.safeAreaLayoutGuide.bottomAnchor),
+                toolbar.heightAnchor.constraint(equalToConstant: 56),
+                stack.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 28),
+                stack.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -28),
+                stack.topAnchor.constraint(equalTo: toolbar.topAnchor, constant: 4),
+                stack.bottomAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: -4),
+                back.widthAnchor.constraint(equalToConstant: 48),
+                forward.widthAnchor.constraint(equalToConstant: 48),
+                home.widthAnchor.constraint(equalToConstant: 48),
+                share.widthAnchor.constraint(equalToConstant: 48)
+            ])
+            webView.scrollView.contentInset.bottom = 64
+            webView.scrollView.verticalScrollIndicatorInsets.bottom = 64
+            updateNavigationButtons()
+        }
+
+        private func makeToolbarButton(symbol: String, label: String, action: Selector) -> UIButton {
+            let button = UIButton(type: .system)
+            button.setImage(UIImage(systemName: symbol), for: .normal)
+            button.tintColor = ADVERSEStyle.lime
+            button.accessibilityLabel = label
+            button.addTarget(self, action: action, for: .touchUpInside)
+            return button
+        }
+
+        private func updateNavigationButtons() {
+            backButton?.isEnabled = webView?.canGoBack ?? false
+            forwardButton?.isEnabled = webView?.canGoForward ?? false
+            backButton?.alpha = backButton?.isEnabled == true ? 1 : 0.35
+            forwardButton?.alpha = forwardButton?.isEnabled == true ? 1 : 0.35
+        }
+
+        @objc private func goBack() {
+            guard let webView, webView.canGoBack else { return }
+            webView.goBack()
+        }
+
+        @objc private func goForward() {
+            guard let webView, webView.canGoForward else { return }
+            webView.goForward()
+        }
+
+        @objc private func goHome() {
+            guard let webView else { return }
+            webView.load(URLRequest(url: ADVERSEStyle.homeURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30))
+        }
+
+        @objc private func sharePage() {
+            guard let webView, let url = webView.url else { return }
+            let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = webView
+                popover.sourceRect = CGRect(x: webView.bounds.midX, y: webView.bounds.maxY - 80, width: 1, height: 1)
+            }
+            var responder: UIResponder? = webView
+            while let current = responder, !(current is UIViewController) { responder = current.next }
+            (responder as? UIViewController)?.present(activity, animated: true)
         }
 
         override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
@@ -259,6 +357,8 @@ private struct ADVERSEBrowser: UIViewRepresentable {
 
         deinit {
             progressObservation?.invalidate()
+            canGoBackObservation?.invalidate()
+            canGoForwardObservation?.invalidate()
             webView?.removeObserver(self, forKeyPath: #keyPath(WKWebView.isLoading))
         }
     }
