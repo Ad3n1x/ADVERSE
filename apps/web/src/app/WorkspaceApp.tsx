@@ -12,7 +12,6 @@ import { HISTORY_KEY, SAVED_KEY } from '../lib/storageKeys';
 import { getRecordId as key } from '../lib/ids';
 import type { Capture, Evidence, Investigation, SearchResult, Tab } from '../types/research';
 import { useWorkspaceNotifications } from './hooks/useWorkspaceNotifications';
-import { compressVisualFile } from '../features/public-search/visual-file';
 import { useWorkspaceCollections } from './hooks/useWorkspaceCollections';
 import { useWorkspaceCredentials } from './hooks/useWorkspaceCredentials';
 import { createImportExistingResearch } from './handlers/createImportExistingResearch';
