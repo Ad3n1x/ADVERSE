@@ -30,3 +30,19 @@ test('ranking handles missing metadata and preserves deterministic order for tie
   assert.deepEqual(results.map(item => item.title), ['First', 'Second']);
   assert.ok(results.every(item => Number.isFinite(item._searchScore)));
 });
+
+test('freshness helps time-sensitive queries without changing evergreen ranking', () => {
+  const recent = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const old = new Date(Date.now() - 500 * 86400000).toISOString();
+  const news = improvePublicSearchRanking([
+    { title: 'Latest AI news archive', publishedAt: old, _searchScore: 30, _searchOrder: 0 },
+    { title: 'Latest AI news report', publishedAt: recent, _searchScore: 30, _searchOrder: 1 },
+  ], 'latest AI news');
+  assert.equal(news[0].publishedAt, recent);
+
+  const evergreen = improvePublicSearchRanking([
+    { title: 'Python documentation archive', publishedAt: old, _searchScore: 30, _searchOrder: 0 },
+    { title: 'Python documentation guide', publishedAt: recent, _searchScore: 30, _searchOrder: 1 },
+  ], 'Python documentation');
+  assert.equal(evergreen[0].publishedAt, old);
+});
