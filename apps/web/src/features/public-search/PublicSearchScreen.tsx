@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Smartphone, Trash2, X } from 'lucide-react';
 import { API } from '../../lib/api';
+import './public-search-download.css';
 import { HISTORY_KEY, SAVED_KEY } from '../../lib/storageKeys';
 import type { PublicSearchResult, SearchHistoryEntry } from '../../types/research';
 function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback;}catch{return fallback;}}
