@@ -1,0 +1,10 @@
+import type { FormEvent } from 'react';
+import { request } from '../../lib/api';
+
+/** Authentication and session lifecycle actions. */
+export function createWorkspaceAuthActions(deps: Record<string, any>) {
+ const { setError, setAuthMessage, authMode, authEmail, resetToken, authPassword, setAuthPassword, setResetToken, setAuthMode, setAuthState, setShowAuth, setUserEmail, setAccountRole, displayName, loadCases, setCases, setCaseId, setEvidence, setEntities, setRelationships, setTab } = deps;
+ const submitAuth=async(e:FormEvent)=>{e.preventDefault();setError('');setAuthMessage('');try{if(authMode==='forgot'){const d=await request<{data:{message:string}}>('/auth/forgot-password',{method:'POST',body:JSON.stringify({email:authEmail})});setAuthMessage(d.data.message);return;}if(authMode==='reset'){const d=await request<{data:{message:string}}>('/auth/reset-password',{method:'POST',body:JSON.stringify({token:resetToken,password:authPassword})});setAuthMessage(d.data.message);setAuthPassword('');setResetToken('');setAuthMode('login');await request('/auth/logout',{method:'POST'}).catch(()=>undefined);setAuthState('anonymous');setShowAuth(true);window.history.replaceState({},'',window.location.pathname);return;}const d=await request<{data:{email:string}}>('/auth/'+authMode,{method:'POST',body:JSON.stringify({email:authEmail,password:authPassword,...(authMode==='register'?{displayName}: {})})});setUserEmail(d.data.email);const me=await request<{data:{role?:string}}>('/auth/me').catch(()=>({data:{role:'user'}}));setAccountRole(me.data.role||'user');setAuthState('authenticated');setAuthPassword('');await loadCases();}catch(e){setError(e instanceof Error?e.message:'Authentication failed.');}};
+  const logout=async()=>{try{await request('/auth/logout',{method:'POST'});}finally{setAuthState('anonymous');setAccountRole('user');setShowAuth(false);setCases([]);setCaseId('');setEvidence([]);setEntities([]);setRelationships([]);setTab('Intelligence Desk');}};
+ return { submitAuth, logout };
+}
