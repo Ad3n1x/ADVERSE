@@ -1,21 +1,47 @@
 # Web application architecture
 
-The client is React + TypeScript. The folder structure now separates the application entry point, domain features, shared UI, API access, and domain contracts.
+ADVERSE's web client is React + TypeScript. The root app chooses the admin or workspace surface; the workspace composition shell owns shared state wiring while feature views, lifecycle effects, and actions live in dedicated modules.
 
 ```text
 src/
-├── App.tsx                      # minimal route composition
-├── app/WorkspaceApp.tsx         # authenticated shell and page composition
-│   ├── handlers/                # extracted workflows with explicit dependencies
-│   │   ├── createCaseResearchAction.ts       # autonomous investigation orchestration
-│   │   ├── createGraphMutationActions.ts     # evidence and graph mutations
-│   │   ├── createImportExistingResearch.ts   # collection import and graph mapping
-│   │   ├── createReviewActions.ts            # AI review, claim map, source review and gap actions
-│   │   └── createVisualSearchAction.ts       # image/video visual-match workflow
+├── App.tsx
+├── app/
+│   ├── WorkspaceApp.tsx              # auth gate, shared state, and top-level composition
+│   ├── WorkspaceContext.tsx          # typed shared state/actions for extracted views
+│   ├── components/
+│   │   ├── WorkspaceMain.tsx         # main page composition
+│   │   ├── WorkspaceSidebar.tsx      # navigation and account controls
+│   │   ├── WorkspaceDialogs.tsx      # modals and transient overlays
+│   │   ├── WorkspaceSettingsPanel.tsx
+│   │   ├── ResearchWorkspacePanels.tsx
+│   │   │   ├── SearchHeroPanel.tsx
+│   │   │   ├── AgentRunSummaryPanel.tsx
+│   │   │   └── SearchResultsPanel.tsx
+│   │   ├── CollectionWorkspacePanels.tsx
+│   │   ├── ResearchCollectionsPanel.tsx
+│   │   ├── EvidenceVaultPanel.tsx
+│   │   ├── ConnectionsPanel.tsx
+│   │   ├── SourceReviewPanel.tsx
+│   │   └── PublicDataProvidersPanel.tsx
+│   ├── handlers/
+│   │   ├── createCaseResearchAction.ts
+│   │   ├── createWorkspaceResearchPipeline.ts
+│   │   ├── createWorkspaceSearchActions.ts
+│   │   ├── createWorkspaceResearchTools.ts
+│   │   ├── createWorkspaceCollectionActions.ts
+│   │   ├── createWorkspaceRecordActions.ts
+│   │   ├── createWorkspaceAccountActions.ts
+│   │   ├── createWorkspaceAuthActions.ts
+│   │   ├── createGraphMutationActions.ts
+│   │   ├── createImportExistingResearch.ts
+│   │   ├── createReviewActions.ts
+│   │   └── createVisualSearchAction.ts
 │   └── hooks/
-│       ├── useWorkspaceCollections.ts  # collection selection and request sequencing
-│       ├── useWorkspaceCredentials.ts  # AI and search-provider credential lifecycle
-│       └── useWorkspaceNotifications.ts # toast/error lifecycle
+│       ├── useWorkspaceUiState.ts     # transient controls and modal state
+│       ├── useWorkspaceLifecycle.ts   # session, polling, provider and UI effects
+│       ├── useWorkspaceCollections.ts # collection data and request sequencing
+│       ├── useWorkspaceCredentials.ts # AI/search-provider credential lifecycle
+│       └── useWorkspaceNotifications.ts
 ├── components/
 │   ├── layout/ToastViewport.tsx
 │   └── ui/Empty.tsx, Modal.tsx
@@ -27,23 +53,23 @@ src/
 │   ├── monitoring/MonitoringView.tsx
 │   └── public-search/PublicSearchScreen.tsx
 ├── lib/
-│   ├── api.ts                   # shared credentialed API client
-│   └── ids.ts                   # normalized record ID helper
+│   ├── api.ts
+│   └── ids.ts
 └── types/
     ├── admin.ts
     └── research.ts
 ```
 
-## Conventions
+## Boundaries and conventions
 
-- Feature-specific screens and graph behavior live in `features/`; reusable presentation pieces live in `components/`.
-- All network requests use `lib/api.ts`, except public unauthenticated search, which uses its public-fetch contract.
-- Shared domain interfaces live in `types/`, not inside the root composition file.
-- `App.tsx` only chooses the admin or workspace application.
-- `WorkspaceApp.tsx` still owns substantial state and orchestration. Feature workflows that combine many API calls should move into `app/handlers/` with explicit dependency contracts; stateful lifecycle logic belongs in hooks, and presentation belongs in `features/`.
-- `createImportExistingResearch.ts` owns collection import orchestration. It preserves the existing API endpoints and validates evidence/entity/relationship mappings before copying graph relationships.
-- `createReviewActions.ts` owns the four evidence-review request workflows; the workspace shell supplies state setters and notifications while request behavior stays unchanged.
-- `createCaseResearchAction.ts` owns the autonomous investigation lifecycle and receives discovery, refresh, and UI feedback functions explicitly. This reduces shell-level orchestration without changing the discovery pipeline or its endpoints.
-- `createGraphMutationActions.ts` owns single-record and bulk deletion workflows for evidence, entities, and relationships. Confirmation prompts and API paths remain unchanged; the shell supplies current collection data and refresh/feedback functions.
-- `createVisualSearchAction.ts` owns the image/video visual-match workflow, including frame compression, result normalization, deduplication, and user feedback; the workspace shell passes state setters and the selected file.
-- Continue extracting one workflow at a time. Keep the active collection state centralized until a feature has a clear state boundary, and run the full frontend typecheck/build and browser smoke tests after each extraction.
+- `WorkspaceApp.tsx` is the composition root: it wires state hooks and action factories, exposes their dependencies through `WorkspaceContext`, and selects the authenticated or anonymous shell. It no longer contains the complete workspace UI or all workflows.
+- `WorkspaceContext.tsx` keeps shared collection/search state strongly typed, so extracted components preserve useful inference for list operations and state setters.
+- `components/` under `app/` contains presentation and page composition. Search, collection overview, saved evidence, connections, source review, provider settings, dialogs, and navigation are separate view modules.
+- `hooks/` owns state and lifecycle concerns; `handlers/` owns API workflows and mutations. Factories receive dependencies explicitly instead of importing the composition shell.
+- All authenticated API requests use `lib/api.ts`; public unauthenticated search keeps its existing public-fetch contract.
+- Shared domain interfaces remain in `types/`.
+- `createWorkspaceResearchPipeline.ts` composes autonomous discovery, status polling, and the post-run intelligence review without changing the existing API endpoints.
+- `createWorkspaceSearchActions.ts` owns public search, evidence capture, and source watch actions. `createWorkspaceResearchTools.ts` owns archive, historical graph, organization, and domain lookup actions.
+- `createWorkspaceCollectionActions.ts`, `createWorkspaceRecordActions.ts`, and `createWorkspaceAccountActions.ts` isolate collection lifecycle, record mutations, and account/export operations.
+- `createImportExistingResearch.ts`, `createReviewActions.ts`, `createGraphMutationActions.ts`, and `createVisualSearchAction.ts` retain their existing focused responsibilities.
+- The frontend typecheck/build, API regression tests, live API contract checks, dependency audit, CodeQL, and browser smoke tests are the verification gates for this refactor.
