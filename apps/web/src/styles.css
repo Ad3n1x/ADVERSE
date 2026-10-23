@@ -1546,3 +1546,24 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 #root .graph-entity-picker-dot{display:block;flex:0 0 9px;width:9px;height:9px;border:1px solid #d7e6ff;border-radius:50%;background:#86a8ff;box-shadow:0 0 9px #86a8ff44}
 #root .graph-entity-picker-list button.active .graph-entity-picker-dot{background:#f5c76b;border-color:#fff0bf}
 @media(max-width:600px){#root .graph-entity-picker{padding:11px 9px}#root .graph-entity-picker-list{grid-template-columns:minmax(0,1fr);max-height:190px}}
+
+
+/* Spacious graph canvas and an in-app source browser. */
+#root .graph-preview{width:100%;max-width:100%;min-width:0;overflow:hidden}
+#root .graph-explorer{width:100%;max-width:100%;min-width:0}
+#root .force-graph-shell{width:100%!important;min-height:440px;max-height:none;flex:1 1 auto}
+#root .force-graph-shell canvas{width:100%!important;max-width:100%!important;height:100%!important;display:block}
+#root .graph-inapp-backdrop{position:fixed;inset:0;z-index:20000;display:flex;align-items:center;justify-content:center;padding:clamp(8px,2vw,24px);background:rgba(2,7,13,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#root .graph-inapp-viewer{display:flex;flex-direction:column;width:min(1400px,100%);height:min(92dvh,1000px);min-height:0;overflow:hidden;border:1px solid rgba(126,169,164,.28);border-radius:16px;background:#0b1217;box-shadow:0 28px 100px rgba(0,0,0,.6)}
+#root .graph-inapp-header{display:flex;align-items:center;justify-content:space-between;gap:16px;min-width:0;padding:13px 16px;border-bottom:1px solid #263635;background:#101b20}
+#root .graph-inapp-heading{display:grid;gap:5px;min-width:0}
+#root .graph-inapp-heading strong{color:#eaf4f2;font-size:13px;overflow-wrap:anywhere}
+#root .graph-inapp-heading small{color:#8fa7a4;font-size:10px;overflow-wrap:anywhere;word-break:break-all}
+#root .graph-inapp-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+#root .graph-inapp-actions a,#root .graph-inapp-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:36px;padding:8px 11px;border:1px solid #34524d;border-radius:9px;background:#132521;color:#c9eee4;text-decoration:none;font-size:11px;white-space:nowrap;cursor:pointer}
+#root .graph-inapp-actions button{border-color:#35444c;background:#172129;color:#d5e0e7}
+#root .graph-inapp-frame-wrap{position:relative;display:flex;flex:1 1 auto;min-height:0;flex-direction:column;background:#fff}
+#root .graph-inapp-frame-wrap iframe{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;border:0;background:#fff}
+#root .graph-inapp-fallback{padding:8px 12px;background:#101b20;color:#9eb4b0;font-size:10px;text-align:center}
+#root .graph-inapp-fallback a{color:#86ddca;text-decoration:underline}
+@media(max-width:620px){#root .force-graph-shell{min-height:420px}#root .graph-inapp-backdrop{padding:0}#root .graph-inapp-viewer{width:100%;height:100dvh;max-height:100dvh;border-radius:0;border-left:0;border-right:0}#root .graph-inapp-header{align-items:flex-start;padding:11px;gap:9px}#root .graph-inapp-heading strong{font-size:12px}#root .graph-inapp-heading small{max-width:52vw;font-size:9px}#root .graph-inapp-actions{gap:5px}#root .graph-inapp-actions a,#root .graph-inapp-actions button{min-height:34px;padding:7px 8px;font-size:10px}}
