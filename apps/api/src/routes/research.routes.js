@@ -24,6 +24,8 @@ export function registerResearchRoutes(app, {
     const result = await runResearchPipeline({
       investigationId: iid,
       queries,
+      isDb,
+      memory,
       Evidence,
       Entity,
       Relationship,
