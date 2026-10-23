@@ -1,6 +1,6 @@
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
-const MAX_DIMENSION = 960;
-const FRAME_QUALITY = 0.72;
+const MAX_DIMENSION = 640;
+const FRAME_QUALITY = 0.58;
 
 const waitForEvent = <T extends HTMLMediaElement | HTMLImageElement>(
   element: T,
