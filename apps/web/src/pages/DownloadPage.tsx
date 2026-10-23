@@ -1,4 +1,4 @@
-import { Smartphone, Apple, Check, Download, ExternalLink, Fingerprint, Globe, ShieldCheck } from 'lucide-react';
+import { Smartphone, Apple, Check, Download, ExternalLink, Fingerprint, Globe } from 'lucide-react';
 import '../download-page.css';
 
 const HOME_URL = 'https://adverse-web.onrender.com/';
