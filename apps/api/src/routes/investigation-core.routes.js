@@ -117,18 +117,20 @@ export function registerInvestigationCoreRoutes(app, deps) {
        await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
        const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
        let candidates=Array.isArray(planned.leads)?planned.leads.slice(0,3):[];
-       let planningMode=planned.mode==='ai'&&candidates.length?'ai':'heuristic';
+       const aiLeadCount=planned.mode==='ai'?candidates.length:0;
+       let planningMode=aiLeadCount?'ai':'heuristic';
+       const leadQuestion=cleanText(question,120);
        if(candidates.length<3){
         // Diversify fallback research instead of merely repeating result titles:
         // seek primary records, independent corroboration, counterevidence, and chronology.
         const focusQueries=round===1?[
-         {query:question+' official primary source',reason:'Seek an official statement or primary record.'},
-         {query:question+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
-         {query:question+' response denial counterevidence',reason:'Look for a response, rebuttal, or evidence that challenges the leading account.'}
+         {query:leadQuestion+' official primary source',reason:'Seek an official statement or primary record.'},
+         {query:leadQuestion+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
+         {query:leadQuestion+' response denial counterevidence',reason:'Look for a response, rebuttal, or evidence that challenges the leading account.'}
         ]:[
-         {query:question+' timeline dates chronology',reason:'Establish dates and the sequence of reported events.'},
-         {query:question+' original documents records',reason:'Look for source documents rather than summaries alone.'},
-         {query:question+' conflicting accounts alternative explanation',reason:'Test alternative explanations and conflicting accounts.'}
+         {query:leadQuestion+' timeline dates chronology',reason:'Establish dates and the sequence of reported events.'},
+         {query:leadQuestion+' original documents records',reason:'Look for source documents rather than summaries alone.'},
+         {query:leadQuestion+' conflicting accounts alternative explanation',reason:'Test alternative explanations and conflicting accounts.'}
         ];
         const candidateKeys=new Set(candidates.map(item=>cleanText(item.query,180).toLowerCase()));
         for(const lead of focusQueries){
@@ -151,9 +153,10 @@ export function registerInvestigationCoreRoutes(app, deps) {
         }
        }
        for(const lead of candidates)addQuery(lead.query,lead.reason,round+1);
-       if(planned.mode==='ai'&&candidates.length)leadPlanningMode='ai';
+       if(aiLeadCount&&candidates.length>aiLeadCount){planningMode='mixed';leadPlanningMode='mixed';}
+       else if(aiLeadCount){leadPlanningMode='ai';}
        const nextLeadCount=plan.filter(item=>item.round===round+1).length;
-       const traceMode=planned.mode==='ai'&&candidates.length<3?'mixed':planningMode;
+       const traceMode=planningMode;
        await recordTrace({stage:'plan',round,status:'complete',mode:traceMode,provider:planned.provider,leadCount:nextLeadCount,detail:traceMode==='ai'?'AI-generated follow-up queries are hypotheses to test, not factual conclusions.':traceMode==='mixed'?'AI suggestions were supplemented with deterministic primary-source, counterevidence, or chronology searches.':'AI planning was unavailable or returned no usable leads; bounded primary-source, counterevidence, and chronology searches were used.'});
       }
      }
