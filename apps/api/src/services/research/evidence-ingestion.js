@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 /**
  * Retrieves a bounded number of public pages and persists newly discovered
  * evidence records. Provider orchestration and graph enrichment live elsewhere.
@@ -71,5 +73,3 @@ export async function ingestEvidence({
       .slice(0, 12),
   };
 }
-
-import crypto from 'node:crypto';
