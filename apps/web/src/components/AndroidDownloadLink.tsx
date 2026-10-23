@@ -3,13 +3,31 @@ import { ArrowUpRight, Fingerprint, X } from 'lucide-react';
 
 const DOWNLOAD_PAGE_URL = 'https://adverse-web.onrender.com/download';
 const DISMISSED_KEY = 'adverse-download-confirmed';
+
 const isNativeAndroid = () =>
   typeof navigator !== 'undefined' &&
   navigator.userAgent.includes('ADVERSENativeAndroid/1');
 
+const isInstalledApp = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+
+  // Native Android wrapper identifies itself with this user-agent marker.
+  if (isNativeAndroid()) return true;
+
+  // Installed PWAs run in standalone/minimal UI instead of a browser tab.
+  const displayMode = window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.matchMedia?.('(display-mode: minimal-ui)').matches;
+
+  // Safari on iOS exposes navigator.standalone for Home Screen web apps.
+  const iosHomeScreenApp = 'standalone' in navigator &&
+    Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+
+  return Boolean(displayMode || iosHomeScreenApp);
+};
+
 export default function AndroidDownloadLink() {
   const [dismissed, setDismissed] = useState(() => {
-    if (isNativeAndroid()) return true;
+    if (isInstalledApp()) return true;
     try {
       return window.localStorage.getItem(DISMISSED_KEY) === 'yes';
     } catch {
@@ -27,7 +45,8 @@ export default function AndroidDownloadLink() {
     setDismissed(true);
   };
 
-  if (dismissed || isNativeAndroid()) return null;
+  // Download/install reminders belong on the website, never inside the app.
+  if (dismissed || isInstalledApp()) return null;
 
   return (
     <aside className="adverse-download-nudge" aria-label="ADVERSE download">
