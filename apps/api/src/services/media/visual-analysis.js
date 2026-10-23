@@ -25,7 +25,7 @@ export async function analyzeVisualFrame({
     error.status = 400;
     throw error;
   }
-  if (match[2].length > 210000) {
+  if (match[2].length > 350000) {
     const error = new Error('Image too large after compression. Try a smaller file.');
     error.code = 'IMAGE_TOO_LARGE';
     error.status = 413;
