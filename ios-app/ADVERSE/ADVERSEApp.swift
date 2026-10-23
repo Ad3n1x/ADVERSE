@@ -70,6 +70,16 @@ private struct ADVERSEBrowser: UIViewRepresentable {
             }
         }
 
+        @objc private func refreshPage() {
+            guard let webView else { return }
+            if webView.isLoading {
+                webView.stopLoading()
+            }
+            webView.load(URLRequest(url: webView.url ?? ADVERSEStyle.homeURL,
+                                    cachePolicy: .reloadIgnoringLocalCacheData,
+                                    timeoutInterval: 30))
+        }
+
         func loadHomeIfNeeded() {
             guard !hasLoadedInitialPage, let webView else { return }
             hasLoadedInitialPage = true
@@ -88,7 +98,13 @@ private struct ADVERSEBrowser: UIViewRepresentable {
                 bar.trailingAnchor.constraint(equalTo: webView.trailingAnchor),
                 bar.heightAnchor.constraint(equalToConstant: 2)
             ])
+            bar.accessibilityLabel = "Page loading progress"
+            bar.accessibilityIdentifier = "adverse.pageProgress"
             progressView = bar
+
+            webView.scrollView.refreshControl?.tintColor = ADVERSEStyle.lime
+            webView.scrollView.refreshControl?.accessibilityLabel = "Refresh ADVERSE"
+            webView.scrollView.refreshControl?.addTarget(self, action: #selector(refreshPage), for: .valueChanged)
 
             let activity = UIActivityIndicatorView(style: .large)
             activity.color = ADVERSEStyle.lime
@@ -114,6 +130,7 @@ private struct ADVERSEBrowser: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             spinner?.stopAnimating()
+            webView.scrollView.refreshControl?.endRefreshing()
             errorOverlay?.removeFromSuperview()
             errorOverlay = nil
         }
@@ -129,6 +146,7 @@ private struct ADVERSEBrowser: UIViewRepresentable {
         private func showErrorIfNeeded(in webView: WKWebView, error: Error) {
             guard (error as NSError).code != NSURLErrorCancelled else { return }
             spinner?.stopAnimating()
+            webView.scrollView.refreshControl?.endRefreshing()
             guard errorOverlay == nil else { return }
 
             let overlay = UIView()
