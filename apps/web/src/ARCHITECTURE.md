@@ -7,11 +7,11 @@ src/
 ├── App.tsx                      # minimal route composition
 ├── app/WorkspaceApp.tsx         # authenticated shell and page composition
 │   ├── handlers/                # extracted workflows with explicit dependencies
-│   │   ├── createCaseResearchAction.ts      # autonomous investigation orchestration
-│   │   ├── createGraphMutationActions.ts    # evidence and graph mutations
+│   │   ├── createCaseResearchAction.ts       # autonomous investigation orchestration
+│   │   ├── createGraphMutationActions.ts     # evidence and graph mutations
+│   │   ├── createImportExistingResearch.ts   # collection import and graph mapping
+│   │   ├── createReviewActions.ts            # AI review, claim map, source review and gap actions
 │   │   └── createVisualSearchAction.ts       # image/video visual-match workflow
-│   │   ├── createImportExistingResearch.ts # collection import and graph mapping
-│   │   └── createReviewActions.ts           # AI review, claim map, source review and gap actions
 │   └── hooks/
 │       ├── useWorkspaceCollections.ts  # collection selection and request sequencing
 │       ├── useWorkspaceCredentials.ts  # AI and search-provider credential lifecycle
