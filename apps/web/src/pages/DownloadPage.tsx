@@ -1,5 +1,5 @@
 import { ArrowDownToLine, Apple, Check, ExternalLink, Fingerprint, Globe, Smartphone } from 'lucide-react';
-import './download-page.css';
+import '../download-page.css';
 
 const ANDROID_APK_URL = 'https://github.com/Ad3n1x/ADVERSE/releases/download/android-latest/ADVERSE.apk';
 const IOS_BUILD_URL = 'https://github.com/Ad3n1x/ADVERSE/actions/workflows/build-adverse-ios.yml';
