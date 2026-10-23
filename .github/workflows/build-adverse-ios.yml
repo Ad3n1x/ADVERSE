@@ -1,4 +1,4 @@
-name: Build ADVERSE iOS App
+name: ADVERSE iOS — Build & TestFlight
 
 on:
   push:
@@ -7,54 +7,192 @@ on:
       - "ios-app/**"
       - ".github/workflows/build-adverse-ios.yml"
   workflow_dispatch:
+    inputs:
+      distribution:
+        description: "Build only, or sign and upload a beta to App Store Connect"
+        required: true
+        type: choice
+        options:
+          - build_only
+          - testflight
+        default: build_only
 
 permissions:
   contents: read
 
+concurrency:
+  group: adverse-ios-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
-    name: Build iOS app
+    name: Build ADVERSE for iOS
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
+    env:
+      IOS_BUNDLE_ID: com.ad3n1x.adverse
+      SHOULD_UPLOAD_TESTFLIGHT: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'testflight' }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Verify Xcode
         run: xcodebuild -version
+
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Generate project
+
+      - name: Generate Xcode project
         working-directory: ios-app
         run: xcodegen generate
-      - name: Build for iPhone simulator
+
+      - name: Build for iPhone Simulator
         working-directory: ios-app
         run: |
-          xcodebuild -project ADVERSE.xcodeproj -scheme ADVERSE -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/Simulator CODE_SIGNING_ALLOWED=NO build
-      - name: Package simulator app
+          set -euo pipefail
+          xcodebuild \
+            -project ADVERSE.xcodeproj \
+            -scheme ADVERSE \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/Simulator \
+            CODE_SIGNING_ALLOWED=NO build
+
+      - name: Package Simulator build
         run: |
-          set -e
+          set -euo pipefail
           APP_PATH="ios-app/build/Simulator/Build/Products/Release-iphonesimulator/ADVERSE.app"
           test -d "$APP_PATH"
           mkdir -p ios-app/build/artifacts
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" ios-app/build/artifacts/ADVERSE-iOS-Simulator.zip
-      - name: Build for physical iPhone (unsigned)
+
+      - name: Build unsigned device app for inspection
+        if: env.SHOULD_UPLOAD_TESTFLIGHT != 'true'
         working-directory: ios-app
         run: |
-          xcodebuild -project ADVERSE.xcodeproj -scheme ADVERSE -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO build
-      - name: Package unsigned IPA for inspection
-        run: |
-          set -e
-          APP_PATH="ios-app/build/Device/Build/Products/Release-iphoneos/ADVERSE.app"
+          set -euo pipefail
+          xcodebuild \
+            -project ADVERSE.xcodeproj \
+            -scheme ADVERSE \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/Device \
+            CODE_SIGNING_ALLOWED=NO build
+          APP_PATH="build/Device/Build/Products/Release-iphoneos/ADVERSE.app"
           test -d "$APP_PATH"
-          mkdir -p ios-app/build/ipa/Payload ios-app/build/artifacts
-          cp -R "$APP_PATH" ios-app/build/ipa/Payload/ADVERSE.app
-          (cd ios-app/build/ipa && zip -qr ../artifacts/ADVERSE-iOS-unsigned.ipa Payload)
-          test -s ios-app/build/artifacts/ADVERSE-iOS-unsigned.ipa
+          mkdir -p build/ipa/Payload build/artifacts
+          cp -R "$APP_PATH" build/ipa/Payload/ADVERSE.app
+          (cd build/ipa && zip -qr ../artifacts/ADVERSE-iOS-unsigned.ipa Payload)
+          test -s build/artifacts/ADVERSE-iOS-unsigned.ipa
+
+      - name: Check required TestFlight secrets
+        if: env.SHOULD_UPLOAD_TESTFLIGHT == 'true'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_P8_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APPLE_TEAM_ID APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_API_KEY_P8_BASE64; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing required GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo "Add the required secrets in repository Settings > Secrets and variables > Actions, then rerun this workflow with distribution=testflight."
+            exit 1
+          fi
+
+      - name: Configure App Store Connect API key
+        if: env.SHOULD_UPLOAD_TESTFLIGHT == 'true'
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_P8_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/appstoreconnect"
+          KEY_PATH="$RUNNER_TEMP/appstoreconnect/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_P8_BASE64" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Archive signed iOS app for TestFlight
+        if: env.SHOULD_UPLOAD_TESTFLIGHT == 'true'
+        working-directory: ios-app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project ADVERSE.xcodeproj \
+            -scheme ADVERSE \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/TestFlight/ADVERSE.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_API_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_API_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" \
+            CODE_SIGN_STYLE=Automatic \
+            archive
+
+      - name: Export signed IPA
+        if: env.SHOULD_UPLOAD_TESTFLIGHT == 'true'
+        working-directory: ios-app
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          cat > build/TestFlight/ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>destination</key><string>upload</string>
+            <key>method</key><string>app-store-connect</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath build/TestFlight/ADVERSE.xcarchive \
+            -exportPath build/TestFlight/export \
+            -exportOptionsPlist build/TestFlight/ExportOptions.plist
+          test -s build/TestFlight/export/ADVERSE.ipa
+          mkdir -p build/artifacts
+          cp build/TestFlight/export/ADVERSE.ipa build/artifacts/ADVERSE-iOS-TestFlight.ipa
+
+      - name: Upload signed build to App Store Connect
+        if: env.SHOULD_UPLOAD_TESTFLIGHT == 'true'
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          xcrun altool --upload-app \
+            --type ios \
+            --file ios-app/build/artifacts/ADVERSE-iOS-TestFlight.ipa \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
       - name: Upload build artifacts
+        if: always() && success()
         uses: actions/upload-artifact@v4
         with:
-          name: ADVERSE-iOS-builds
+          name: ${{ env.SHOULD_UPLOAD_TESTFLIGHT == 'true' && 'ADVERSE-iOS-TestFlight-upload' || 'ADVERSE-iOS-builds' }}
           path: |
             ios-app/build/artifacts/ADVERSE-iOS-Simulator.zip
             ios-app/build/artifacts/ADVERSE-iOS-unsigned.ipa
-          if-no-files-found: error
+            ios-app/build/artifacts/ADVERSE-iOS-TestFlight.ipa
+          if-no-files-found: warn
           retention-days: 14
