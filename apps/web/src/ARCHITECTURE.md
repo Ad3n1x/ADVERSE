@@ -6,6 +6,12 @@ The client is React + TypeScript. The folder structure now separates the applica
 src/
 ├── App.tsx                      # minimal route composition
 ├── app/WorkspaceApp.tsx         # authenticated shell and page composition
+│   ├── handlers/                # extracted workflows with explicit dependencies
+│   │   ├── createCaseResearchAction.ts       # autonomous investigation orchestration
+│   │   ├── createGraphMutationActions.ts     # evidence and graph mutations
+│   │   ├── createImportExistingResearch.ts   # collection import and graph mapping
+│   │   ├── createReviewActions.ts            # AI review, claim map, source review and gap actions
+│   │   └── createVisualSearchAction.ts       # image/video visual-match workflow
 │   └── hooks/
 │       ├── useWorkspaceCollections.ts  # collection selection and request sequencing
 │       ├── useWorkspaceCredentials.ts  # AI and search-provider credential lifecycle
@@ -34,4 +40,10 @@ src/
 - All network requests use `lib/api.ts`, except public unauthenticated search, which uses its public-fetch contract.
 - Shared domain interfaces live in `types/`, not inside the root composition file.
 - `App.tsx` only chooses the admin or workspace application.
-- `WorkspaceApp.tsx` still owns substantial state and orchestration; further hook/controller extraction should happen feature by feature while preserving API contracts and the single active-collection state.
+- `WorkspaceApp.tsx` still owns substantial state and orchestration. Feature workflows that combine many API calls should move into `app/handlers/` with explicit dependency contracts; stateful lifecycle logic belongs in hooks, and presentation belongs in `features/`.
+- `createImportExistingResearch.ts` owns collection import orchestration. It preserves the existing API endpoints and validates evidence/entity/relationship mappings before copying graph relationships.
+- `createReviewActions.ts` owns the four evidence-review request workflows; the workspace shell supplies state setters and notifications while request behavior stays unchanged.
+- `createCaseResearchAction.ts` owns the autonomous investigation lifecycle and receives discovery, refresh, and UI feedback functions explicitly. This reduces shell-level orchestration without changing the discovery pipeline or its endpoints.
+- `createGraphMutationActions.ts` owns single-record and bulk deletion workflows for evidence, entities, and relationships. Confirmation prompts and API paths remain unchanged; the shell supplies current collection data and refresh/feedback functions.
+- `createVisualSearchAction.ts` owns the image/video visual-match workflow, including frame compression, result normalization, deduplication, and user feedback; the workspace shell passes state setters and the selected file.
+- Continue extracting one workflow at a time. Keep the active collection state centralized until a feature has a clear state boundary, and run the full frontend typecheck/build and browser smoke tests after each extraction.

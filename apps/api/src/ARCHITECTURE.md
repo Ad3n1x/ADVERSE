@@ -46,3 +46,14 @@ src/
 - Utility routes now delegate to `controllers/utility.controller.js`; auth routes delegate to the auth controllers. The remaining resource route modules are still being migrated incrementally so their existing authorization, owner scoping, response envelopes and memory-mode behavior stay intact.
 
 Run `npm run check -w @adverse/api` and `npm test -w @adverse/api` from the repository root.
+
+
+## Investigation route boundaries
+
+The former monolithic `investigations.routes.js` registered 24 endpoints in one large module. It now delegates registration to three focused route groups:
+
+- `investigation-core.routes.js`: investigation collection CRUD, overview, and autonomous agent run lifecycle.
+- `investigation-analysis.routes.js`: AI review, cross-source comparison, research-gap analysis, and claim mapping.
+- `investigation-records.routes.js`: evidence, entity, and relationship records.
+
+All groups receive the same dependency object from the composition entry point. This keeps authentication, persistence adapters, validation schemas, and domain services wired centrally in `app.js`, while route registration is split by responsibility. The split is intentionally behavior-preserving: endpoint paths and handlers are moved rather than redesigned. Run the API syntax check and regression suite before merging any route changes.
