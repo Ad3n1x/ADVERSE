@@ -1,5 +1,5 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import { Activity, ArrowUpRight, Check, Database, Fingerprint, Globe2, Layers3, Plus, Search, ShieldCheck, Waypoints, Network, RefreshCw, Radar, Trash2 } from 'lucide-react';
+import { Activity, ArrowUpRight, Database, Fingerprint, Globe2, Layers3, Plus, Search, ShieldCheck, Waypoints, Network, RefreshCw, Radar, Trash2 } from 'lucide-react';
 
 /** Search Hero Panel view. */
 export default function SearchHeroPanel() {
