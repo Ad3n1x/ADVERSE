@@ -1513,3 +1513,24 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .graph-explorer:fullscreen .graph-size-control{margin-top:2px}
 @media(max-width:760px){.graph-explorer-header{padding:10px;gap:10px}.graph-toolbar{align-items:flex-start}.graph-toolbar .field-label{width:100%;justify-content:space-between}.graph-toolbar .field-label select{flex:1;max-width:none}.graph-view-tools{justify-content:flex-start;width:100%}.graph-view-tools button{flex:0 0 auto}.graph-overview{align-items:flex-start}.graph-metrics{width:100%}.graph-size-control{grid-template-columns:auto minmax(55px,1fr) auto;gap:7px}}
 @media(max-width:420px){.graph-overview-title{flex-wrap:wrap}.graph-overview-title span{display:none}.graph-view-tools button{padding:6px 7px;font-size:9px}.graph-size-control{font-size:8px}}
+
+
+/* Selected-node details: keep source links collapsed until a blue entity node is clicked. */
+#root .graph-node-detail{display:grid;gap:14px;min-width:0;margin:12px;padding:16px;border:1px solid #294741;border-radius:13px;background:linear-gradient(145deg,rgba(18,35,33,.96),rgba(11,19,22,.98));box-shadow:0 12px 32px rgba(0,0,0,.16)}
+#root .graph-node-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0}
+#root .graph-node-detail-head>div{min-width:0}
+#root .graph-node-detail-head h3{margin:5px 0;color:#e9f5f0;font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+#root .graph-node-detail-head p{margin:0;color:#9eb0a8;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+#root .graph-node-detail-close{flex:0 0 auto;padding:7px 10px;border:1px solid #35534b;border-radius:8px;background:#122320;color:#b9d9ce;font-size:10px}
+#root .graph-node-detail-close:hover{border-color:#7be0c9;color:#effff9}
+#root .graph-node-detail-stats{display:flex;flex-wrap:wrap;gap:8px}
+#root .graph-node-detail-stats span{padding:6px 9px;border:1px solid #2a413b;border-radius:7px;background:#0d1918;color:#9fb4aa;font-size:10px}
+#root .graph-node-detail-stats b{color:#e6f8f1;font:500 11px var(--mono)}
+#root .graph-node-detail-links{display:grid;gap:8px;min-width:0}
+#root .graph-node-detail-links>.section-kicker{margin-bottom:1px}
+#root .graph-node-detail-links .graph-source-link{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 11px;border:1px solid #273d38;border-radius:8px;background:rgba(4,12,13,.42);font-size:11px;line-height:1.5}
+#root .graph-node-detail-links .graph-source-link span{min-width:0;overflow-wrap:anywhere}
+#root .graph-node-detail-links .graph-source-link:hover{border-color:#568f80;background:rgba(22,52,45,.5)}
+#root .graph-node-detail-links .graph-relationship-option{padding:9px;border:1px solid #263b36;border-radius:9px;background:rgba(6,13,14,.38)}
+#root .graph-node-detail-links .graph-relationship-option.selected{border-color:#4f8b7d}
+@media(max-width:600px){#root .graph-node-detail{margin:8px;padding:12px}#root .graph-node-detail-head h3{font-size:14px}}
