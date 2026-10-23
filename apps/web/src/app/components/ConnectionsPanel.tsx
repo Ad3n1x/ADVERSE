@@ -1,7 +1,7 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Graph from '../features/graph/Graph';
-import Empty from '../components/ui/Empty';
-import { getRecordId as key } from '../lib/ids';
+import Graph from '../../features/graph/Graph';
+import Empty from '../../components/ui/Empty';
+import { getRecordId as key } from '../../lib/ids';
 import { Layers3, Plus, Search, X, Link2, Trash2 } from 'lucide-react';
 
 /** Connections Panel extracted from the workspace shell. */
