@@ -15,48 +15,46 @@ jobs:
   build:
     name: Build iOS app
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: |
-          xcode-select -p
-          xcodebuild -version
-
+      - uses: actions/checkout@v4
+      - name: Verify Xcode
+        run: xcodebuild -version
       - name: Install XcodeGen
         run: brew install xcodegen
-
-      - name: Generate Xcode project
+      - name: Generate project
         working-directory: ios-app
         run: xcodegen generate
-
-      - name: Build unsigned iOS app
+      - name: Build for iPhone simulator
         working-directory: ios-app
         run: |
-          xcodebuild \
-            -project ADVERSE.xcodeproj \
-            -scheme ADVERSE \
-            -configuration Release \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -derivedDataPath build/DerivedData \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-
+          xcodebuild -project ADVERSE.xcodeproj -scheme ADVERSE -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build/Simulator CODE_SIGNING_ALLOWED=NO build
+      - name: Package simulator app
+        run: |
+          set -e
+          APP_PATH="ios-app/build/Simulator/Build/Products/Release-iphonesimulator/ADVERSE.app"
+          test -d "$APP_PATH"
+          mkdir -p ios-app/build/artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" ios-app/build/artifacts/ADVERSE-iOS-Simulator.zip
+      - name: Build for physical iPhone (unsigned)
+        working-directory: ios-app
+        run: |
+          xcodebuild -project ADVERSE.xcodeproj -scheme ADVERSE -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/Device CODE_SIGNING_ALLOWED=NO build
       - name: Package unsigned IPA for inspection
         run: |
-          APP_PATH="ios-app/build/DerivedData/Build/Products/Release-iphoneos/ADVERSE.app"
+          set -e
+          APP_PATH="ios-app/build/Device/Build/Products/Release-iphoneos/ADVERSE.app"
           test -d "$APP_PATH"
-          mkdir -p ios-app/build/Payload
-          cp -R "$APP_PATH" ios-app/build/Payload/ADVERSE.app
-          cd ios-app/build
-          zip -r ADVERSE-iOS-unsigned.ipa Payload
-
-      - name: Upload unsigned build
+          mkdir -p ios-app/build/ipa/Payload ios-app/build/artifacts
+          cp -R "$APP_PATH" ios-app/build/ipa/Payload/ADVERSE.app
+          (cd ios-app/build/ipa && zip -qr ../artifacts/ADVERSE-iOS-unsigned.ipa Payload)
+          test -s ios-app/build/artifacts/ADVERSE-iOS-unsigned.ipa
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ADVERSE-iOS-unsigned
-          path: ios-app/build/ADVERSE-iOS-unsigned.ipa
+          name: ADVERSE-iOS-builds
+          path: |
+            ios-app/build/artifacts/ADVERSE-iOS-Simulator.zip
+            ios-app/build/artifacts/ADVERSE-iOS-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
