@@ -1,11 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
 import { request } from '../../lib/api';
+import { readLocalSnapshot, saveLocalSnapshot } from '../../lib/offlineCache';
 import type { Entity, Evidence, Investigation, Relationship } from '../../types/research';
+
+type CachedOverview = {
+  evidence: Evidence[];
+  entities: Entity[];
+  relationships: Relationship[];
+  aiReviewHistory?: any[];
+};
 
 /**
  * Owns collection selection, collection data, and request sequencing.
- * Keeping the fetch lifecycle here prevents stale collection responses from
- * overwriting the currently selected collection.
+ * Successful reads are saved to device-local IndexedDB so previously opened
+ * collections can be inspected when the API is temporarily unreachable.
  */
 export function useWorkspaceCollections(setError: (message: string) => void) {
   const [cases, setCases] = useState<Investigation[]>([]);
@@ -34,9 +42,17 @@ export function useWorkspaceCollections(setError: (message: string) => void) {
       setCases(normalized);
       setCaseId((current) => current || normalized[0]?.id || '');
       setApiStatus('online');
+      void saveLocalSnapshot('investigations:index', normalized).catch(() => undefined);
     } catch (error) {
       setApiStatus('offline');
-      setError(error instanceof Error ? error.message : 'API unavailable');
+      const cached = await readLocalSnapshot<Investigation[]>('investigations:index').catch(() => null);
+      if (cached?.value) {
+        setCases(cached.value);
+        setCaseId((current) => current || cached.value[0]?.id || '');
+        setError('Offline mode: showing saved investigations from this device. Live research and synchronization require internet.');
+      } else {
+        setError(error instanceof Error ? error.message : 'API unavailable');
+      }
     }
   }, [setError]);
 
@@ -71,19 +87,21 @@ export function useWorkspaceCollections(setError: (message: string) => void) {
     setRelationships([]);
 
     try {
-      const response = await request<{
-        data: {
-          evidence: Evidence[];
-          entities: Entity[];
-          relationships: Relationship[];
-          aiReviewHistory?: any[];
-        };
-      }>('/investigations/' + encodeURIComponent(id) + '/overview');
+      const response = await request<{ data: CachedOverview }>(
+        '/investigations/' + encodeURIComponent(id) + '/overview',
+      );
       if (sequence !== caseLoadSequence.current) return;
 
-      setEvidence(response.data.evidence || []);
-      setEntities(response.data.entities || []);
-      setRelationships(response.data.relationships || []);
+      const overview = {
+        evidence: response.data.evidence || [],
+        entities: response.data.entities || [],
+        relationships: response.data.relationships || [],
+        aiReviewHistory: response.data.aiReviewHistory || [],
+      };
+      setEvidence(overview.evidence);
+      setEntities(overview.entities);
+      setRelationships(overview.relationships);
+      void saveLocalSnapshot('investigation:' + id, overview).catch(() => undefined);
 
       const runHistory = await request<{ data: any[] }>(
         '/investigations/' + encodeURIComponent(id) + '/agent-runs',
@@ -108,7 +126,7 @@ export function useWorkspaceCollections(setError: (message: string) => void) {
         setResearchStatus('');
       }
 
-      const latest = (response.data.aiReviewHistory || []).slice(-1)[0];
+      const latest = (overview.aiReviewHistory || []).slice(-1)[0];
       if (latest?.provider) {
         setAiProviderStatus(String(latest.provider) + ' · successful review');
       }
@@ -124,7 +142,28 @@ export function useWorkspaceCollections(setError: (message: string) => void) {
         ],
       } : null);
     } catch (error) {
-      if (sequence === caseLoadSequence.current) {
+      if (sequence !== caseLoadSequence.current) return;
+      const cached = await readLocalSnapshot<CachedOverview>('investigation:' + id).catch(() => null);
+      if (sequence !== caseLoadSequence.current) return;
+      if (cached?.value) {
+        setEvidence(cached.value.evidence || []);
+        setEntities(cached.value.entities || []);
+        setRelationships(cached.value.relationships || []);
+        const latest = (cached.value.aiReviewHistory || []).slice(-1)[0];
+        setAiReview(latest ? {
+          ...latest.result,
+          generatedAt: latest.generatedAt,
+          model: latest.model,
+          provider: latest.provider,
+          evidenceCount: latest.evidenceCount,
+          limitations: [
+            'Offline copy saved on this device; it may be out of date.',
+            'This is a saved AI-generated review, not an independently verified finding.',
+            'Live searches, updates, and server synchronization require internet access.',
+          ],
+        } : null);
+        setCaseLoadError('Offline copy · saved ' + new Date(cached.savedAt).toLocaleString() + '. Changes are not synchronized.');
+      } else {
         setEvidence([]);
         setEntities([]);
         setRelationships([]);
