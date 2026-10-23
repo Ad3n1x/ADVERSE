@@ -1,7 +1,5 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Graph from '../../features/graph/Graph';
 import Empty from '../../components/ui/Empty';
-import { getRecordId as key } from '../../lib/ids';
 import { Activity, ArrowDownRight, ArrowUpRight, BookOpen, Database, Fingerprint, Layers3, Search, Waypoints, Trash2 } from 'lucide-react';
 
 /** Collection overview, saved evidence, relationship graph, and monitoring panels. */
