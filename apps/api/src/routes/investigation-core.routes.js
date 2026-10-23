@@ -116,24 +116,45 @@ export function registerInvestigationCoreRoutes(app, deps) {
       if(round<4){
        await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
        const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
-       let candidates=planned.leads;
-       if(!candidates.length){
-        const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
-        const seenHosts=new Set();
-        candidates=[];
-        for(const result of seed){
+       let candidates=Array.isArray(planned.leads)?planned.leads.slice(0,3):[];
+       let planningMode=planned.mode==='ai'&&candidates.length?'ai':'heuristic';
+       if(candidates.length<3){
+        // Diversify fallback research instead of merely repeating result titles:
+        // seek primary records, independent corroboration, counterevidence, and chronology.
+        const focusQueries=round===1?[
+         {query:question+' official primary source',reason:'Seek an official statement or primary record.'},
+         {query:question+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
+         {query:question+' response denial counterevidence',reason:'Look for a response, rebuttal, or evidence that challenges the leading account.'}
+        ]:[
+         {query:question+' timeline dates chronology',reason:'Establish dates and the sequence of reported events.'},
+         {query:question+' original documents records',reason:'Look for source documents rather than summaries alone.'},
+         {query:question+' conflicting accounts alternative explanation',reason:'Test alternative explanations and conflicting accounts.'}
+        ];
+        const candidateKeys=new Set(candidates.map(item=>cleanText(item.query,180).toLowerCase()));
+        for(const lead of focusQueries){
+         const key=cleanText(lead.query,180).toLowerCase();
          if(candidates.length>=3)break;
-         let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
-         if(!host||seenHosts.has(host))continue;
-         seenHosts.add(host);
-         const candidate=cleanText(result.title,150);
-         if(candidate.length>=12&&candidate.toLowerCase()!==question.toLowerCase())candidates.push({query:candidate,reason:'Heuristic fallback lead from '+host});
+         if(key!==question.toLowerCase()&&!candidateKeys.has(key)){candidates.push(lead);candidateKeys.add(key);}
+        }
+        if(candidates.length<3){
+         const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
+         const seenHosts=new Set();
+         for(const result of seed){
+          if(candidates.length>=3)break;
+          let host='';try{host=new URL(result.url).hostname.replace(/^www\\./,'');}catch{}
+          if(!host||seenHosts.has(host))continue;
+          seenHosts.add(host);
+          const candidate=cleanText(result.title,150);
+          const key=candidate.toLowerCase();
+          if(candidate.length>=12&&key!==question.toLowerCase()&&!candidateKeys.has(key)){candidates.push({query:candidate,reason:'Heuristic fallback lead from '+host});candidateKeys.add(key);}
+         }
         }
        }
        for(const lead of candidates)addQuery(lead.query,lead.reason,round+1);
-       if(planned.mode==='ai')leadPlanningMode='ai';
+       if(planned.mode==='ai'&&candidates.length)leadPlanningMode='ai';
        const nextLeadCount=plan.filter(item=>item.round===round+1).length;
-       await recordTrace({stage:'plan',round,status:'complete',mode:planned.mode,provider:planned.provider,leadCount:nextLeadCount,detail:planned.mode==='ai'?'AI-generated follow-up queries are hypotheses to test, not factual conclusions.':'AI planning was unavailable or returned no usable leads; bounded fallback queries were used.'});
+       const traceMode=planned.mode==='ai'&&candidates.length<3?'mixed':planningMode;
+       await recordTrace({stage:'plan',round,status:'complete',mode:traceMode,provider:planned.provider,leadCount:nextLeadCount,detail:traceMode==='ai'?'AI-generated follow-up queries are hypotheses to test, not factual conclusions.':traceMode==='mixed'?'AI suggestions were supplemented with deterministic primary-source, counterevidence, or chronology searches.':'AI planning was unavailable or returned no usable leads; bounded primary-source, counterevidence, and chronology searches were used.'});
       }
      }
      const merged=new Map();
