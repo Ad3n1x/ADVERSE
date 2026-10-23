@@ -58,6 +58,18 @@ test('claim triage flags different numeric details as a review lead, not a prove
   assert.ok(result.limitations.some(item => /units, dates, definitions, or context/i.test(item)));
 });
 
+test('duplicate records for the same URL do not count as independent corroboration', () => {
+  const result = analyzeEvidenceClaims([
+    evidence('ev-copy-a', 'https://agency.gov/transport/plan?utm_source=mail', 'The commission approved the public transport plan in 2025 after a detailed public review.'),
+    evidence('ev-copy-b', 'https://agency.gov/transport/plan#overview', 'The commission approved the public transport plan in 2025 after a detailed public review.'),
+  ]);
+  const claim = result.claims.find(item => item.claim.includes('commission approved'));
+  assert.ok(claim);
+  assert.equal(claim.sourceCount, 1);
+  assert.equal(claim.status, 'single_source');
+  assert.equal(claim.sourceDiversity.label, 'single-domain evidence');
+});
+
 test('source-type heuristics identify candidates without upgrading their verification', () => {
   const result = analyzeEvidenceClaims([
     evidence('ev-official', 'https://agency.gov/transport/plan', 'The commission approved the public transport plan in 2025 after a detailed public review.', { title: 'Official public transport record' }),
