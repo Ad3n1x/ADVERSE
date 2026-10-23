@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
+import { buildInvestigativeRoutes, investigativeRoutesForRound } from '../services/research/investigative-routes.js';
 
 export function registerInvestigationCoreRoutes(app, deps) {
   const {
@@ -77,6 +78,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       }).slice(0,24);
       initialSearch.meta={query:question,providers:[...new Set(initialSearch.results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],coverage:live.meta?.coverage||'Initial public-source search completed.',successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0};
      }catch(error){initialSearch.meta.error=String(error?.message||'Initial search provider unavailable.');}
+     const investigativeRoutes=buildInvestigativeRoutes(question,initialSearch.results);
      res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Search received. Initial results and autonomous investigation are running as one workflow.',initialSearch}});
      void (async()=>{
      const trace=[];
@@ -90,11 +92,11 @@ export function registerInvestigationCoreRoutes(app, deps) {
      const querySeen=new Set();
      const plan=[];
      let leadPlanningMode='heuristic';
-     const addQuery=(value,reason,round)=>{
-      const q=cleanText(value,180);
+     const addQuery=(value,reason,round,routeId='')=>{
+      const q=cleanText(value,220);
       const k=q.toLowerCase();
       if(q.length<3||querySeen.has(k)||plan.length>=12)return;
-      querySeen.add(k);plan.push({query:q,reason,round});
+      querySeen.add(k);plan.push({query:q,reason,round,...(routeId?{routeId}:{})});
      };
      addQuery(question,'Primary investigation question',1);
      if(title.toLowerCase()!==question.toLowerCase())addQuery(title,'Investigation title cross-check',1);
@@ -116,63 +118,32 @@ export function registerInvestigationCoreRoutes(app, deps) {
       if(round<4){
        await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
        const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
-       let candidates=Array.isArray(planned.leads)?planned.leads.slice(0,3):[];
-       const aiLeadCount=planned.mode==='ai'?candidates.length:0;
-       let planningMode=aiLeadCount?'ai':'heuristic';
-       const leadQuestion=cleanText(question,120);
-       if(candidates.length<3){
-        // Diversify fallback research instead of merely repeating result titles:
-        // seek primary records, independent corroboration, counterevidence, and chronology.
-        const focusQueries=round===1?[
-         {query:leadQuestion+' official primary source',reason:'Seek an official statement or primary record.'},
-         {query:leadQuestion+' response denial counterevidence',reason:'Look for a response, rebuttal, or evidence that challenges the leading account.'}
-        ]:[
-         {query:leadQuestion+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
-         {query:leadQuestion+' timeline dates chronology',reason:'Establish dates and the sequence of reported events.'},
-         {query:leadQuestion+' conflicting accounts alternative explanation',reason:'Test alternative explanations and conflicting accounts.'}
-        ];
-        const candidateKeys=new Set(candidates.map(item=>cleanText(item.query,180).toLowerCase()));
-        for(const lead of focusQueries){
-         const key=cleanText(lead.query,180).toLowerCase();
-         if(candidates.length>=3)break;
-         if(key!==question.toLowerCase()&&!candidateKeys.has(key)){candidates.push(lead);candidateKeys.add(key);}
-        }
-        if(candidates.length<3&&round===1){
-         // Follow a concrete lead from the result set instead of using only broad question variants.
-         const leadResult=allResults.find(result=>{
-          const candidate=cleanText(result.title,150);
-          return candidate.length>=18&&candidate.toLowerCase()!==leadQuestion.toLowerCase()&&!/^(search results|home page|latest news|untitled)$/i.test(candidate);
-         });
-         if(leadResult){
-          const candidate=cleanText(leadResult.title,150);
-          const key=candidate.toLowerCase();
-          if(!candidateKeys.has(key)){
-           let host='';try{host=new URL(leadResult.url).hostname.replace(/^www\./,'');}catch{}
-           candidates.push({query:candidate,reason:'Follow the specific result lead'+(host?' surfaced by '+host:'')+' and check its context.'});
-           candidateKeys.add(key);
-          }
-         }
-        }
-        if(candidates.length<3){
-         const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
-         const seenHosts=new Set();
-         for(const result of seed){
-          if(candidates.length>=3)break;
-          let host='';try{host=new URL(result.url).hostname.replace(/^www\./,'');}catch{}
-          if(!host||seenHosts.has(host))continue;
-          seenHosts.add(host);
-          const candidate=cleanText(result.title,150);
-          const key=candidate.toLowerCase();
-          if(candidate.length>=12&&key!==question.toLowerCase()&&!candidateKeys.has(key)){candidates.push({query:candidate,reason:'Heuristic fallback lead from '+host});candidateKeys.add(key);}
-         }
-        }
+       const aiCandidates=planned.mode==='ai'&&Array.isArray(planned.leads)?planned.leads.slice(0,3):[];
+       const previouslyUsedRoutes=new Set(plan.map(item=>item.routeId).filter(Boolean));
+       const routeCandidates=investigativeRoutesForRound(investigativeRoutes,round)
+        .filter(item=>!previouslyUsedRoutes.has(item.id))
+        .map(item=>({query:item.query,reason:item.purpose,routeId:item.id}));
+       let candidates=routeCandidates.slice(0,3);
+       const candidateKeys=new Set(candidates.map(item=>cleanText(item.query,220).toLowerCase()));
+       let aiLeadCount=0;
+       // Route-led searches are guaranteed first; AI leads may add one distinct avenue,
+       // but cannot displace the primary-record, counterevidence, chronology or corroboration routes.
+       for(const lead of aiCandidates){
+        if(candidates.length>=3)break;
+        const query=cleanText(lead&&lead.query,220);
+        const key=query.toLowerCase();
+        if(query.length<5||querySeen.has(key)||candidateKeys.has(key))continue;
+        candidates.push({query,reason:cleanText(lead.reason,240)||'AI-proposed lead to test against public sources'});
+        candidateKeys.add(key);
+        aiLeadCount++;
        }
-       for(const lead of candidates)addQuery(lead.query,lead.reason,round+1);
+       let planningMode=aiLeadCount?'mixed':'heuristic';
+       for(const lead of candidates)addQuery(lead.query,lead.reason,round+1,lead.routeId||'');
        if(aiLeadCount&&candidates.length>aiLeadCount){planningMode='mixed';leadPlanningMode='mixed';}
        else if(aiLeadCount){leadPlanningMode='ai';}
        const nextLeadCount=plan.filter(item=>item.round===round+1).length;
        const traceMode=planningMode;
-       await recordTrace({stage:'plan',round,status:'complete',mode:traceMode,provider:planned.provider,leadCount:nextLeadCount,detail:traceMode==='ai'?'AI-generated follow-up queries are hypotheses to test, not factual conclusions.':traceMode==='mixed'?'AI suggestions were supplemented with deterministic primary-source, counterevidence, or chronology searches.':'AI planning was unavailable or returned no usable leads; bounded primary-source, counterevidence, and chronology searches were used.'});
+       await recordTrace({stage:'plan',round,status:'complete',mode:traceMode,provider:planned.provider,leadCount:nextLeadCount,routeIds:candidates.map(item=>item.routeId).filter(Boolean),detail:traceMode==='mixed'?'Structured reporting routes were prioritized, with distinct AI suggestions added where they contributed a new avenue.': 'Structured reporting routes selected the next searches; no distinct AI lead was needed for this pass.'});
       }
      }
      const merged=new Map();
@@ -206,7 +177,8 @@ export function registerInvestigationCoreRoutes(app, deps) {
       }catch(error){if(error?.code!==11000)console.warn('ADVERSE agent evidence save failed:',cleanText(error?.message,160));}
      }
      const scrapedCount=pageResults.filter(item=>item.page).length;
-     const followUpLeads=plan.filter(item=>item.round>1).map(item=>({query:item.query,reason:item.reason,status:'searched',round:item.round}));
+     const followUpLeads=plan.filter(item=>item.round>1).map(item=>({query:item.query,reason:item.reason,status:'searched',round:item.round,...(item.routeId?{routeId:item.routeId,routeLabel:investigativeRoutes.find(route=>route.id===item.routeId)?.label||item.routeId}:{})}));
+     const routeReport=investigativeRoutes.map(route=>({...route,status:plan.some(item=>item.routeId===route.id)?'searched':'not-selected',searchedQueries:plan.filter(item=>item.routeId===route.id).map(item=>item.query)}));
      await recordTrace({stage:'retrieve',status:'complete',attempted:scrapeCandidates.length,scraped:scrapedCount,detail:'Retrieved bounded text from selected public pages; failed pages remain linked to their original search results when saved.'});
      await recordTrace({stage:'save',status:'complete',savedCount,detail:'New source records are stored as unverified. No relationship or factual conclusion is inferred solely from search ranking.'});
      await recordTrace({stage:'connect',status:'running',detail:'Connecting repeated claim candidates and source provenance across the saved evidence set; proposed links are navigational, not proof.'});
@@ -254,8 +226,8 @@ export function registerInvestigationCoreRoutes(app, deps) {
      await recordTrace({stage:'challenge',status:'complete',claimCandidates:claimAnalysis.claimCandidateCount,claimGroups:claimAnalysis.groupCount,possibleConflicts:claimAnalysis.claims.reduce((sum,claim)=>sum+(claim.possibleConflicts||[]).length,0),gapCount:researchGaps.gapCount,detail:'Checked stored excerpts for repeated claims, possible numeric or negation differences, provenance concentration, and missing research coverage. These are review prompts, not truth judgments.'});
      await recordTrace({stage:'report',status:'running',detail:'Assembling the investigation report with source records, cross-source links, and explicit research gaps.'});
      const durationMs=Date.now()-startedAt;
-     const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:Math.max(1,...plan.map(item=>item.round)),queries:plan,trace,leads:followUpLeads,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,crossSourceLinks,graphSummary,claimAnalysis,researchGaps,coverage:'Bounded multi-hop research across available public indexes, with up to four search rounds, up to three lead-planning steps, and at most twelve distinct queries. Up to fourteen new source records are saved per run. This is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','The plan records each lead query, round, and reason; a recorded search attempt is not proof that the provider returned useful results.','Retrieved text and source records remain unverified until a person checks the original context.','Cross-source links and claim flags are lexical triage aids; they do not establish support, contradiction, independence, or truth.','Search coverage and freshness depend on available public indexes, provider health, and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
-     const runRecord={runId,investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,crossSourceLinks:report.crossSourceLinks,challengeSummary:{claimCandidateCount:report.claimAnalysis.claimCandidateCount,claimGroupCount:report.claimAnalysis.groupCount,possibleConflictCount:report.claimAnalysis.claims.reduce((sum,claim)=>sum+(claim.possibleConflicts||[]).length,0),researchGapCount:report.researchGaps.gapCount},coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
+     const report={investigationId:iid,question,title,agent:'ADVERSE Autonomous Research Agent',status:'complete',rounds:Math.max(1,...plan.map(item=>item.round)),queries:plan,trace,leads:followUpLeads,routes:routeReport,results:sourceRecords,savedCount,scrapedCount,discoveredCount:ranked.length,alreadyStoredCount:ranked.length-fresh.length,providerFailures,leadPlanningMode,crossSourceLinks,graphSummary,claimAnalysis,researchGaps,coverage:'Bounded multi-hop research across available public indexes, with up to four search rounds, up to three lead-planning steps, and at most twelve distinct queries. Up to fourteen new source records are saved per run. This is not exhaustive web crawling.',limitations:['Search ranking is not proof of truth, identity, intent, or ownership.','The plan records each lead query, round, and reason; a recorded search attempt is not proof that the provider returned useful results.','Retrieved text and source records remain unverified until a person checks the original context.','Cross-source links and claim flags are lexical triage aids; they do not establish support, contradiction, independence, or truth.','Search coverage and freshness depend on available public indexes, provider health, and any provider credentials you connect.'],durationMs,generatedAt:new Date().toISOString()};
+     const runRecord={runId,investigationId:iid,title,question,status:'complete',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),durationMs,rounds:report.rounds,queries:report.queries,trace:report.trace,leads:report.leads,routes:report.routes,results:report.results.map(({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})=>({id,title,url,publisher,provider,providers,matchedQueries,retrieved,verificationStatus})),savedCount:report.savedCount,scrapedCount:report.scrapedCount,discoveredCount:report.discoveredCount,alreadyStoredCount:report.alreadyStoredCount,providerFailures:report.providerFailures,leadPlanningMode:report.leadPlanningMode,crossSourceLinks:report.crossSourceLinks,challengeSummary:{claimCandidateCount:report.claimAnalysis.claimCandidateCount,claimGroupCount:report.claimAnalysis.groupCount,possibleConflictCount:report.claimAnalysis.claims.reduce((sum,claim)=>sum+(claim.possibleConflicts||[]).length,0),researchGapCount:report.researchGaps.gapCount},coverage:report.coverage,limitations:report.limitations,generatedAt:report.generatedAt};
      if(isDb())await Investigation.findOneAndUpdate({_id:iid,ownerId:req.user.id},{$push:{agentRunHistory:{$each:[runRecord],$slice:-20}},$set:{updatedAt:new Date()}});
      else {const stored=memory.investigations.get(iid);if(stored){stored.agentRunHistory=Array.isArray(stored.agentRunHistory)?stored.agentRunHistory:[];stored.agentRunHistory.push(runRecord);stored.agentRunHistory=stored.agentRunHistory.slice(-20);stored.updatedAt=new Date().toISOString();}}
      await persistAgentState({status:'complete',stage:'complete',detail:'Investigation completed and the report was saved.',startedAt:new Date(startedAt).toISOString(),finishedAt:new Date().toISOString(),runId:runRecord.runId,report,trace:report.trace.slice(-60)});
