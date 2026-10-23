@@ -1,0 +1,88 @@
+.adverse-android-download {
+  position: fixed;
+  z-index: 1200;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 9px 16px 9px 10px;
+  border: 1px solid rgba(185, 255, 75, 0.48);
+  border-radius: 17px;
+  color: #f6f8f1;
+  background: rgba(18, 22, 17, 0.96);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.32), 0 0 0 1px rgba(185, 255, 75, 0.08);
+  text-decoration: none;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.adverse-android-download:hover,
+.adverse-android-download:focus-visible {
+  transform: translateY(-2px);
+  border-color: #b9ff4b;
+  box-shadow: 0 15px 42px rgba(0, 0, 0, 0.4), 0 0 22px rgba(185, 255, 75, 0.12);
+}
+
+.adverse-android-download:focus-visible {
+  outline: 2px solid #b9ff4b;
+  outline-offset: 4px;
+}
+
+.adverse-android-download__icon {
+  display: grid;
+  width: 39px;
+  height: 39px;
+  flex: 0 0 39px;
+  place-items: center;
+  border-radius: 12px;
+  color: #b9ff4b;
+  background: rgba(185, 255, 75, 0.1);
+}
+
+.adverse-android-download__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.15;
+}
+
+.adverse-android-download__label strong {
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+
+.adverse-android-download__label small {
+  color: #a8b09f;
+  font-size: 11px;
+}
+
+.adverse-android-download__arrow {
+  margin-left: 5px;
+  color: #b9ff4b;
+}
+
+@media (max-width: 480px) {
+  .adverse-android-download {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    min-height: 54px;
+    padding: 7px 12px 7px 8px;
+    border-radius: 15px;
+  }
+
+  .adverse-android-download__icon {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adverse-android-download {
+    transition: none;
+  }
+}
