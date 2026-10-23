@@ -67,11 +67,3 @@
   .adverse-iphone-step-number { width:30px; height:30px; border-radius:9px; }
 }
 
-
-/* Native iOS build card on the download page */
-.adverse-native-ios-panel { max-width:760px; margin:22px auto 0; padding:clamp(20px,4vw,30px); border:1px solid #30392d; border-radius:22px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); }
-.adverse-native-ios-panel .adverse-iphone-panel-heading { margin-bottom:14px; }
-.adverse-native-ios-panel h2 { margin:5px 0 0; font-size:clamp(22px,4vw,29px); letter-spacing:-.04em; }
-.adverse-native-ios-description { margin:0 0 18px; color:#aab3a5; font-size:14px; line-height:1.75; }
-.adverse-native-ios-link { display:inline-flex; width:100%; box-sizing:border-box; min-height:48px; }
-.adverse-native-ios-panel .adverse-download-note { margin-top:14px; }
