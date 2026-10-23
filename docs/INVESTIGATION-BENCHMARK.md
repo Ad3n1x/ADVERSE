@@ -20,7 +20,7 @@ Google is a strong baseline for finding pages across the web. ADVERSE should win
 
 ## Benchmark design
 
-Maintain a fixed evaluation set of at least 30 questions across several categories: current public-interest questions, company/organization histories, policy and public-record questions, timeline reconstruction, competing explanations, and questions with misleading or contradictory source material. Use public, non-sensitive subjects and keep the benchmark questions stable between releases.
+Use the fixed 30-case set in [INVESTIGATION-BENCHMARK-CASES.md](./INVESTIGATION-BENCHMARK-CASES.md) as the initial evaluation fixture. It covers public records, corporate histories, timelines, counterevidence, relationship accuracy, and evidence gaps. Expand it only with versioned changes so scores remain comparable. Use public, non-sensitive subjects and keep the benchmark questions stable between releases.
 
 For each question, compare Google and ADVERSE under a written protocol. Record the date, exact query/question, available provider configuration, search time budget, sources returned, and the evidence actually used. Do not treat a provider being configured as proof that it worked. Repeat time-sensitive questions at multiple dates.
 
