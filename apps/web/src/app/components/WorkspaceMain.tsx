@@ -7,12 +7,12 @@ import EvidenceVaultPanel from './EvidenceVaultPanel';
 import ConnectionsPanel from './ConnectionsPanel';
 import SourceReviewPanel from './SourceReviewPanel';
 import PublicDataProvidersPanel from './PublicDataProvidersPanel';
-import Graph from '../features/graph/Graph';
-import MonitoringView from '../features/monitoring/MonitoringView';
-import CyberIntelligenceView from '../features/cyber/CyberIntelligenceView';
-import Empty from '../components/ui/Empty';
-import { API } from '../lib/api';
-import { getRecordId as key } from '../lib/ids';
+import Graph from '../../features/graph/Graph';
+import MonitoringView from '../../features/monitoring/MonitoringView';
+import CyberIntelligenceView from '../../features/cyber/CyberIntelligenceView';
+import Empty from '../../components/ui/Empty';
+import { API } from '../../lib/api';
+import { getRecordId as key } from '../../lib/ids';
 import { Activity, Archive, ArrowDownRight, ArrowUpRight, Bell, BookOpen, Check, CircleHelp, Clock3, Database, ExternalLink, FileSearch, Fingerprint, GitBranch, Globe2, Layers3, Plus, Search, ShieldCheck, Sparkles, Waypoints, X, Link2, Network, RefreshCw, LogOut, Radar, Trash2 } from 'lucide-react';
 
 /** Main IntelliDesk workspace surface. Business state/actions are supplied by WorkspaceContext. */
