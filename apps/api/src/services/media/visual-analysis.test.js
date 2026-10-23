@@ -40,7 +40,7 @@ test('extracts visible text and details from image/video frames', async () => {
   assert.equal(result.visualDetails.length, 2);
   assert.equal(result.queries.length, 2);
   assert.match(requestBody.contents[0].parts[0].text, /transcribe all clearly visible text/i);
-  assert.equal(requestBody.contents[0].parts[1].mimeType, 'image/jpeg');
+  assert.equal(requestBody.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
 });
 
 test('rejects malformed media payloads before contacting the provider', async () => {
