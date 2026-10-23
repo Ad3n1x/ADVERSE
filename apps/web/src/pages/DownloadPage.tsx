@@ -49,6 +49,21 @@ export default function DownloadPage() {
         <small className="adverse-download-note">This installs the website as a web app, not a separately signed native iOS app. An IPA download cannot be installed normally without Apple-supported signing and distribution.</small>
       </section>
 
+      <section className="adverse-native-ios-panel" aria-labelledby="adverse-native-ios-title">
+        <div className="adverse-iphone-panel-heading">
+          <span className="adverse-download-platform-icon"><Apple size={24} /></span>
+          <div>
+            <span className="adverse-download-status">NATIVE IOS BUILD · BUILD SUCCEEDED</span>
+            <h2 id="adverse-native-ios-title">ADVERSE for iPhone</h2>
+          </div>
+        </div>
+        <p className="adverse-native-ios-description">A native SwiftUI iOS app shell with ADVERSE browsing, a fingerprint-themed loading indicator, retry-on-connection-error, swipe navigation, and external links that open in Safari.</p>
+        <a className="adverse-download-secondary adverse-native-ios-link" href="https://github.com/Ad3n1x/ADVERSE/actions/runs/39969402467" target="_blank" rel="noreferrer">
+          View build &amp; IPA artifact <ExternalLink size={16} />
+        </a>
+        <p className="adverse-download-note">Important: the generated IPA is unsigned. It is a build artifact for signing/testing, not a tap-to-install iPhone download. Installing it on a real iPhone requires Apple-supported signing and provisioning. For an immediate install without that setup, use the Safari Home Screen steps above.</p>
+      </section>
+
       <footer className="adverse-download-footer">
         <span><Check size={16} /> Same ADVERSE service</span>
         <span><Fingerprint size={16} /> Original fingerprint identity</span>
