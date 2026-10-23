@@ -7,6 +7,7 @@ const IMAGE_DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
 export async function analyzeVisualFrame({
   imageDataUrl,
   mediaType = 'image',
+  userQuestion = '',
   apiKey = process.env.GEMINI_API_KEY,
   model = process.env.GEMINI_MODEL || 'gemini-2.5-flash',
   fetchImpl = fetch,
@@ -47,6 +48,7 @@ export async function analyzeVisualFrame({
     'Describe visible objects, scene, context, logos, landmarks, and distinctive non-sensitive visual details.',
     'Do not identify private people or infer sensitive traits. Do not claim a person or object identity is certain.',
     'Generate 3 to 5 concise search queries useful for finding public sources related to the visible content.',
+    userQuestion ? 'User question or focus: ' + String(userQuestion).trim().slice(0, 500) + '. Prioritize this question while still reporting visible text accurately.' : '',
     'Return JSON only with keys: description (string), extractedText (string), visualDetails (array of strings), queries (array of strings).',
     'If no text is visible, return an empty extractedText string. Do not invent unreadable text.',
   ].join(' ');
