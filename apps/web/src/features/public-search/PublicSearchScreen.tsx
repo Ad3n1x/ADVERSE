@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Smartphone, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import { API } from '../../lib/api';
-import './public-search-download.css';
 import { HISTORY_KEY, SAVED_KEY } from '../../lib/storageKeys';
 import type { PublicSearchResult, SearchHistoryEntry } from '../../types/research';
 function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback;}catch{return fallback;}}
@@ -39,14 +38,6 @@ function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  {Array.isArray(meta?.queryPlan)&&meta.queryPlan.length>0&&<details className="find-query-plan"><summary><Sparkles size={13}/> Search strategy · {meta.queryPlan.length} query variants</summary><p>ADVERSE tries a bounded set of query phrasings to improve recall. Variants are retrieval attempts, not AI understanding or proof that results are complete.</p><ol>{meta.queryPlan.map((item:any,index:number)=><li key={item.query+'-'+index}><code>{item.query}</code><span>{item.reason}</span></li>)}</ol></details>}
  <p className="find-search-meta">Checked {meta?.linkChecks||0} selected links · {meta?.successfulSearches||0} successful provider searches · {meta?.indexedResultCount||0} prior index matches · {meta?.failedSearches||0} search-service errors. {meta?.indexEnabled?'Persistent index active.':'Live-provider mode; persistent index unavailable.'} Results may be incomplete. Search history and saved links stay in this browser unless cleared.</p>
  </section>}
- </section>
- <section className="adverse-home-download" aria-labelledby="adverse-home-download-title">
-  <div className="adverse-home-download-heading"><span>ADVERSE, WHEREVER YOU ARE</span><h2 id="adverse-home-download-title">Make it feel like an app.</h2><p>Keep the same ADVERSE workspace on your phone or computer. Choose the setup that fits your device.</p></div>
-  <div className="adverse-home-download-grid">
-   <article><Smartphone size={21}/><span className="adverse-home-download-tag">ANDROID</span><h3>Android companion</h3><p>Get the Android APK for a dedicated app-like launch.</p><a href="https://github.com/Ad3n1x/ADVERSE/releases/download/android-latest/ADVERSE.apk">Download APK <ArrowUpRight size={14}/></a></article>
-   <article><Globe2 size={21}/><span className="adverse-home-download-tag">IPHONE · IPAD · DESKTOP</span><h3>Install from your browser</h3><p>Use ADVERSE from your Home Screen or install it through a supported browser.</p><a href="/download">See install instructions <ArrowUpRight size={14}/></a></article>
-   <article><Fingerprint size={21}/><span className="adverse-home-download-tag">ONE SERVICE</span><h3>Same ADVERSE</h3><p>Your device choice doesn't take you to a different product or workspace.</p><a href="/download">All device options <ArrowUpRight size={14}/></a></article>
-  </div>
  </section>
  <footer className="find-footer"><span>ADVERSE <i>/</i> FIND ANYTHING</span><span>Public-source search · No invented destinations</span><button onClick={onSignIn}>Sign in to save your research</button></footer></main>;
 }
