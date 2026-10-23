@@ -1,12 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import { request } from '../../lib/api';
 import { getRecordId as key } from '../../lib/ids';
-import type { Tab } from '../../types/research';
+import type { Evidence, Tab } from '../../types/research';
 import { Radar, Settings2 } from 'lucide-react';
 
 /** Session, collection, provider, and transient-panel lifecycle effects. */
 export function useWorkspaceLifecycle(deps: Record<string, any>) {
- const { resetToken, setResetToken, setAuthMode, setShowAuth, setAuthMessage, setApiStatus, setUserEmail, setAccountRole, setAuthState, setAiProviderStatus, loadCases, caseId, loadCaseData, researching, setResearchStatus, setAgentRun, authState, tab, loadProviderCredentials, loadAiCredentials, toolPopupSelector, setToolPopupSelector, evidence, relEvidence } = deps;
+ const { setResetToken, setAuthMode, setShowAuth, setAuthMessage, setApiStatus, setUserEmail, setAccountRole, setAuthState, setAiProviderStatus, loadCases, caseId, loadCaseData, researching, setResearchStatus, setAgentRun, authState, tab, loadProviderCredentials, loadAiCredentials, toolPopupSelector, setToolPopupSelector, evidence, relEvidence } = deps;
   useEffect(()=>{const params=new URLSearchParams(window.location.search);const token=params.get('reset');if(token){setResetToken(token);setAuthMode('reset');setShowAuth(true);setAuthMessage('');}},[]);
   useEffect(()=>{request<any>('/health').then(()=>setApiStatus('online')).catch(()=>setApiStatus('offline'));request<{data:{email:string;role?:string}}>('/auth/me').then(d=>{setUserEmail(d.data.email);setAccountRole(d.data.role||'user');setAuthState('authenticated');request<{data:{configured:boolean;providers:string[]}}>('/ai/status').then(s=>setAiProviderStatus(s.data.configured?(s.data.providers.join(' + ')+' configured · end-to-end unverified'):'Not configured')).catch(()=>setAiProviderStatus('Unable to check configuration'));loadCases();}).catch(()=>setAuthState('anonymous'));},[loadCases]);
   useEffect(()=>{loadCaseData(caseId);},[caseId,loadCaseData]);
@@ -18,6 +18,6 @@ export function useWorkspaceLifecycle(deps: Record<string, any>) {
   const tabLabels:Record<Tab,string>={'Intelligence Desk':'IntelliDesk',Settings:'Settings'};
   const titleFor=(t:Tab)=>tabLabels[t];
   const timeline=useMemo(()=>[...evidence].sort((a,b)=>new Date(a.publishedAt||a.captureTimestamp||a.retrievedAt||0).getTime()-new Date(b.publishedAt||b.captureTimestamp||b.retrievedAt||0).getTime()),[evidence]);
-  const selectedEvidence=evidence.find(e=>key(e)===relEvidence);
+  const selectedEvidence=evidence.find((e: Evidence)=>key(e)===relEvidence);
  return { nav, tabLabels, titleFor, timeline, selectedEvidence };
 }
