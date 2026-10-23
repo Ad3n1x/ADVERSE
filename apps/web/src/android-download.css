@@ -86,3 +86,111 @@
     transition: none;
   }
 }
+
+
+.adverse-download-nudge {
+  position: fixed;
+  z-index: 1200;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.adverse-download-nudge__question {
+  position: relative;
+  width: min(330px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 20px;
+  border: 1px solid rgba(185, 255, 75, 0.42);
+  border-radius: 18px;
+  color: #f6f8f1;
+  background: rgba(18, 22, 17, 0.98);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+.adverse-download-nudge__question > strong,
+.adverse-download-nudge__question > span {
+  display: block;
+  padding-right: 18px;
+}
+
+.adverse-download-nudge__question > strong {
+  font-size: 15px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.adverse-download-nudge__question > span {
+  margin-top: 6px;
+  color: #a8b09f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.adverse-download-nudge__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #a8b09f;
+  background: transparent;
+  cursor: pointer;
+}
+
+.adverse-download-nudge__close:hover {
+  color: #f6f8f1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.adverse-download-nudge__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.adverse-download-nudge__actions button {
+  flex: 1;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #b9ff4b;
+  border-radius: 10px;
+  color: #11170b;
+  background: #b9ff4b;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.adverse-download-nudge__actions button.is-secondary {
+  color: #f6f8f1;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.adverse-download-nudge__actions button:focus-visible,
+.adverse-download-nudge__close:focus-visible {
+  outline: 2px solid #b9ff4b;
+  outline-offset: 3px;
+}
+
+.adverse-download-nudge .adverse-android-download {
+  position: static;
+}
+
+@media (max-width: 480px) {
+  .adverse-download-nudge {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
