@@ -29,10 +29,12 @@ export async function linkEvidenceAutomatically({
   Relationship,
   isDb,
   memory,
+  id,
+  saveRecord,
   listFor,
   logger = console,
 }) {
-  const result = { evidenceEntityLinksAdded: 0, relationshipEvidenceLinksAdded: 0 };
+  const result = { evidenceEntityLinksAdded: 0, relationshipEvidenceLinksAdded: 0, relationshipRecordsAdded: 0 };
   if (!savedSources.length) return result;
 
   try {
@@ -72,6 +74,48 @@ export async function linkEvidenceAutomatically({
       }
 
       const matchedSet = new Set(matchedIds);
+      // Record a transparent co-mention lead when a source names two known
+      // substantive entities. This is not a claim that the entities are truly
+      // related; it preserves the discovery for review without upgrading trust.
+      const substantiveEntities = matchedEntities.filter(entity =>
+        !['domain', 'document', 'source'].includes(String(entity.type || '').toLowerCase())
+      );
+      const relationKey = (from, to, type) => [String(from), String(to), String(type)].join('|');
+      const knownKeys = new Set(relationships.map(item => relationKey(item.fromEntityId, item.toEntityId, item.type)));
+      const knownPairKeys = new Set(relationships.map(item => [String(item.fromEntityId), String(item.toEntityId)].sort().join('|')));
+      for (let left = 0; left < substantiveEntities.length; left++) {
+        for (let right = left + 1; right < substantiveEntities.length; right++) {
+          const fromEntity = substantiveEntities[left];
+          const toEntity = substantiveEntities[right];
+          const fromId = String(fromEntity.id || fromEntity._id || '');
+          const toId = String(toEntity.id || toEntity._id || '');
+          if (!fromId || !toId || fromId === toId || knownPairKeys.has([fromId, toId].sort().join('|'))) continue;
+          if (typeof saveRecord !== 'function' || typeof id !== 'function') continue;
+          const candidate = {
+            id: id(),
+            investigationId,
+            fromEntityId: fromId,
+            toEntityId: toId,
+            type: 'co-mentioned in source',
+            evidenceIds: [evidenceId],
+            confidence: 'low',
+            rationale: 'Both entities are named in the same saved source. This is an automatically recorded discovery lead only; co-mention does not establish a direct relationship or prove a claim.',
+            verificationStatus: 'unverified',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+          try {
+            const stored = await saveRecord(Relationship, 'relationships', candidate);
+            relationships.push(stored || candidate);
+            knownKeys.add(relationKey(fromId, toId, candidate.type));
+            knownPairKeys.add([fromId, toId].sort().join('|'));
+            result.relationshipRecordsAdded++;
+          } catch (error) {
+            logger.warn?.('ADVERSE co-mention relationship save failed', String(error?.message || error));
+          }
+        }
+      }
+
       for (const relationship of relationships) {
         const fromId = String(relationship.fromEntityId);
         const toId = String(relationship.toEntityId);
