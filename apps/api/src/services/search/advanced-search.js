@@ -20,7 +20,7 @@ export function parseAdvancedSearch(input) {
     const value = match[2].replace(/^[\"']|[\"']$/g, '').trim();
     if (key === 'site') {
       const host = value.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      if (host.length <= 253 && /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(host)) filters.site = host;
+      if (host.includes('.') && host.length <= 253 && /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(host)) filters.site = host;
       else invalid.push('site:' + value);
     } else if (key === 'after' || key === 'before') {
       if (validDate(value)) filters[key] = value;
