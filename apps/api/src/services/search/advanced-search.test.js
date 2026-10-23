@@ -11,7 +11,7 @@ test('parses supported operators and preserves ordinary search terms', () => {
 });
 
 test('ignores malformed operator values and reports them', () => {
-  const parsed = parseAdvancedSearch('health data after:tomorrow type:exe site:bad host');
+  const parsed = parseAdvancedSearch('health data after:tomorrow type:exe site:bad');
   assert.equal(parsed.query, 'health data');
   assert.deepEqual(parsed.invalidOperators, ['after:tomorrow', 'type:exe', 'site:bad']);
 });
