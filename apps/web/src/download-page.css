@@ -67,3 +67,18 @@
   .adverse-iphone-step-number { width:30px; height:30px; border-radius:9px; }
 }
 
+
+/* Unified Android + iPhone download choices */
+.adverse-device-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; max-width:1000px; margin:0 auto; align-items:stretch; }
+.adverse-device-options .adverse-download-card { padding:clamp(20px,3vw,30px); }
+.adverse-device-options .adverse-download-card h2 { margin-top:24px; }
+.adverse-device-options .adverse-download-card p { min-height:70px; }
+.adverse-device-secondary { margin-top:10px; }
+.adverse-device-options .adverse-download-steps { margin-top:20px; }
+.adverse-device-options .adverse-download-steps li { margin:5px 0; padding-left:2px; }
+@media (max-width:680px) {
+  .adverse-device-options { grid-template-columns:minmax(0,1fr); gap:14px; }
+  .adverse-device-options .adverse-download-card p { min-height:0; }
+  .adverse-device-hero { margin-top:46px; margin-bottom:30px; }
+  .adverse-device-download-page .adverse-download-mark { display:none; }
+}
