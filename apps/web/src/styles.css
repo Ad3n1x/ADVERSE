@@ -1695,3 +1695,10 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .investigative-route-card code{display:block;margin-top:5px;padding:7px;border-radius:6px;background:#0b1210;color:#dce9e2;font-size:10px;line-height:1.5;overflow-wrap:anywhere;white-space:normal}
 .investigative-route-card .route-manual-step{color:#e1c797;border-left:2px solid #876a37;padding-left:8px}
 @media(max-width:680px){.investigative-route-list{grid-template-columns:minmax(0,1fr)}}
+
+
+/* Keep the relationship map centered in its available viewport. */
+.graph-preview{width:100%;max-width:100%;margin-inline:auto;}
+.graph-explorer{width:100%;max-width:100%;margin-inline:auto;}
+.force-graph-shell{width:100%;margin-inline:auto;}
+.force-graph-shell canvas{display:block;margin-inline:auto!important;}
