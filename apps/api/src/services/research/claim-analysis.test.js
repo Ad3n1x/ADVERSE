@@ -29,7 +29,7 @@ test('claim triage preserves source-level provenance and never upgrades verifica
   assert.equal(repeated.status, 'repeated_claim');
   assert.match(repeated.assessment, /independence.*not been established/i);
   assert.ok(repeated.sources.every(source => source.verificationStatus === 'unverified'));
-  assert.equal(repeated.sourceDiversity.label, 'multiple-domain evidence; independence unverified');
+  assert.equal(repeated.sourceDiversity.label, 'multiple-hostname evidence; independence unverified');
   assert.ok(repeated.sources.every(source => source.sourceTypeSignal && source.sourceTypeSignal.label));
   assert.ok(result.limitations.some(item => /not a fact-checker/i.test(item)));
 });
