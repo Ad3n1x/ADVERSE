@@ -1,4 +1,4 @@
-import { useWorkspaceContext } from './WorkspaceContext';
+import { useWorkspaceContext } from '../WorkspaceContext';
 import WorkspaceSettingsPanel from './WorkspaceSettingsPanel';
 import ResearchWorkspacePanels from './ResearchWorkspacePanels';
 import CollectionWorkspacePanels from './CollectionWorkspacePanels';
