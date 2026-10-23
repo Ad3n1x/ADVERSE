@@ -53,15 +53,15 @@ export default function DownloadPage() {
         <div className="adverse-iphone-panel-heading">
           <span className="adverse-download-platform-icon"><Apple size={24} /></span>
           <div>
-            <span className="adverse-download-status">NATIVE IOS BUILD · BUILD SUCCEEDED</span>
-            <h2 id="adverse-native-ios-title">ADVERSE for iPhone</h2>
+            <span className="adverse-download-status">IOS PROJECT</span>
+            <h2 id="adverse-native-ios-title">Native iOS app project</h2>
           </div>
         </div>
-        <p className="adverse-native-ios-description">A native SwiftUI iOS app shell with ADVERSE browsing, a fingerprint-themed loading indicator, retry-on-connection-error, swipe navigation, and external links that open in Safari.</p>
+        <p className="adverse-native-ios-description">ADVERSE has a SwiftUI iOS app project and a macOS build workflow in GitHub. There is not yet a published, installable native iOS release here; the workflow produces an unsigned build for inspection.</p>
         <a className="adverse-download-secondary adverse-native-ios-link" href="https://github.com/Ad3n1x/ADVERSE/actions/runs/39969402467" target="_blank" rel="noreferrer">
-          View build &amp; IPA artifact <ExternalLink size={16} />
+          View source &amp; build workflow <ExternalLink size={16} />
         </a>
-        <p className="adverse-download-note">Important: the generated IPA is unsigned. It is a build artifact for signing/testing, not a tap-to-install iPhone download. Installing it on a real iPhone requires Apple-supported signing and provisioning. For an immediate install without that setup, use the Safari Home Screen steps above.</p>
+        <p className="adverse-download-note">An installable release requires Apple signing and a supported distribution method.</p>
       </section>
 
       <footer className="adverse-download-footer">
