@@ -1,6 +1,4 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import { API } from '../../lib/api';
-import { getRecordId as key } from '../../lib/ids';
 import { ArrowUpRight, Bell, Check, ExternalLink, Globe2, Plus, Search, ShieldCheck, Network } from 'lucide-react';
 
 /** Search Results Panel view. */
