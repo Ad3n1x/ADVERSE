@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { PublicSearchDocument } from '../../models/public-search-document.model.js';
+import { expandSearchQueries } from './global-search.js';
 
 const clean = (value, max = 6000) => String(value || '').replace(/\s+/g, ' ').trim().slice(0, max);
 const hash = value => crypto.createHash('sha256').update(String(value || '')).digest('hex');
@@ -10,28 +11,43 @@ export async function findIndexedPublicResults(query, limit = 8) {
   const q = clean(query, 180);
   if (q.length < 2) return [];
   try {
-    const docs = await PublicSearchDocument.find(
-      { $text: { $search: q } },
-      { score: { $meta: 'textScore' } },
-    ).sort({ score: { $meta: 'textScore' }, lastSeenAt: -1 }).limit(Math.min(12, Math.max(1, limit))).lean();
-    return docs.map(doc => ({
-      title: doc.title || doc.canonicalUrl,
-      url: doc.canonicalUrl,
-      excerpt: doc.excerpt || '',
-      publisher: doc.publisher || doc.hostname,
-      provider: doc.provider || 'ADVERSE indexed source',
-      providers: Array.isArray(doc.providers) ? doc.providers : [],
-      publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toISOString() : null,
-      retrievedAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
-      sourceType: doc.sourceType || 'web',
-      matchedQueries: doc.matchedQueries || [],
-      indexSignals: {
-        indexed: true,
-        lastSeenAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
-        lastFetchedAt: doc.lastFetchedAt ? new Date(doc.lastFetchedAt).toISOString() : null,
-        textScore: Number.isFinite(doc.score) ? doc.score : undefined,
-      },
+    const variants = expandSearchQueries(q, 4).map(item => item.query);
+    const searches = [...new Set([q, ...variants])].slice(0, 4);
+    const batches = await Promise.all(searches.map(async searchTerm => {
+      try {
+        return await PublicSearchDocument.find(
+          { $text: { $search: searchTerm } },
+          { score: { $meta: 'textScore' } },
+        ).sort({ score: { $meta: 'textScore' }, lastSeenAt: -1 }).limit(Math.min(12, Math.max(1, limit))).lean();
+      } catch (error) {
+        if (error?.code === 27 || /text index required|index is building/i.test(String(error?.message || ''))) return [];
+        throw error;
+      }
     }));
+    const merged = new Map();
+    for (const docs of batches) for (const doc of docs) {
+      const previous = merged.get(doc.canonicalUrl);
+      if (!previous || Number(doc.score || 0) > Number(previous.score || 0)) merged.set(doc.canonicalUrl, doc);
+    }
+    return [...merged.values()].sort((a, b) => Number(b.score || 0) - Number(a.score || 0)
+      || new Date(b.lastSeenAt || 0).getTime() - new Date(a.lastSeenAt || 0).getTime())
+      .slice(0, Math.min(12, Math.max(1, limit))).map(doc => ({
+        title: doc.title || doc.canonicalUrl,
+        url: doc.canonicalUrl,
+        excerpt: doc.excerpt || '',
+        publisher: doc.publisher || doc.hostname,
+        provider: doc.provider || 'ADVERSE indexed source',
+        providers: Array.isArray(doc.providers) ? doc.providers : [],
+        publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toISOString() : null,
+        retrievedAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
+        sourceType: doc.sourceType || 'web',
+        indexSignals: {
+          indexed: true,
+          lastSeenAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
+          lastFetchedAt: doc.lastFetchedAt ? new Date(doc.lastFetchedAt).toISOString() : null,
+          textScore: Number.isFinite(doc.score) ? doc.score : undefined,
+        },
+      }));
   } catch (error) {
     // A text index may be building after the first deployment. Keep live search available.
     if (error?.code === 27 || /text index required|index is building/i.test(String(error?.message || ''))) return [];
