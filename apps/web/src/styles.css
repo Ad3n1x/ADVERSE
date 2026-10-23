@@ -1534,3 +1534,15 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 #root .graph-node-detail-links .graph-relationship-option{padding:9px;border:1px solid #263b36;border-radius:9px;background:rgba(6,13,14,.38)}
 #root .graph-node-detail-links .graph-relationship-option.selected{border-color:#4f8b7d}
 @media(max-width:600px){#root .graph-node-detail{margin:8px;padding:12px}#root .graph-node-detail-head h3{font-size:14px}}
+
+
+/* Reliable entity selection fallback for graph touch/canvas edge cases. */
+#root .graph-entity-picker{display:grid;gap:10px;padding:13px 14px;border-top:1px solid #253632;background:#0c1315}
+#root .graph-entity-picker-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:7px;max-height:220px;overflow:auto;overscroll-behavior:contain}
+#root .graph-entity-picker-list button{display:flex;align-items:center;gap:8px;min-width:0;padding:9px 10px;border:1px solid #293b3a;border-radius:8px;background:#101a1b;color:#d7e5df;text-align:left;cursor:pointer;touch-action:manipulation}
+#root .graph-entity-picker-list button:hover,#root .graph-entity-picker-list button.active{border-color:#78bfae;background:#172925}
+#root .graph-entity-picker-list button>span:nth-child(2){min-width:0;flex:1;overflow-wrap:anywhere;font-size:11px}
+#root .graph-entity-picker-list button small{flex:0 0 auto;color:#8da49a;font-size:9px}
+#root .graph-entity-picker-dot{display:block;flex:0 0 9px;width:9px;height:9px;border:1px solid #d7e6ff;border-radius:50%;background:#86a8ff;box-shadow:0 0 9px #86a8ff44}
+#root .graph-entity-picker-list button.active .graph-entity-picker-dot{background:#f5c76b;border-color:#fff0bf}
+@media(max-width:600px){#root .graph-entity-picker{padding:11px 9px}#root .graph-entity-picker-list{grid-template-columns:minmax(0,1fr);max-height:190px}}
