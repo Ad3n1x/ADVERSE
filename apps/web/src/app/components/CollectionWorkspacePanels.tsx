@@ -1,10 +1,10 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
 import Empty from '../../components/ui/Empty';
-import { Activity, ArrowDownRight, ArrowUpRight, BookOpen, Database, Fingerprint, Layers3, Search, Waypoints, Trash2 } from 'lucide-react';
+import { Activity, ArrowDownRight, ArrowUpRight, BookOpen, Database, Fingerprint, Layers3, Waypoints, Trash2 } from 'lucide-react';
 
 /** Collection overview, saved evidence, relationship graph, and monitoring panels. */
 export default function CollectionWorkspacePanels() {
- const { setTab, setCreateOpen, setToolPopupSelector, question, cases, caseId, evidence, entities, relationships, active, selectCollection, deleteCase } = useWorkspaceContext();
+ const { cases, caseId, evidence, entities, relationships, active, setTab, setCreateOpen, selectCollection, setToolPopupSelector, deleteCase } = useWorkspaceContext();
  return <>
 
  <div className="section-row"><div><h2>Your activity at a glance</h2><p>Counts from your saved workspace, not internet-wide totals.</p></div><span className="muted-tag">WORKSPACE RECORDS</span></div><div className="metric-grid">{[{label:'COLLECTIONS',n:cases.length,desc:'Saved research',icon:Layers3},{label:'SAVED SOURCES',n:evidence.length,desc:'Selected collection',icon:Database},{label:'LINKS BETWEEN ITEMS',n:relationships.length,desc:'Source-linked relationships',icon:Waypoints},{label:'PEOPLE & ORGANIZATIONS',n:entities.length,desc:'Selected collection',icon:Fingerprint}].map(m=><div className="metric-card" key={m.label}><div className="metric-top"><span>{m.label}</span><m.icon size={16}/></div><div className="metric-value">{String(m.n).padStart(2,'0')}</div><div className="metric-foot"><span className="metric-neutral">{m.desc}</span><ArrowUpRight size={14}/></div></div>)}</div>
