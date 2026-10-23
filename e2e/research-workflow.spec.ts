@@ -27,11 +27,11 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByLabel('Public link (optional)').fill('https://example.org');
   await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
 
-  const filter = page.getByPlaceholder('Filter by name, type, or description');
-  await expect(filter).toBeVisible();
-  await filter.fill('Example Corporation');
-  const entityOption = page.locator('.graph-entity-option').filter({ hasText: 'Example Corporation' });
+  // The current graph exposes a dedicated entity picker rather than the older
+  // filter/.graph-entity-option UI. Select the newly-created entity directly.
+  const entityOption = page.locator('.graph-entity-picker-list button').filter({ hasText: 'Example Corporation' });
   await expect(entityOption).toBeVisible();
   await entityOption.click();
-  await expect(page.getByText('SELECTED ITEM')).toBeVisible();
+  await expect(page.getByText('SELECTED ENTITY')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: /Open source: Example Corporation/i })).toBeVisible();
 });
