@@ -1,5 +1,6 @@
 import { analyzeVisualFrame } from '../services/media/visual-analysis.js';
 import { improvePublicSearchRanking } from '../services/search/relevance-ranking.js';
+import { findIndexedPublicResults, indexPublicSearchResults } from '../services/search/public-search-index.js';
 
 export function registerPublicSearchRoutes(app, {
   limitProvider, wrap, sendError, validatePublicUrl, inspectPublicLink,
@@ -73,14 +74,21 @@ export function registerPublicSearchRoutes(app, {
     const q = String(req.query.q || '').trim().slice(0, 200);
     if (q.length < 2) return sendError(res, 400, 'QUERY_REQUIRED', 'Enter at least two characters to search.');
     const providerKeys = req.user ? await getUserProviderKeys(req.user.id) : {};
-    const live = await searchAllPublic(q, providerKeys).catch(error => ({
-      results: [], queryPlan: [], meta: {}, error: String(error?.message || 'Public providers unavailable'),
-    }));
+    const [live, indexed] = await Promise.all([
+      searchAllPublic(q, providerKeys).catch(error => ({
+        results: [], queryPlan: [], meta: {}, error: String(error?.message || 'Public providers unavailable'),
+      })),
+      findIndexedPublicResults(q, 10).catch(error => {
+        console.warn('ADVERSE indexed search unavailable:', String(error?.message || 'index lookup failed').slice(0, 180));
+        return [];
+      }),
+    ]);
 
-    // Rank first by query relevance and domain diversity, then apply small
-    // corroboration/preview-quality signals without presenting them as truth scores.
+    // Blend fresh federated results with previously indexed public pages. Index hits
+    // improve continuity but never replace live providers or imply source verification.
+    const mergedResults = [...(Array.isArray(live.results) ? live.results : []), ...indexed];
     const ranked = improvePublicSearchRanking(
-      diversifyPublicResults(Array.isArray(live.results) ? live.results : [], q, { limit: 30, maxPerDomain: 3 }),
+      diversifyPublicResults(mergedResults, q, { limit: 36, maxPerDomain: 3 }),
       q,
     );
     const candidates = ranked.map(({ _searchScore, _searchOrder, ...item }) => item);
@@ -99,15 +107,16 @@ export function registerPublicSearchRoutes(app, {
     const checked = await Promise.all(unique.slice(0, 8).map(async item => {
       const checkedAt = new Date().toISOString();
       try {
-        await scrapePublicPage(item.url);
-        return { ...item, linkCheck: { status: 'reachable', checkedAt, note: 'The public page responded with readable text during this check. This does not verify every claim on the page.' } };
+        const page = await scrapePublicPage(item.url);
+        return { ...item, _indexedPage: { title: page?.title || '', excerpt: page?.excerpt || '' }, linkCheck: { status: 'reachable', checkedAt, note: 'The public page responded with readable text during this check. This does not verify every claim on the page.' } };
       } catch {
         return { ...item, linkCheck: { status: 'not_confirmed', checkedAt, note: 'ADVERSE could not confirm readable page access. The link may redirect, block automated access, or be temporarily unavailable; inspect it directly before relying on it.' } };
       }
     }));
     const checkedUrls = new Set(checked.map(item => item.url));
+    await indexPublicSearchResults(unique, q, checked.map(item => ({ url: item.url, page: item._indexedPage })));
     const rawResults = [
-      ...checked,
+      ...checked.map(({ _indexedPage, ...item }) => item),
       ...unique.filter(item => !checkedUrls.has(item.url)).map(item => ({
         ...item, linkCheck: { status: 'not_checked', checkedAt: null, note: 'This result was not link-checked in this search.' },
       })),
