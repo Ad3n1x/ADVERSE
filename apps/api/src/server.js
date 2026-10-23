@@ -4,6 +4,7 @@ import { app } from './app.js';
 import { startMonitoringWorker } from './monitor.js';
 import { startDiscoveryWorker } from './discovery.js';
 import { Investigation } from './models.js';
+import { PublicSearchDocument } from './models/public-search-document.model.js';
 import { interruptedAgentState } from './agent-run-state.js';
 const port=Number(process.env.PORT||4000);
 if(process.env.NODE_ENV==='production'&&!process.env.JWT_SECRET)throw new Error('JWT_SECRET is required in production; refusing to start with a predictable session secret.');
@@ -12,6 +13,9 @@ if(process.env.MONGODB_URI){
   await mongoose.connect(process.env.MONGODB_URI,{serverSelectionTimeoutMS:12000});
   globalThis.__ADVERSE_MONGO_READY__=true;
   console.log('ADVERSE MongoDB connected');
+  await PublicSearchDocument.createIndexes().catch(error => {
+    console.warn('ADVERSE public search index initialization deferred:', String(error?.message || 'index creation failed').slice(0, 180));
+  });
 }else{globalThis.__ADVERSE_MONGO_READY__=false;console.warn('MONGODB_URI not set; local development data is ephemeral.');}
 if(globalThis.__ADVERSE_MONGO_READY__===true){
   const stale=await Investigation.find({'agentRunState.status':'running'}).select('_id agentRunState').lean();
