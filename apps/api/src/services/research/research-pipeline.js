@@ -2,7 +2,7 @@ import { ingestEvidence } from './evidence-ingestion.js';
 import { enrichSourceProvenance } from './source-provenance.js';
 import { linkEvidenceAutomatically } from './evidence-linking.js';
 
-const cleanQuery = value => String(value || '').replace(/\\s+/g, ' ').trim().slice(0, 200);
+const cleanQuery = value => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 
 /**
  * Runs a bounded, two-pass public-source investigation.
@@ -64,7 +64,7 @@ export async function runResearchPipeline({
           mode: proposed.mode === 'ai' ? 'ai' : 'heuristic',
           provider: proposed.provider || null,
           leads: proposed.leads
-            .map(lead => ({ query: cleanQuery(lead?.query), reason: String(lead?.reason || '').replace(/\\s+/g, ' ').trim().slice(0, 240) }))
+            .map(lead => ({ query: cleanQuery(lead?.query), reason: String(lead?.reason || '').replace(/\s+/g, ' ').trim().slice(0, 240) }))
             .filter(lead => lead.query.length >= 5)
             .slice(0, 3),
         };
