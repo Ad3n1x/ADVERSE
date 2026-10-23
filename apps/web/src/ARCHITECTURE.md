@@ -9,6 +9,7 @@ src/
 │   ├── handlers/                # extracted workflows with explicit dependencies
 │   │   ├── createCaseResearchAction.ts      # autonomous investigation orchestration
 │   │   ├── createGraphMutationActions.ts    # evidence and graph mutations
+│   │   └── createVisualSearchAction.ts       # image/video visual-match workflow
 │   │   ├── createImportExistingResearch.ts # collection import and graph mapping
 │   │   └── createReviewActions.ts           # AI review, claim map, source review and gap actions
 │   └── hooks/
@@ -44,4 +45,5 @@ src/
 - `createReviewActions.ts` owns the four evidence-review request workflows; the workspace shell supplies state setters and notifications while request behavior stays unchanged.
 - `createCaseResearchAction.ts` owns the autonomous investigation lifecycle and receives discovery, refresh, and UI feedback functions explicitly. This reduces shell-level orchestration without changing the discovery pipeline or its endpoints.
 - `createGraphMutationActions.ts` owns single-record and bulk deletion workflows for evidence, entities, and relationships. Confirmation prompts and API paths remain unchanged; the shell supplies current collection data and refresh/feedback functions.
+- `createVisualSearchAction.ts` owns the image/video visual-match workflow, including frame compression, result normalization, deduplication, and user feedback; the workspace shell passes state setters and the selected file.
 - Continue extracting one workflow at a time. Keep the active collection state centralized until a feature has a clear state boundary, and run the full frontend typecheck/build and browser smoke tests after each extraction.
