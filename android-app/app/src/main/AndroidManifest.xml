@@ -5,6 +5,7 @@
     <application
         android:allowBackup="false"
         android:label="ADVERSE"
+        android:icon="@drawable/adverse_fingerprint"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:hardwareAccelerated="true">
