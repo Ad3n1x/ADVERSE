@@ -22,7 +22,7 @@ test('financial investigations get a public-record money trail, without private-
   const money = routes.find(route => route.id === 'follow-the-money');
   assert.ok(money);
   assert.match(money.query, /procurement award contract amount/i);
-  assert.match(money.check, /shared name/i);
+  assert.match(money.reporterStep, /shared name/i);
   assert.doesNotMatch(money.query, /home address|personal phone|private account/i);
   assert.ok(investigativeRoutesForRound(routes, 3).some(route => route.id === 'follow-the-money'));
 });
