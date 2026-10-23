@@ -7,13 +7,11 @@ import WorkspaceSidebar from './components/WorkspaceSidebar';
 import ToastViewport from '../components/layout/ToastViewport';
 import PublicSearchScreen from '../features/public-search/PublicSearchScreen';
 import AuthScreen from '../features/auth/AuthScreen';
-import type { Tab } from '../types/research';
 import { useWorkspaceNotifications } from './hooks/useWorkspaceNotifications';
 import { useWorkspaceCollections } from './hooks/useWorkspaceCollections';
 import { useWorkspaceCredentials } from './hooks/useWorkspaceCredentials';
 import { createImportExistingResearch } from './handlers/createImportExistingResearch';
 import { createReviewActions } from './handlers/createReviewActions';
-import { createCaseResearchAction } from './handlers/createCaseResearchAction';
 import { createGraphMutationActions } from './handlers/createGraphMutationActions';
 import { createVisualSearchAction } from './handlers/createVisualSearchAction';
 import { createWorkspaceSearchActions } from './handlers/createWorkspaceSearchActions';
@@ -23,7 +21,7 @@ import { createWorkspaceRecordActions } from './handlers/createWorkspaceRecordAc
 import { createWorkspaceCollectionActions } from './handlers/createWorkspaceCollectionActions';
 import { createWorkspaceAccountActions } from './handlers/createWorkspaceAccountActions';
 import { createWorkspaceResearchPipeline } from './handlers/createWorkspaceResearchPipeline';
-import { Fingerprint, Settings2, ShieldCheck, Radar } from 'lucide-react';
+import { Fingerprint } from 'lucide-react';
 function WorkspaceApp(){
  const { toasts, setToasts, error, setError, notify } = useWorkspaceNotifications();
  const { authState, setAuthState, authMode, setAuthMode, showAuth, setShowAuth, authEmail, setAuthEmail, authPassword, setAuthPassword, displayName, setDisplayName, userEmail, setUserEmail, accountRole, setAccountRole, resetToken, setResetToken, authMessage, setAuthMessage, tab, setTab, createOpen, setCreateOpen, toolsOpen, setToolsOpen, toolPopupSelector, setToolPopupSelector, caseTitle, setCaseTitle, question, setQuestion, addEntityToCollectionOpen, setAddEntityToCollectionOpen, addEntityTargetCollectionId, setAddEntityTargetCollectionId, importResearchOpen, setImportResearchOpen, importSourceCollectionId, setImportSourceCollectionId, importDestinationCollectionId, setImportDestinationCollectionId, importEvidenceEnabled, importGraphEnabled, importResearchBusy, setImportResearchBusy, importFeedback, setImportFeedback, query, setQuery, searchMode, setSearchMode, searchResults, setSearchResults, searchPlan, setSearchPlan, searchMeta, setSearchMeta, searching, setSearching, researching, setResearching, visualFile, setVisualFile, visualPreview, setVisualPreview, visualBusy, setVisualBusy, archiveUrl, setArchiveUrl, captures, setCaptures, archiveNote, setArchiveNote, compareFrom, setCompareFrom, compareTo, setCompareTo, diffData, setDiffData, domainUrl, setDomainUrl, domainData, setDomainData, orgQuery, setOrgQuery, orgResults, setOrgResults, orgSearching, setOrgSearching, historyAsOf, setHistoryAsOf, historyGraph, setHistoryGraph, historyLoading, setHistoryLoading, evOpen, setEvOpen, evTitle, setEvTitle, evUrl, setEvUrl, evExcerpt, setEvExcerpt, entityOpen, setEntityOpen, entityName, setEntityName, entityType, setEntityType, entityUrl, setEntityUrl, relOpen, setRelOpen, relFrom, setRelFrom, relTo, setRelTo, relType, setRelType, relEvidence, setRelEvidence, reportFormat, setReportFormat, crossReview, setCrossReview, crossReviewLoading, setCrossReviewLoading, claimMap, setClaimMap, claimMapLoading, setClaimMapLoading, aiReviewLoading, setAiReviewLoading, researchGaps, setResearchGaps, researchGapsLoading, setResearchGapsLoading, graphQuery, setGraphQuery, selectedEntityId, setSelectedEntityId, visualInputRef } = useWorkspaceUiState();
