@@ -29,7 +29,7 @@ src/
 │   ├── media/                           # image/video/people search
 │   ├── monitoring/                      # archive monitoring worker
 │   ├── reporting/                       # report generation
-│   ├── research/                        # research pipeline, follow-up planning, claim analysis, gaps and source assessment
+│   ├── research/                        # orchestration, evidence ingestion, provenance graph, analysis and planning
 │   └── search/                          # provider adapters and search orchestration
 ├── app.js                               # Express setup, shared middleware and route composition
 └── server.js                            # process entry point and worker startup
