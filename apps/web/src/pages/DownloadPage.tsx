@@ -46,7 +46,7 @@ export default function DownloadPage() {
           <Check size={18} />
           <p><strong>Ready.</strong> Launch ADVERSE from the fingerprint icon on your Home Screen whenever you need it.</p>
         </div>
-        <small className="adverse-download-note">This is ADVERSE’s installable Progressive Web App (PWA), not an App Store or TestFlight build. It uses the live ADVERSE service and requires an internet connection for live research features.</small>
+        <small className="adverse-download-note">This installs ADVERSE’s iPhone web app from Safari. It uses the same live ADVERSE service and requires an internet connection for live research features.</small>
       </section>
 
       <footer className="adverse-download-footer">
