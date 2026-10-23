@@ -1,6 +1,7 @@
 import AdminApp from './features/admin/AdminApp';
 import WorkspaceApp from './app/WorkspaceApp';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import ConnectionStatus from './components/ConnectionStatus';
 
 export default function App() {
   const isAdminRoute =
@@ -11,6 +12,7 @@ export default function App() {
   return (
     <>
       {isAdminRoute ? <AdminApp /> : <WorkspaceApp />}
+      <ConnectionStatus />
       <PwaInstallPrompt />
     </>
   );
