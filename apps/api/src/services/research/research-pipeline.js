@@ -94,6 +94,8 @@ export async function runResearchPipeline({
     Relationship,
     isDb,
     memory,
+    id,
+    saveRecord,
     listFor,
     logger,
   });
