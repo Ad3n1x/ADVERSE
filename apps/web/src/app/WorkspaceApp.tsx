@@ -10,7 +10,7 @@ import Modal from '../components/ui/Modal';
 import { API, request } from '../lib/api';
 import { HISTORY_KEY, SAVED_KEY } from '../lib/storageKeys';
 import { getRecordId as key } from '../lib/ids';
-import type { Capture, Entity, Evidence, Investigation, Relationship, SearchResult, Tab } from '../types/research';
+import type { Capture, Evidence, Investigation, SearchResult, Tab } from '../types/research';
 import { useWorkspaceNotifications } from './hooks/useWorkspaceNotifications';
 import { compressVisualFile } from '../features/public-search/visual-file';
 import { useWorkspaceCollections } from './hooks/useWorkspaceCollections';
