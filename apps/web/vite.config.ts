@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'pwa-icon-192.svg', 'pwa-icon-512.svg'],
       manifest: {
         id: '/',
         name: 'ADVERSE — Public-Source Intelligence Workspace',
@@ -21,12 +21,18 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          { src: '/favicon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }
+          { src: '/pwa-icon-192.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/pwa-icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: '/pwa-icon-512.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'maskable' }
+        ],
+        shortcuts: [
+          { name: 'Open Intelligence Desk', short_name: 'IntelliDesk', url: '/?tab=Intelligence%20Desk' }
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest}'],
         navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true
