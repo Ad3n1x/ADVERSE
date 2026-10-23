@@ -53,8 +53,8 @@ function sourceTypeSignal(source) {
 }
 function diversitySignal(sources) {
   const domains = [...new Set(sources.map(s => s.host).filter(host => host && host !== 'unknown source'))];
-  if (domains.length <= 1) return { label: 'single-domain evidence', domainCount: domains.length, note: 'No cross-domain corroboration is present in this group.' };
-  return { label: 'multiple-domain evidence; independence unverified', domainCount: domains.length, note: 'Different domains do not prove independent reporting or separate source lineages.' };
+  if (domains.length <= 1) return { label: 'single-domain evidence', domainCount: domains.length, note: 'No cross-hostname corroboration is present in this group.' };
+  return { label: 'multiple-hostname evidence; independence unverified', domainCount: domains.length, note: 'Different hostnames do not prove independent reporting or separate source lineages.' };
 }
 
 /**
@@ -103,7 +103,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
       if(numericConflict||polarityConflict)pairs.push({sourceA:a.sourceId,sourceB:b.sourceId,kind:numericConflict?'different_numeric_details':'possible_polarity_conflict',detail:numericConflict?'Similar statements contain different numeric/date tokens. Check units, dates, context, and source quality.':'Similar statements differ in negation or denial language. Confirm they discuss the same proposition and timeframe.'});
     }
     const independentSources=domains.filter(d=>d!=='unknown source').length;
-    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,sourceDiversity:diversitySignal(sources),sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,...s})=>s),status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
+    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,distinctSourceHosts:independentSources,sourceDiversity:diversitySignal(sources),sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,...s})=>s),status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
   });
   output.sort((a,b)=>(b.possibleConflicts.length-a.possibleConflicts.length)||(b.sourceCount-a.sourceCount));
   const provenanceClusters=new Map();
