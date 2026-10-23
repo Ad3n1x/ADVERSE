@@ -1,8 +1,8 @@
 # ADVERSE
 
-**ADVERSE — Find Anything. In Minutes.**
+**ADVERSE — Search the lead. Follow the evidence.**
 
-ADVERSE is a public-first search product that helps people find useful webpages, official resources, tools, guides, and answers faster. It searches available public sources, deduplicates results, and checks a selection of destinations for readable public-page access. Reachability is not a guarantee that content is true, safe, current, or endorsed. The private research workspace remains available for users who want to save and analyze sources.
+ADVERSE is an evidence-led investigative research workspace. It helps people discover information across available public sources, inspect original pages, preserve source context, and organise people, organisations, events, documents, and relationships into structured investigations. Public search is a starting point—not a complete index of the web. Link reachability is an access signal, not proof that a page is true, safe, current, or endorsed. ADVERSE is designed to help researchers keep a clear trail from a question to the sources behind their findings.
 
 ## Engineering transparency
 
