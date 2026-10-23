@@ -44,6 +44,24 @@ export function improvePublicSearchRanking(items, query) {
     else if (excerptWords >= 8) score += 1;
     else if (!excerptWords) score -= 2;
 
+    // Freshness matters most when the query explicitly asks for recent information.
+    const freshnessIntent = /\b(latest|today|current|recent|newest|breaking|news|updates?|this week|202[5-9])\b/i.test(String(query || ''));
+    if (freshnessIntent) {
+      const timestamp = item?.publishedAt || item?.indexSignals?.lastFetchedAt || item?.retrievedAt || item?.indexSignals?.lastSeenAt;
+      const ageDays = timestamp ? (Date.now() - new Date(timestamp).getTime()) / 86400000 : Infinity;
+      if (Number.isFinite(ageDays) && ageDays >= 0) {
+        if (ageDays <= 1) score += 5;
+        else if (ageDays <= 7) score += 3;
+        else if (ageDays <= 30) score += 1;
+        else if (ageDays > 365) score -= 2;
+      }
+    }
+
+    // Exact phrase coverage is a useful signal, but never enough to overpower
+    // the upstream provider rank or to reward repeated keyword stuffing.
+    const phrase = normalizedQuery;
+    if (phrase.length >= 4 && title.includes(phrase)) score += 3;
+
     return { ...item, _searchScore: score, _searchOrder: Number.isFinite(item?._searchOrder) ? item._searchOrder : index };
   }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
 }
