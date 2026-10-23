@@ -58,14 +58,14 @@ export default function DownloadPage() {
         <article className="adverse-download-card">
           <div className="adverse-download-card-top">
             <span className="adverse-download-platform-icon"><Apple size={23} /></span>
-            <span className="adverse-download-status">NATIVE IOS</span>
+            <span className="adverse-download-status">IOS PROJECT</span>
           </div>
-          <h2>Native iOS build</h2>
-          <p>The Swift iOS app project and automated macOS build workflow are in the repository. A signed, installable release still needs Apple signing and distribution setup.</p>
+          <h2>Native iOS app project</h2>
+          <p>ADVERSE has a SwiftUI iOS app project and a macOS build workflow in GitHub. There is not yet a published, installable native iOS release here; the workflow produces an unsigned build for inspection.</p>
           <a className="adverse-download-secondary" href={IOS_BUILD_URL}>
-            <ExternalLink size={16} /> View iOS build workflow
+            <ExternalLink size={16} /> View source & build workflow
           </a>
-          <small className="adverse-download-note">Unsigned builds are for inspection, not direct installation.</small>
+          <small className="adverse-download-note">An installable release requires Apple signing and a supported distribution method.</small>
         </article>
       </section>
 
