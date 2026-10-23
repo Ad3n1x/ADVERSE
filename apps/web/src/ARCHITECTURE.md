@@ -8,6 +8,7 @@ src/
 ├── app/WorkspaceApp.tsx         # authenticated shell and page composition
 │   ├── handlers/                # extracted workflows with explicit dependencies
 │   │   ├── createCaseResearchAction.ts      # autonomous investigation orchestration
+│   │   ├── createGraphMutationActions.ts    # evidence and graph mutations
 │   │   ├── createImportExistingResearch.ts # collection import and graph mapping
 │   │   └── createReviewActions.ts           # AI review, claim map, source review and gap actions
 │   └── hooks/
@@ -42,4 +43,5 @@ src/
 - `createImportExistingResearch.ts` owns collection import orchestration. It preserves the existing API endpoints and validates evidence/entity/relationship mappings before copying graph relationships.
 - `createReviewActions.ts` owns the four evidence-review request workflows; the workspace shell supplies state setters and notifications while request behavior stays unchanged.
 - `createCaseResearchAction.ts` owns the autonomous investigation lifecycle and receives discovery, refresh, and UI feedback functions explicitly. This reduces shell-level orchestration without changing the discovery pipeline or its endpoints.
+- `createGraphMutationActions.ts` owns single-record and bulk deletion workflows for evidence, entities, and relationships. Confirmation prompts and API paths remain unchanged; the shell supplies current collection data and refresh/feedback functions.
 - Continue extracting one workflow at a time. Keep the active collection state centralized until a feature has a clear state boundary, and run the full frontend typecheck/build and browser smoke tests after each extraction.
