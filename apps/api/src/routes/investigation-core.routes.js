@@ -125,11 +125,10 @@ export function registerInvestigationCoreRoutes(app, deps) {
         // seek primary records, independent corroboration, counterevidence, and chronology.
         const focusQueries=round===1?[
          {query:leadQuestion+' official primary source',reason:'Seek an official statement or primary record.'},
-         {query:leadQuestion+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
          {query:leadQuestion+' response denial counterevidence',reason:'Look for a response, rebuttal, or evidence that challenges the leading account.'}
         ]:[
+         {query:leadQuestion+' independent corroboration',reason:'Check whether a separately operated source corroborates the lead.'},
          {query:leadQuestion+' timeline dates chronology',reason:'Establish dates and the sequence of reported events.'},
-         {query:leadQuestion+' original documents records',reason:'Look for source documents rather than summaries alone.'},
          {query:leadQuestion+' conflicting accounts alternative explanation',reason:'Test alternative explanations and conflicting accounts.'}
         ];
         const candidateKeys=new Set(candidates.map(item=>cleanText(item.query,180).toLowerCase()));
@@ -137,6 +136,22 @@ export function registerInvestigationCoreRoutes(app, deps) {
          const key=cleanText(lead.query,180).toLowerCase();
          if(candidates.length>=3)break;
          if(key!==question.toLowerCase()&&!candidateKeys.has(key)){candidates.push(lead);candidateKeys.add(key);}
+        }
+        if(candidates.length<3&&round===1){
+         // Follow a concrete lead from the result set instead of using only broad question variants.
+         const leadResult=allResults.find(result=>{
+          const candidate=cleanText(result.title,150);
+          return candidate.length>=18&&candidate.toLowerCase()!==leadQuestion.toLowerCase()&&!/^(search results|home page|latest news|untitled)$/i.test(candidate);
+         });
+         if(leadResult){
+          const candidate=cleanText(leadResult.title,150);
+          const key=candidate.toLowerCase();
+          if(!candidateKeys.has(key)){
+           let host='';try{host=new URL(leadResult.url).hostname.replace(/^www\\./,'');}catch{}
+           candidates.push({query:candidate,reason:'Follow the specific result lead'+(host?' surfaced by '+host:'')+' and check its context.'});
+           candidateKeys.add(key);
+          }
+         }
         }
         if(candidates.length<3){
          const seed=allResults.slice().sort((a,b)=>String(b.title||'').length-String(a.title||'').length);
