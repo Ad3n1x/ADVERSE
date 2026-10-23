@@ -24,6 +24,7 @@ publicSearchDocumentSchema.index(
   { weights: { title: 8, publisher: 3, excerpt: 1 }, name: 'public_search_text' },
 );
 publicSearchDocumentSchema.index({ lastSeenAt: -1 });
+publicSearchDocumentSchema.index({ title: 1 });
 
 export const PublicSearchDocument = models.PublicSearchDocument
   || createModel('PublicSearchDocument', publicSearchDocumentSchema);
