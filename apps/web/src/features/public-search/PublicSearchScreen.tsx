@@ -1,11 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, MonitorSmartphone, Plus, RefreshCw, Search, Share2, ShieldCheck, Smartphone, Sparkles, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, BookOpen, Check, Clock3, ExternalLink, Fingerprint, Globe2, Plus, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Trash2, X } from 'lucide-react';
 import './public-search-download.css';
 import { API } from '../../lib/api';
 import { HISTORY_KEY, SAVED_KEY } from '../../lib/storageKeys';
 import type { PublicSearchResult, SearchHistoryEntry } from '../../types/research';
 function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback;}catch{return fallback;}}
-const isNativeAndroid = () => typeof navigator !== 'undefined' && navigator.userAgent.includes('ADVERSENativeAndroid/1');
 function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  const [query,setQuery]=useState(()=>new URLSearchParams(window.location.search).get('q')||''),[results,setResults]=useState<PublicSearchResult[]>([]),[meta,setMeta]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[shareMessage,setShareMessage]=useState(''),[suggestions,setSuggestions]=useState<{query:string;source?:string}[]>([]),[activeSuggestion,setActiveSuggestion]=useState(-1);
  const [history,setHistory]=useState<SearchHistoryEntry[]>(()=>readLocal(HISTORY_KEY,[])),[saved,setSaved]=useState<PublicSearchResult[]>(()=>readLocal(SAVED_KEY,[]));
@@ -41,14 +40,6 @@ function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  <p className="find-search-meta">Checked {meta?.linkChecks||0} selected links · {meta?.successfulSearches||0} successful provider searches · {meta?.indexedResultCount||0} prior index matches · {meta?.failedSearches||0} search-service errors. {meta?.indexEnabled?'Persistent index active.':'Live-provider mode; persistent index unavailable.'} Results may be incomplete. Search history and saved links stay in this browser unless cleared.</p>
  </section>}
  </section>
- {!isNativeAndroid()&&<section className="adverse-home-download" aria-label="Use ADVERSE on your device">
-  <div className="adverse-home-download-heading"><span>ONE WORKSPACE · YOUR DEVICE</span><h2>Make it feel like an app.</h2><p>Keep the same ADVERSE workspace on your phone or computer. Choose the setup that fits your device.</p></div>
-  <div className="adverse-home-download-grid">
-   <article><Smartphone size={23}/><span className="adverse-home-download-tag">ANDROID</span><h3>Android companion</h3><p>Get the Android APK for a dedicated app-like launch.</p><a href="/download">Download APK <ArrowUpRight size={14}/></a></article>
-   <article><MonitorSmartphone size={23}/><span className="adverse-home-download-tag">IPHONE · IPAD · DESKTOP</span><h3>Install from your browser</h3><p>Use ADVERSE from your Home Screen or install it through a supported browser.</p><a href="/download">See install instructions <ArrowUpRight size={14}/></a></article>
-   <article><Fingerprint size={23}/><span className="adverse-home-download-tag">ONE SERVICE</span><h3>Same ADVERSE</h3><p>Your device choice doesn’t take you to a different product or workspace.</p><a href="/download">All device options <ArrowUpRight size={14}/></a></article>
-  </div>
- </section>}
- <footer className="find-footer"><span>ADVERSE <i>/</i> FIND ANYTHING</span><span>Public-source search · No invented destinations</span><button onClick={onSignIn}>Sign in to save your research</button></footer></main>;
+ </main>;
 }
 export default PublicSearchScreen;
