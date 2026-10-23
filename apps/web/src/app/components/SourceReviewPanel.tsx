@@ -1,6 +1,6 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Empty from '../components/ui/Empty';
-import { getRecordId as key } from '../lib/ids';
+import Empty from '../../components/ui/Empty';
+import { getRecordId as key } from '../../lib/ids';
 import { Activity, ExternalLink, FileSearch, GitBranch, Sparkles, X } from 'lucide-react';
 
 /** Source Review Panel extracted from the workspace shell. */
