@@ -94,11 +94,33 @@ export function registerPublicSearchRoutes(app, {
       }),
     ]);
 
-    // Blend fresh federated results with previously indexed public pages. Index hits
-    // improve continuity but never replace live providers or imply source verification.
-    const mergedResults = [...(Array.isArray(live.results) ? live.results : []), ...indexed];
+    // Merge duplicate URLs before ranking so indexed metadata and live provider
+    // agreement survive deduplication. Keep live titles/previews first when available.
+    const mergedByUrl = new Map();
+    for (const item of [...(Array.isArray(live.results) ? live.results : []), ...indexed]) {
+      try {
+        const parsed = validatePublicUrl(item.url);
+        const canonical = normalizeResultUrl(parsed.href);
+        const previous = mergedByUrl.get(canonical);
+        if (!previous) {
+          mergedByUrl.set(canonical, { ...item, url: canonical });
+          continue;
+        }
+        mergedByUrl.set(canonical, {
+          ...item,
+          ...previous,
+          url: canonical,
+          providers: [...new Set([...(previous.providers || []), ...(item.providers || []), previous.provider, item.provider].filter(Boolean))],
+          matchedQueries: [...new Set([...(previous.matchedQueries || []), ...(item.matchedQueries || [])])],
+          queryReasons: [...new Set([...(previous.queryReasons || []), ...(item.queryReasons || [])])],
+          indexSignals: previous.indexSignals || item.indexSignals,
+          publishedAt: previous.publishedAt || item.publishedAt,
+          _searchScore: Math.max(Number(previous._searchScore || 0), Number(item._searchScore || 0)),
+        });
+      } catch {}
+    }
     const ranked = improvePublicSearchRanking(
-      diversifyPublicResults(mergedResults, q, { limit: 36, maxPerDomain: 3 }),
+      diversifyPublicResults([...mergedByUrl.values()], q, { limit: 36, maxPerDomain: 3 }),
       q,
     );
     const candidates = ranked.map(({ _searchScore, _searchOrder, ...item }) => item);
