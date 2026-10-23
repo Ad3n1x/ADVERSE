@@ -112,3 +112,29 @@ test('research pipeline bounds scraping to twelve candidates and records scrape 
   assert.equal(result.scrapeFailures.length, 12);
   assert.equal(result.savedCount, 15);
 });
+
+test('research pipeline follows a planned lead and reports the investigation trail', async () => {
+  const seed = { title: 'Seed report', url: 'https://example.com/seed', publisher: 'Example', provider: 'Test index', excerpt: 'Seed evidence.' };
+  const followUp = { title: 'Primary record', url: 'https://example.org/primary-record', publisher: 'Example Registry', provider: 'Second index', excerpt: 'Independent evidence.' };
+  const harness = makeHarness({ results: [seed] });
+  const calls = [];
+  harness.dependencies.searchAllPublic = async query => {
+    calls.push(query);
+    return { results: query === 'find primary record' ? [followUp] : [seed] };
+  };
+  harness.dependencies.planAgentFollowUps = async () => ({
+    mode: 'ai',
+    provider: 'Test planner',
+    leads: [{ query: 'find primary record', reason: 'Seek a primary record to test the initial lead.' }],
+  });
+
+  const result = await runResearchPipeline(harness.dependencies);
+
+  assert.ok(calls.includes('find primary record'));
+  assert.equal(result.searchPasses, 2);
+  assert.equal(result.leadPlanning.mode, 'ai');
+  assert.equal(result.leadPlanning.provider, 'Test planner');
+  assert.equal(result.followUpQueries[0].query, 'find primary record');
+  assert.equal(result.savedCount, 2);
+  assert.ok(result.results.every(item => item.verificationStatus === 'unverified'));
+});
