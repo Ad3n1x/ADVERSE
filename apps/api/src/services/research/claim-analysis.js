@@ -20,6 +20,24 @@ function splitSentences(text) {
 }
 function numbers(text) { return (text.match(/(?:[$€£₦]\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|%|percent))?|\b\d[\d,.]*\s?(?:%|percent|million|billion|thousand|people|votes|years|days|hours|kilometres|kilometers|km|miles|dollars|naira)\b|\b(?:19|20)\d{2}\b)/gi)||[]).map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()); }
 function oppositePolarity(a,b) { return NEGATIONS.test(a)!==NEGATIONS.test(b); }
+function sourceTypeSignal(source) {
+  const value = [source.title, source.url, source.publisher].join(' ').toLowerCase();
+  if (/\\.(?:gov|gov\\.[a-z]{2}|govt\\.[a-z]{2})(?:[:/\\s]|$)|\\b(?:court filing|court judgment|official gazette|statute|legislation|public registry|company registry|annual report|regulatory filing|original dataset|official transcript)\\b/.test(value)) {
+    return { label: 'primary-source candidate', rationale: 'Metadata resembles an official record or primary document; inspect the original source and its authority.' };
+  }
+  if (/\\b(?:press release|media statement|newsroom|official statement)\\b/.test(value)) {
+    return { label: 'first-party statement candidate', rationale: 'This may be a statement from an involved organization; treat it as that party’s account, not independent confirmation.' };
+  }
+  if (/\\b(?:news|journal|times|post|herald|broadcast|report)\\b/.test(value)) {
+    return { label: 'reporting candidate', rationale: 'Metadata resembles a reporting source; assess the article’s sourcing, author, and links to original material.' };
+  }
+  return { label: 'source type unclear', rationale: 'Available metadata is insufficient to classify the source type confidently.' };
+}
+function diversitySignal(sources) {
+  const domains = [...new Set(sources.map(s => s.host).filter(host => host && host !== 'unknown source'))];
+  if (domains.length <= 1) return { label: 'single-domain evidence', domainCount: domains.length, note: 'No cross-domain corroboration is present in this group.' };
+  return { label: 'multiple-domain evidence; independence unverified', domainCount: domains.length, note: 'Different domains do not prove independent reporting or separate source lineages.' };
+}
 
 /**
  * Conservative, extractive claim candidates. This is not a truth detector or an NLP model.
@@ -29,7 +47,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
   const records = (Array.isArray(evidence)?evidence:[]).slice(0,100).map(e=>({
     id:idOf(e), title:clean(e.title,240), url:clean(e.url,2048), publisher:clean(e.publisher||hostOf(e.url),200),
     host:hostOf(e.url), publishedAt:e.publishedAt||null, retrievedAt:e.retrievedAt||e.createdAt||null,
-    verificationStatus:e.verificationStatus||'unverified', text:[e.title,e.excerpt].filter(Boolean).join('. ')
+    verificationStatus:e.verificationStatus||'unverified', excerptLength:clean(e.excerpt,5000).length, sourceTypeSignal:sourceTypeSignal({title:e.title,url:e.url,publisher:e.publisher||hostOf(e.url)}), text:[e.title,e.excerpt].filter(Boolean).join('. ')
   }));
   const candidates=[];
   for(const source of records) {
@@ -66,7 +84,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
       if(numericConflict||polarityConflict)pairs.push({sourceA:a.sourceId,sourceB:b.sourceId,kind:numericConflict?'different_numeric_details':'possible_polarity_conflict',detail:numericConflict?'Similar statements contain different numeric/date tokens. Check units, dates, context, and source quality.':'Similar statements differ in negation or denial language. Confirm they discuss the same proposition and timeframe.'});
     }
     const independentSources=domains.filter(d=>d!=='unknown source').length;
-    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,...s})=>s),status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
+    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,sourceDiversity:diversitySignal(sources),sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,...s})=>s),status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
   });
   output.sort((a,b)=>(b.possibleConflicts.length-a.possibleConflicts.length)||(b.sourceCount-a.sourceCount));
   const provenanceClusters=new Map();
