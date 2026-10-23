@@ -1,0 +1,27 @@
+.connection-status {
+  position: fixed;
+  z-index: 10001;
+  top: max(12px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 28px);
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 190, 110, .35);
+  border-radius: 14px;
+  background: rgba(30, 24, 17, .96);
+  color: #ffe0b2;
+  box-shadow: 0 10px 35px rgba(0,0,0,.28);
+  font: 600 12px/1.4 system-ui, sans-serif;
+  backdrop-filter: blur(16px);
+}
+.connection-status-online {
+  border-color: rgba(142, 229, 238, .35);
+  background: rgba(8, 27, 31, .96);
+  color: #a8f2f4;
+}
+.connection-status svg { flex: 0 0 auto; }
