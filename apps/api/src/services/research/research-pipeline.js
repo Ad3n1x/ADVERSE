@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { ingestEvidence } from './evidence-ingestion.js';
 import { enrichSourceProvenance } from './source-provenance.js';
 
