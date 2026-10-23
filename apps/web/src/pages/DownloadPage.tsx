@@ -1,4 +1,4 @@
-import { Android, Apple, Check, Download, ExternalLink, Fingerprint, Globe, ShieldCheck } from 'lucide-react';
+import { Smartphone, Apple, Check, Download, ExternalLink, Fingerprint, Globe, ShieldCheck } from 'lucide-react';
 import '../download-page.css';
 
 const HOME_URL = 'https://adverse-web.onrender.com/';
@@ -25,7 +25,7 @@ export default function DownloadPage() {
       <section className="adverse-device-options" aria-label="Choose your device">
         <article className="adverse-download-card adverse-download-card-featured">
           <div className="adverse-download-card-top">
-            <span className="adverse-download-platform-icon"><Download size={24} /></span>
+            <span className="adverse-download-platform-icon"><Smartphone size={24} /></span>
             <span className="adverse-download-status">ANDROID · APK</span>
           </div>
           <h2>ADVERSE for Android</h2>
