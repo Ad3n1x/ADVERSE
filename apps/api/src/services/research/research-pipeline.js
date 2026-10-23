@@ -44,7 +44,7 @@ export async function runResearchPipeline({
       failure: 'RESEARCH_UNAVAILABLE',
       details: {
         queries: seedQueries,
-        providerFailures: firstPass.filter(item => item.status === 'rejected').length,
+        providerFailures: firstPass.filter(item => item.status === 'rejected').map(item => String(item.reason?.message || 'provider unavailable')),
         pass: 'seed',
       },
     };
