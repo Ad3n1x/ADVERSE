@@ -10,7 +10,7 @@ export async function suggestIndexedSearches(query, limit = 6) {
   if (!dbReady()) return [];
   const q = clean(query, 120);
   if (q.length < 2) return [];
-  const escaped = q.replace(/[.*+?^\${}()|[\]\\]/g, '\\$&');
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, character => '\\' + character);
   try {
     const docs = await PublicSearchDocument.find({
       $or: [
