@@ -65,8 +65,9 @@ export async function linkEvidenceAutomatically({
         if (isDb()) {
           await Evidence.updateOne({ _id: source._id || evidenceId, investigationId }, { $addToSet: { entities: { $each: matchedIds } } });
         } else {
+          source.entities = appendUnique(source.entities, ...matchedIds);
           const stored = memory?.evidence?.get(evidenceId);
-          if (stored) stored.entities = appendUnique(stored.entities, ...matchedIds);
+          if (stored && stored !== source) stored.entities = appendUnique(stored.entities, ...matchedIds);
         }
       }
 
