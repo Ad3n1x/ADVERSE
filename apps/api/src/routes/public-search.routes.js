@@ -1,6 +1,7 @@
 import { analyzeVisualFrame } from '../services/media/visual-analysis.js';
 import { improvePublicSearchRanking } from '../services/search/relevance-ranking.js';
 import { findIndexedPublicResults, indexPublicSearchResults, suggestIndexedSearches } from '../services/search/public-search-index.js';
+import { filterAdvancedSearchResults, parseAdvancedSearch } from '../services/search/advanced-search.js';
 
 export function registerPublicSearchRoutes(app, {
   limitProvider, wrap, sendError, validatePublicUrl, inspectPublicLink,
@@ -81,8 +82,10 @@ export function registerPublicSearchRoutes(app, {
   }));
 
   app.get('/api/v1/public-search', optionalAuth, limitProvider, wrap(async (req, res) => {
-    const q = String(req.query.q || '').trim().slice(0, 200);
-    if (q.length < 2) return sendError(res, 400, 'QUERY_REQUIRED', 'Enter at least two characters to search.');
+    const rawQuery = String(req.query.q || '').trim().slice(0, 200);
+    const advanced = parseAdvancedSearch(rawQuery);
+    const q = advanced.query;
+    if (q.length < 2) return sendError(res, 400, 'QUERY_REQUIRED', 'Enter at least two search characters outside the supported operators (site:, after:, before:, type:).');
     const providerKeys = req.user ? await getUserProviderKeys(req.user.id) : {};
     const [live, indexed] = await Promise.all([
       searchAllPublic(q, providerKeys).catch(error => ({
@@ -119,8 +122,9 @@ export function registerPublicSearchRoutes(app, {
         });
       } catch {}
     }
+    const filtered = filterAdvancedSearchResults([...mergedByUrl.values()], advanced.filters);
     const ranked = improvePublicSearchRanking(
-      diversifyPublicResults([...mergedByUrl.values()], q, { limit: 36, maxPerDomain: 3 }),
+      diversifyPublicResults(filtered, q, { limit: 36, maxPerDomain: 3 }),
       q,
     );
     const candidates = ranked.map(({ _searchScore, _searchOrder, ...item }) => item);
@@ -184,6 +188,9 @@ export function registerPublicSearchRoutes(app, {
 
     res.json({ data: results, meta: {
       query: q,
+      originalQuery: rawQuery,
+      advancedFilters: advanced.filters,
+      invalidOperators: advanced.invalidOperators,
       retrievedAt: new Date().toISOString(),
       queryPlan: live.queryPlan || [],
       providers: [...new Set(results.flatMap(item => [item.provider, ...(item.providers || [])].filter(Boolean)))],
