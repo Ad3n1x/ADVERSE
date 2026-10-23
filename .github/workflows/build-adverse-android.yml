@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "android-app/**"
+      - "apps/web/src/features/public-search/**"
       - ".github/workflows/build-adverse-android.yml"
   workflow_dispatch:
 
