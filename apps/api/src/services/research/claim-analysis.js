@@ -53,7 +53,7 @@ function sourceTypeSignal(source) {
 }
 function diversitySignal(sources) {
   const domains = [...new Set(sources.map(s => s.host).filter(host => host && host !== 'unknown source'))];
-  if (domains.length <= 1) return { label: 'single-hostname evidence', domainCount: domains.length, note: 'No cross-hostname corroboration is present in this group.' };
+  if (domains.length <= 1) return { label: 'single-hostname evidence', domainCount: domains.length, hostCount: domains.length, note: 'No cross-hostname corroboration is present in this group.' };
   return { label: 'multiple-hostname evidence; independence unverified', domainCount: domains.length, note: 'Different hostnames do not prove independent reporting or separate source lineages.' };
 }
 
