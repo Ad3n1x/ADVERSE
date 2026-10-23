@@ -21,14 +21,20 @@ function splitSentences(text) {
 function numbers(text) { return (text.match(/(?:[$€£₦]\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|%|percent))?|\b\d[\d,.]*\s?(?:%|percent|million|billion|thousand|people|votes|years|days|hours|kilometres|kilometers|km|miles|dollars|naira)\b|\b(?:19|20)\d{2}\b)/gi)||[]).map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()); }
 function oppositePolarity(a,b) { return NEGATIONS.test(a)!==NEGATIONS.test(b); }
 function sourceTypeSignal(source) {
-  const value = [source.title, source.url, source.publisher].join(' ').toLowerCase();
-  if (/\\.(?:gov|gov\\.[a-z]{2}|govt\\.[a-z]{2})(?:[:/\\s]|$)|\\b(?:court filing|court judgment|official gazette|statute|legislation|public registry|company registry|annual report|regulatory filing|original dataset|official transcript)\\b/.test(value)) {
+  const title = String(source.title || '').toLowerCase();
+  const publisher = String(source.publisher || '').toLowerCase();
+  let host = '';
+  try { host = new URL(source.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
+  const value = [title, publisher, host].join(' ');
+  const officialHost = host.endsWith('.gov') || host.includes('.gov.') || host.endsWith('.govt') || host.includes('.govt.');
+  const primaryTerms = ['court filing','court judgment','official gazette','statute','legislation','public registry','company registry','annual report','regulatory filing','original dataset','official transcript'];
+  if (officialHost || primaryTerms.some(term => value.includes(term))) {
     return { label: 'primary-source candidate', rationale: 'Metadata resembles an official record or primary document; inspect the original source and its authority.' };
   }
-  if (/\\b(?:press release|media statement|newsroom|official statement)\\b/.test(value)) {
+  if (['press release','media statement','newsroom','official statement'].some(term => value.includes(term))) {
     return { label: 'first-party statement candidate', rationale: 'This may be a statement from an involved organization; treat it as that party’s account, not independent confirmation.' };
   }
-  if (/\\b(?:news|journal|times|post|herald|broadcast|report)\\b/.test(value)) {
+  if (['news','journal','times','post','herald','broadcast','report'].some(term => title.includes(term) || publisher.includes(term))) {
     return { label: 'reporting candidate', rationale: 'Metadata resembles a reporting source; assess the article’s sourcing, author, and links to original material.' };
   }
   return { label: 'source type unclear', rationale: 'Available metadata is insufficient to classify the source type confidently.' };
