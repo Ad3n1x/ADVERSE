@@ -24,7 +24,7 @@ function sourceTypeSignal(source) {
   const title = String(source.title || '').toLowerCase();
   const publisher = String(source.publisher || '').toLowerCase();
   let host = '';
-  try { host = new URL(source.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
+  try { host = new URL(source.url).hostname.toLowerCase(); if (host.startsWith('www.')) host = host.slice(4); } catch {}
   const value = [title, publisher, host].join(' ');
   const officialHost = host.endsWith('.gov') || host.includes('.gov.') || host.endsWith('.govt') || host.includes('.govt.');
   const primaryTerms = ['court filing','court judgment','official gazette','statute','legislation','public registry','company registry','annual report','regulatory filing','original dataset','official transcript'];
