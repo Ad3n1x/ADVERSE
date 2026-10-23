@@ -1,5 +1,5 @@
 import { useWorkspaceContext } from './WorkspaceContext';
-import WorkspaceSettingsPanel from './components/WorkspaceSettingsPanel';
+import WorkspaceSettingsPanel from './WorkspaceSettingsPanel';
 import Graph from '../features/graph/Graph';
 import MonitoringView from '../features/monitoring/MonitoringView';
 import CyberIntelligenceView from '../features/cyber/CyberIntelligenceView';
