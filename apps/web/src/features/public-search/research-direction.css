@@ -1,0 +1,15 @@
+.find-research-next{max-width:1040px;margin:56px auto 28px;padding:30px;border:1px solid rgba(133,226,206,.18);border-radius:22px;background:radial-gradient(ellipse at 0 0,rgba(133,226,206,.09),transparent 52%),linear-gradient(145deg,rgba(17,25,24,.96),rgba(12,16,17,.96));display:grid;grid-template-columns:minmax(0,1.1fr) minmax(260px,.9fr);gap:34px;color:var(--text,#e5ecea)}
+.find-research-intro{align-self:center;min-width:0}
+.find-research-kicker{display:inline-flex;align-items:center;gap:8px;color:#85e2ce;font:500 10px var(--mono,monospace);letter-spacing:.12em;line-height:1.6}
+.find-research-intro h2{margin:13px 0 12px;font:600 clamp(27px,4vw,40px)/1.08 var(--display,'Space Grotesk',sans-serif);letter-spacing:-.045em}
+.find-research-intro h2 span{color:#85e2ce}
+.find-research-intro>p{max-width:480px;margin:0;color:#a0afaa;font-size:13px;line-height:1.8}
+.find-research-cta{display:inline-flex;align-items:center;justify-content:center;gap:9px;margin-top:22px;padding:11px 14px;border:1px solid #4b8778;border-radius:10px;background:linear-gradient(135deg,#24483e,#182c27);color:#d8fff3;font-weight:700;font-size:12px;transition:transform .16s ease,border-color .16s ease,background .16s ease}
+.find-research-cta:hover{transform:translateY(-1px);border-color:#85e2ce;background:linear-gradient(135deg,#2b574a,#1b352e)}
+.find-research-pillars{display:flex;flex-direction:column;justify-content:center;gap:9px;min-width:0}
+.find-research-pillars article{display:flex;align-items:flex-start;gap:13px;padding:15px;border:1px solid rgba(133,226,206,.12);border-radius:13px;background:rgba(255,255,255,.018)}
+.find-research-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #31574d;border-radius:10px;background:#142720;color:#85e2ce}
+.find-research-pillars h3{margin:0 0 4px;color:#e1eee8;font-size:13px;font-weight:700}
+.find-research-pillars p{margin:0;color:#94a49d;font-size:11px;line-height:1.7}
+@media(max-width:760px){.find-research-next{grid-template-columns:minmax(0,1fr);gap:23px;margin:40px 0 22px;padding:22px;border-radius:17px}.find-research-intro h2{font-size:clamp(28px,8vw,36px)}.find-research-pillars article{padding:13px}}
+@media(prefers-reduced-motion:reduce){.find-research-cta{transition:none}.find-research-cta:hover{transform:none}}
