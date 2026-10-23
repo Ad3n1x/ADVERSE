@@ -29,6 +29,8 @@ test('claim triage preserves source-level provenance and never upgrades verifica
   assert.equal(repeated.status, 'repeated_claim');
   assert.match(repeated.assessment, /independence.*not been established/i);
   assert.ok(repeated.sources.every(source => source.verificationStatus === 'unverified'));
+  assert.equal(repeated.sourceDiversity.label, 'multiple-domain evidence; independence unverified');
+  assert.ok(repeated.sources.every(source => source.sourceTypeSignal && source.sourceTypeSignal.label));
   assert.ok(result.limitations.some(item => /not a fact-checker/i.test(item)));
 });
 
@@ -54,6 +56,17 @@ test('claim triage flags different numeric details as a review lead, not a prove
   assert.ok(flagged, 'expected different numeric details to be surfaced');
   assert.match(flagged.possibleConflicts[0].detail, /Check units, dates, context, and source quality/i);
   assert.ok(result.limitations.some(item => /units, dates, definitions, or context/i.test(item)));
+});
+
+test('source-type heuristics identify candidates without upgrading their verification', () => {
+  const result = analyzeEvidenceClaims([
+    evidence('ev-official', 'https://agency.gov/transport/plan', 'The commission approved the public transport plan in 2025 after a detailed public review.', { title: 'Official public transport record' }),
+  ]);
+  const claim = result.claims[0];
+  assert.ok(claim);
+  assert.equal(claim.sources[0].sourceTypeSignal.label, 'primary-source candidate');
+  assert.equal(claim.sources[0].verificationStatus, 'unverified');
+  assert.equal(claim.sourceDiversity.label, 'single-domain evidence');
 });
 
 test('empty or non-claim evidence returns a bounded, explicit empty analysis', () => {
