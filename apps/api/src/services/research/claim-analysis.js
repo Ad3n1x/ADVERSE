@@ -20,6 +20,18 @@ function splitSentences(text) {
 }
 function numbers(text) { return (text.match(/(?:[$€£₦]\s?\d[\d,.]*(?:\s?(?:million|billion|thousand|%|percent))?|\b\d[\d,.]*\s?(?:%|percent|million|billion|thousand|people|votes|years|days|hours|kilometres|kilometers|km|miles|dollars|naira)\b|\b(?:19|20)\d{2}\b)/gi)||[]).map(x=>x.toLowerCase().replace(/\s+/g,' ').trim()); }
 function oppositePolarity(a,b) { return NEGATIONS.test(a)!==NEGATIONS.test(b); }
+function sourceUrlKey(value) {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (/^(utm_.+|fbclid|gclid|mc_cid|mc_eid|ref|ref_src)$/i.test(key)) url.searchParams.delete(key);
+    }
+    url.hostname = url.hostname.toLowerCase();
+    if (url.pathname.length > 1) url.pathname = url.pathname.replace(/\/+$/, '');
+    return url.toString();
+  } catch { return String(value || '').trim().toLowerCase(); }
+}
 function sourceTypeSignal(source) {
   const title = String(source.title || '').toLowerCase();
   const publisher = String(source.publisher || '').toLowerCase();
@@ -78,12 +90,12 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
     else groups.push({id:'claim-'+(groups.length+1),canonicalText:claim.text,claims:[claim]});
   }
   const output=groups.map(group=>{
-    const sources=[...new Map(group.claims.map(c=>[c.sourceId,c])).values()];
+    const sources=[...new Map(group.claims.map(c=>[sourceUrlKey(c.url)||c.sourceId,c])).values()];
     const domains=[...new Set(sources.map(s=>s.host))];
     const pairs=[];
     for(let i=0;i<group.claims.length;i++)for(let j=i+1;j<group.claims.length;j++){
       const a=group.claims[i],b=group.claims[j];
-      if(a.sourceId===b.sourceId)continue;
+      if(a.sourceId===b.sourceId||sourceUrlKey(a.url)===sourceUrlKey(b.url))continue;
       const numsA=a.numbers,numsB=b.numbers;
       const numericConflict=numsA.length&&numsB.length&&numsA.some(n=>!numsB.includes(n))&&numsB.some(n=>!numsA.includes(n));
       const polarityConflict=oppositePolarity(a.text,b.text)&&similarity(a.text,b.text)>=0.55;
