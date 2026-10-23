@@ -147,7 +147,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
           const candidate=cleanText(leadResult.title,150);
           const key=candidate.toLowerCase();
           if(!candidateKeys.has(key)){
-           let host='';try{host=new URL(leadResult.url).hostname.replace(/^www\\./,'');}catch{}
+           let host='';try{host=new URL(leadResult.url).hostname.replace(/^www\./,'');}catch{}
            candidates.push({query:candidate,reason:'Follow the specific result lead'+(host?' surfaced by '+host:'')+' and check its context.'});
            candidateKeys.add(key);
           }
