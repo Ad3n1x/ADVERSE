@@ -60,7 +60,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
     for(const sentence of splitSentences(source.text)) {
       if(!ASSERTION.test(sentence)&&numbers(sentence).length===0) continue;
       if(/^(?:click here|read more|subscribe|cookie policy|privacy policy)\b/i.test(sentence))continue;
-      const claim={text:sentence,normalized:normalize(sentence),sourceId:source.id,sourceTitle:source.title,url:source.url,publisher:source.publisher,host:source.host,publishedAt:source.publishedAt,retrievedAt:source.retrievedAt,verificationStatus:source.verificationStatus,numbers:numbers(sentence)};
+      const claim={text:sentence,normalized:normalize(sentence),sourceId:source.id,sourceTitle:source.title,url:source.url,publisher:source.publisher,host:source.host,publishedAt:source.publishedAt,retrievedAt:source.retrievedAt,verificationStatus:source.verificationStatus,excerptLength:source.excerptLength,sourceTypeSignal:source.sourceTypeSignal,numbers:numbers(sentence)};
       if(candidates.some(c=>c.sourceId===claim.sourceId&&similarity(c.text,claim.text)>.9))continue;
       candidates.push(claim);
       if(candidates.length>=limit)break;
