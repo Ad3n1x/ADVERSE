@@ -6,6 +6,38 @@ const clean = (value, max = 6000) => String(value || '').replace(/\s+/g, ' ').tr
 const hash = value => crypto.createHash('sha256').update(String(value || '')).digest('hex');
 const dbReady = () => globalThis.__ADVERSE_MONGO_READY__ === true;
 
+export async function suggestIndexedSearches(query, limit = 6) {
+  if (!dbReady()) return [];
+  const q = clean(query, 120);
+  if (q.length < 2) return [];
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\export async function findIndexedPublicResults(query, limit = 8) {');
+  try {
+    const docs = await PublicSearchDocument.find({
+      $or: [
+        { title: { $regex: '^' + escaped, $options: 'i' } },
+        { matchedQueries: { $regex: '^' + escaped, $options: 'i' } },
+      ],
+    }).sort({ lastSeenAt: -1 }).select('title matchedQueries lastSeenAt').limit(30).lean();
+    const seen = new Set();
+    const suggestions = [];
+    for (const doc of docs) {
+      for (const candidate of [doc.title, ...(doc.matchedQueries || [])]) {
+        const value = clean(candidate, 180);
+        if (value.length < 2 || !value.toLocaleLowerCase().startsWith(q.toLocaleLowerCase())) continue;
+        const key = value.toLocaleLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        suggestions.push({ query: value, source: candidate === doc.title ? 'indexed title' : 'previous search' });
+        if (suggestions.length >= Math.min(8, Math.max(1, limit))) return suggestions;
+      }
+    }
+    return suggestions;
+  } catch (error) {
+    if (error?.code === 27 || /index is building/i.test(String(error?.message || ''))) return [];
+    throw error;
+  }
+}
+
 export async function findIndexedPublicResults(query, limit = 8) {
   if (!dbReady()) return [];
   const q = clean(query, 180);
@@ -41,6 +73,7 @@ export async function findIndexedPublicResults(query, limit = 8) {
         publishedAt: doc.publishedAt ? new Date(doc.publishedAt).toISOString() : null,
         retrievedAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
         sourceType: doc.sourceType || 'web',
+        matchedQueries: Array.isArray(doc.matchedQueries) ? doc.matchedQueries.slice(-8) : [],
         indexSignals: {
           indexed: true,
           lastSeenAt: doc.lastSeenAt ? new Date(doc.lastSeenAt).toISOString() : null,
