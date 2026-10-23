@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, X, Smartphone, Share } from 'lucide-react';
+import { Download, X, Smartphone } from 'lucide-react';
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
