@@ -40,12 +40,14 @@ export function createVisualSearchAction({
       const frames = await compressVisualFile(visualFile);
       const all: SearchResult[] = [];
       const queries = new Set<string>();
+      const extractedTextParts = new Set<string>();
+      const visualDetails = new Set<string>();
       let description = '';
 
       for (const imageDataUrl of frames) {
         const result = await request<{
           data: SearchResult[];
-          meta: { description?: string; queries?: string[]; notice?: string };
+          meta: { description?: string; extractedText?: string; visualDetails?: string[]; queries?: string[]; notice?: string };
         }>('/public-search/visual-match', {
           method: 'POST',
           body: JSON.stringify({
@@ -55,6 +57,8 @@ export function createVisualSearchAction({
         });
 
         description = [description, result.meta?.description].filter(Boolean).join(' · ');
+        if (result.meta?.extractedText?.trim()) extractedTextParts.add(result.meta.extractedText.trim());
+        (result.meta?.visualDetails || []).forEach((detail) => visualDetails.add(detail));
         (result.meta?.queries || []).forEach((query) => queries.add(query));
         all.push(...(result.data || []));
       }
@@ -83,11 +87,14 @@ export function createVisualSearchAction({
         visualMatch: true,
         description,
         queries: [...queries],
-        notice: 'Visual description search: candidates may be contextually similar, not exact copies.',
+        extractedText: [...extractedTextParts].join('\n\n'),
+        visualDetails: [...visualDetails],
+        framesAnalysed: frames.length,
+        notice: 'ADVERSE reads visible text and analyzes sampled frames. Search results are contextually related candidates, not exact copies or confirmed identities.',
       });
 
       if (results.length) {
-        notify('Visual analysis complete: found ' + results.length + ' related public media results.');
+        notify('Visual analysis complete: read ' + extractedTextParts.size + ' text extract(s) and found ' + results.length + ' related public media results.');
       } else {
         setError('Visual analysis completed, but no related public results were found. Try another frame or image.');
       }
