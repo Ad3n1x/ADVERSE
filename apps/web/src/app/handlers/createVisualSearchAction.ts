@@ -5,6 +5,7 @@ import { request } from '../../lib/api';
 
 type Dependencies = {
   visualFile: File | null;
+  query: string;
   setVisualBusy: Dispatch<SetStateAction<boolean>>;
   setSearching: Dispatch<SetStateAction<boolean>>;
   setError: Dispatch<SetStateAction<string>>;
@@ -17,6 +18,7 @@ type Dependencies = {
 
 export function createVisualSearchAction({
   visualFile,
+  query,
   setVisualBusy,
   setSearching,
   setError,
@@ -53,6 +55,7 @@ export function createVisualSearchAction({
           body: JSON.stringify({
             imageDataUrl,
             mediaType: visualFile.type.startsWith('video/') ? 'video-frame' : 'image',
+            userQuestion: query.trim().slice(0, 500),
           }),
         });
 
