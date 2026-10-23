@@ -1,7 +1,7 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Graph from '../features/graph/Graph';
-import { API } from '../lib/api';
-import { getRecordId as key } from '../lib/ids';
+import Graph from '../../features/graph/Graph';
+import { API } from '../../lib/api';
+import { getRecordId as key } from '../../lib/ids';
 import { Activity, ArrowUpRight, Bell, Check, Database, ExternalLink, Fingerprint, Globe2, Layers3, Plus, Search, ShieldCheck, Waypoints, Network, RefreshCw, Radar, Trash2 } from 'lucide-react';
 
 /** Search, source discovery, and autonomous research panels. */
