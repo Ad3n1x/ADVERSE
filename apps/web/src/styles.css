@@ -1480,3 +1480,36 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
   #root .modal-backdrop .modal { padding:13px; }
   #root .modal .modal-actions { position:sticky; bottom:-13px; }
 }
+
+
+/* Relationship graph explorer — responsive, resizable and inspection-first. */
+.graph-preview{position:relative;min-height:0;border:1px solid var(--line);border-radius:14px;background:#0a1012;overflow:hidden;background-image:none}
+.graph-preview:after{display:none}
+.graph-explorer{position:relative;z-index:1;min-width:0;background:#0a1012}
+.graph-explorer-header{display:grid;gap:12px;padding:14px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#121b1c,#0c1214)}
+.graph-overview{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.graph-overview-title{display:flex;align-items:center;gap:9px;color:var(--mint);font:10px var(--mono);letter-spacing:.09em}
+.graph-overview-title strong{color:#dcebe5}
+.graph-overview-title span{padding-left:8px;border-left:1px solid #30413d;color:var(--muted);letter-spacing:0;font:11px 'DM Sans',sans-serif}
+.graph-metrics{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.graph-metrics span{padding:5px 8px;border:1px solid #293a37;border-radius:7px;background:#101a19;color:#91a59e;font-size:10px}
+.graph-metrics b{color:#e8f3ed;font:500 11px var(--mono)}
+.graph-toolbar{position:static;z-index:auto;right:auto;top:auto;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;min-width:0}
+.graph-toolbar .field-label{display:flex;align-items:center;gap:8px;color:#9fb0a9;font-size:10px;white-space:nowrap}
+.graph-toolbar .field-label select{min-height:34px;max-width:100%;padding:0 10px;border:1px solid #2d423d;border-radius:8px;background:#101a19;color:#e0eae5;font-size:11px}
+.graph-view-tools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:6px;min-width:0}
+.graph-view-tools button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:6px 9px;border:1px solid #2c423c;border-radius:8px;background:#111b19;color:#b8cbc2;font-size:10px;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.graph-view-tools button:hover{border-color:#6dc6b0;background:#172522;color:#edfff8}
+.graph-label-toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;color:#9fb5ab;font-size:10px;white-space:nowrap}
+.graph-label-toggle input{accent-color:var(--mint);width:13px;height:13px;margin:0}
+.graph-size-control{display:grid;grid-template-columns:auto minmax(100px,1fr) auto;align-items:center;gap:10px;color:#80948b;font:9px var(--mono);letter-spacing:.08em}
+.graph-size-control input{width:100%;min-width:0;accent-color:var(--mint);cursor:ew-resize}
+.graph-size-control output{min-width:52px;text-align:right;color:#c6d7d0;font:10px var(--mono);letter-spacing:0}
+.force-graph-shell{position:relative;max-width:100%;min-width:0;isolation:isolate;border:0!important;border-radius:0!important;border-top:1px solid #202e2d!important;background:radial-gradient(ellipse at 50% 45%,#132420 0,#0a1012 74%)!important}
+.force-graph-shell canvas{display:block;max-width:100%;outline:none}
+.graph-explorer:fullscreen{display:flex;flex-direction:column;gap:0;min-width:0;width:100%;height:100%;padding:10px;background:#080d0f;overflow:hidden}
+.graph-explorer:fullscreen .graph-explorer-header{flex:0 0 auto;border:1px solid #253532;border-radius:12px 12px 0 0}
+.graph-explorer:fullscreen .force-graph-shell{flex:1 1 auto;min-height:240px;border:1px solid #253532!important;border-top:0!important}
+.graph-explorer:fullscreen .graph-size-control{margin-top:2px}
+@media(max-width:760px){.graph-explorer-header{padding:10px;gap:10px}.graph-toolbar{align-items:flex-start}.graph-toolbar .field-label{width:100%;justify-content:space-between}.graph-toolbar .field-label select{flex:1;max-width:none}.graph-view-tools{justify-content:flex-start;width:100%}.graph-view-tools button{flex:0 0 auto}.graph-overview{align-items:flex-start}.graph-metrics{width:100%}.graph-size-control{grid-template-columns:auto minmax(55px,1fr) auto;gap:7px}}
+@media(max-width:420px){.graph-overview-title{flex-wrap:wrap}.graph-overview-title span{display:none}.graph-view-tools button{padding:6px 7px;font-size:9px}.graph-size-control{font-size:8px}}
