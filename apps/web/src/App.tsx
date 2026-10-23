@@ -3,6 +3,8 @@ import WorkspaceApp from './app/WorkspaceApp';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import ConnectionStatus from './components/ConnectionStatus';
 import SharedLinkHandler from './components/SharedLinkHandler';
+import AndroidDownloadLink from './components/AndroidDownloadLink';
+import './android-download.css';
 
 export default function App() {
   const isAdminRoute =
@@ -16,6 +18,7 @@ export default function App() {
       <ConnectionStatus />
       <SharedLinkHandler />
       <PwaInstallPrompt />
+      {!isAdminRoute && <AndroidDownloadLink />}
     </>
   );
 }
