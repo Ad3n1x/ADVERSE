@@ -39,3 +39,30 @@
 @media (max-width:900px) { .adverse-download-options { grid-template-columns:1fr 1fr; } .adverse-download-card:last-child { grid-column:1 / -1; } }
 @media (max-width:600px) { .adverse-download-page { padding-left:15px; padding-right:15px; } .adverse-download-home { font-size:12px; } .adverse-download-mark { position:static; width:68px; height:68px; border-radius:22px; margin-top:23px; } .adverse-download-mark svg { width:34px; height:34px; } .adverse-download-hero { margin-top:50px; margin-bottom:28px; } .adverse-download-options { grid-template-columns:1fr; } .adverse-download-card:last-child { grid-column:auto; } .adverse-download-card { padding:21px; } .adverse-download-footer { align-items:flex-start; flex-direction:column; } }
 @media (prefers-reduced-motion:reduce) { .adverse-download-primary,.adverse-download-secondary { transition:none; } }
+
+
+/* Focused iPhone install journey */
+.adverse-iphone-install-page .adverse-iphone-hero { max-width: 850px; }
+.adverse-iphone-install-panel { max-width: 760px; margin: 0 auto; padding: clamp(20px,4vw,34px); border: 1px solid rgba(185,255,75,.32); border-radius: 24px; background: linear-gradient(145deg,rgba(185,255,75,.055),rgba(255,255,255,.018)); box-shadow: 0 24px 80px rgba(0,0,0,.18); }
+.adverse-iphone-panel-heading { display:flex; align-items:center; gap:14px; margin-bottom:22px; }
+.adverse-iphone-panel-heading h2 { margin:5px 0 0; font-size:clamp(23px,4vw,30px); letter-spacing:-.04em; }
+.adverse-iphone-open { width:100%; box-sizing:border-box; min-height:52px; font-size:15px; }
+.adverse-iphone-callout { display:flex; align-items:center; gap:8px; margin:14px 0 25px; color:#c8d5bd; font-size:13px; }
+.adverse-iphone-callout svg { flex:none; color:var(--ad-lime); }
+.adverse-iphone-steps { display:grid; gap:0; margin:0; padding:0; list-style:none; }
+.adverse-iphone-steps li { display:grid; grid-template-columns:38px minmax(0,1fr); gap:13px; padding:18px 0; border-top:1px solid #2b3328; }
+.adverse-iphone-step-number { display:grid; place-items:center; width:34px; height:34px; border-radius:11px; color:var(--ad-lime); background:rgba(185,255,75,.09); border:1px solid rgba(185,255,75,.2); font-weight:850; }
+.adverse-iphone-steps strong { display:block; color:#f2f6eb; font-size:15px; }
+.adverse-iphone-steps p { margin:6px 0 0; color:#aab3a5; font-size:13px; line-height:1.65; }
+.adverse-iphone-success { display:flex; gap:11px; align-items:flex-start; margin-top:17px; padding:15px; border:1px solid rgba(185,255,75,.22); border-radius:14px; background:rgba(185,255,75,.055); }
+.adverse-iphone-success svg { flex:none; color:var(--ad-lime); margin-top:2px; }
+.adverse-iphone-success p { margin:0; color:#cbd6c3; font-size:13px; line-height:1.6; }
+.adverse-iphone-success strong { color:#f4f7ef; }
+.adverse-iphone-install-panel > .adverse-download-note { margin-top:18px; }
+@media (max-width:600px) {
+  .adverse-iphone-install-page .adverse-iphone-hero { margin-top:42px; }
+  .adverse-iphone-install-page .adverse-download-mark { display:none; }
+  .adverse-iphone-install-panel { padding:20px 17px; border-radius:19px; }
+  .adverse-iphone-steps li { grid-template-columns:32px minmax(0,1fr); gap:10px; }
+  .adverse-iphone-step-number { width:30px; height:30px; border-radius:9px; }
+}
