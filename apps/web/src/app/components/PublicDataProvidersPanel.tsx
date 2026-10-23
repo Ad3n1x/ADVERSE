@@ -3,7 +3,7 @@ import { Archive, Bell, Database, ExternalLink, Globe2, Plus, Search, Sparkles, 
 
 /** Public Data Providers Panel extracted from the workspace shell. */
 export default function PublicDataProvidersPanel() {
- const { query, captures, domainUrl, setDomainUrl, domainData, setDomainData, orgQuery, setOrgQuery, orgResults, setOrgResults, orgSearching, apiStatus, aiProviderStatus, saveExternalSource, watchExternalUrl, searchOrganizations, lookupDomain } = useWorkspaceContext();
+ const { domainUrl, setDomainUrl, domainData, setDomainData, orgQuery, setOrgQuery, orgResults, setOrgResults, orgSearching, apiStatus, aiProviderStatus, saveExternalSource, watchExternalUrl, searchOrganizations, lookupDomain } = useWorkspaceContext();
  return (
 <section className="panel page-panel"><div className="panel-heading"><div><h2>Connected public data providers</h2><p>Providers are explicitly labeled with their real coverage.</p></div><Globe2 size={18}/></div><div className="integration-list">
 <div><div className="integration-symbol"><Search size={18}/></div><div><b>Wikipedia Search API</b><p>Live public search; limited to Wikipedia index.</p></div><span className="provider-live">NO KEY REQUIRED</span></div>
