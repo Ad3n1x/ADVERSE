@@ -67,7 +67,7 @@ test('duplicate records for the same URL do not count as independent corroborati
   assert.ok(claim);
   assert.equal(claim.sourceCount, 1);
   assert.equal(claim.status, 'single_source');
-  assert.equal(claim.sourceDiversity.label, 'single-domain evidence');
+  assert.equal(claim.sourceDiversity.label, 'single-hostname evidence');
 });
 
 test('source-type heuristics identify candidates without upgrading their verification', () => {
@@ -78,7 +78,7 @@ test('source-type heuristics identify candidates without upgrading their verific
   assert.ok(claim);
   assert.equal(claim.sources[0].sourceTypeSignal.label, 'primary-source candidate');
   assert.equal(claim.sources[0].verificationStatus, 'unverified');
-  assert.equal(claim.sourceDiversity.label, 'single-domain evidence');
+  assert.equal(claim.sourceDiversity.label, 'single-hostname evidence');
 });
 
 test('empty or non-claim evidence returns a bounded, explicit empty analysis', () => {
