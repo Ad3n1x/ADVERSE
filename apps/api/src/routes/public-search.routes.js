@@ -129,8 +129,18 @@ export function registerPublicSearchRoutes(app, {
           && titleSimilarity(item.title, other.title) >= 0.55)
         .map(other => [new URL(other.url).hostname.toLowerCase().replace(/^www\./, ''), other])).values()];
       const corroboratingDomains = corroborating.slice(0, 4).map(other => new URL(other.url).hostname.toLowerCase().replace(/^www\./, ''));
+      const relevanceSignals = [];
+      if (item.matchedQueries?.length) relevanceSignals.push('matched a search query variant');
+      if ((item.providers || []).length > 1) relevanceSignals.push('found by multiple search providers');
+      if (item.indexSignals?.indexed) relevanceSignals.push('retrieved from ADVERSE public index');
+      if (item.indexSignals?.lastSeenAt) relevanceSignals.push('previously seen on ' + item.indexSignals.lastSeenAt);
       return {
         ...item,
+        whyThisResult: {
+          signals: relevanceSignals.length ? relevanceSignals : ['ranked by query relevance and available source metadata'],
+          matchedQuery: item.matchedQueries?.[0] || q,
+          disclaimer: 'These explain retrieval and ordering only; they are not proof of factual accuracy.',
+        },
         sourceContext: assessSourceContext(item.url, item),
         corroboration: {
           independentMatches: corroborating.length,
@@ -149,8 +159,10 @@ export function registerPublicSearchRoutes(app, {
       failedSearches: live.meta?.failedSearches || 0,
       coverage: live.meta?.coverage || 'Search across a limited set of public sources; not exhaustive whole-web search.',
       linkChecks: checked.length,
+      indexedResultCount: indexed.length,
+      indexEnabled: globalThis.__ADVERSE_MONGO_READY__ === true,
       providerError: live.error || '',
-      notice: 'Relevance ordering uses query matches, provider agreement, and preview usefulness. Link reachability, hostname categories, and title similarity are advisory signals; they do not prove that a page or its claims are true, safe, current, or endorsed by ADVERSE.',
+      notice: 'Relevance ordering blends live public search with a persistent index of previously discovered public pages, query matches, provider agreement, and preview usefulness. Result explanations describe retrieval signals only. Link reachability, hostname categories, title similarity, and index presence do not prove that a page or its claims are true, safe, current, or endorsed by ADVERSE.',
     } });
   }));
 }
