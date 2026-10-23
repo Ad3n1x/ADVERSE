@@ -1,6 +1,6 @@
 import { useWorkspaceContext } from '../WorkspaceContext';
-import Empty from '../components/ui/Empty';
-import { getRecordId as key } from '../lib/ids';
+import Empty from '../../components/ui/Empty';
+import { getRecordId as key } from '../../lib/ids';
 import { Database, ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react';
 
 /** Evidence Vault Panel extracted from the workspace shell. */
