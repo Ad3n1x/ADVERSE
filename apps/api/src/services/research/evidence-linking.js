@@ -7,10 +7,13 @@ function mentionsEntity(text, entity) {
   return haystack.includes(' ' + name + ' ');
 }
 
-function appendUnique(values, value) {
+function appendUnique(values, ...valuesToAdd) {
   const list = Array.isArray(values) ? values.map(String) : [];
-  const target = String(value);
-  return list.includes(target) ? list : [...list, target];
+  for (const value of valuesToAdd) {
+    const target = String(value);
+    if (!list.includes(target)) list.push(target);
+  }
+  return list;
 }
 
 /**
@@ -37,7 +40,6 @@ export async function linkEvidenceAutomatically({
       listFor(Entity, 'entities', investigationId),
       listFor(Relationship, 'relationships', investigationId),
     ]);
-    const entityById = new Map(entities.map(entity => [String(entity.id || entity._id), entity]));
 
     for (const source of savedSources) {
       const evidenceId = String(source.id || source._id || '');
