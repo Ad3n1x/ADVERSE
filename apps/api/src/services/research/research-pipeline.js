@@ -1,5 +1,6 @@
 import { ingestEvidence } from './evidence-ingestion.js';
 import { enrichSourceProvenance } from './source-provenance.js';
+import { linkEvidenceAutomatically } from './evidence-linking.js';
 
 /**
  * Runs bounded public-source discovery for one investigation.
@@ -21,6 +22,8 @@ export async function runResearchPipeline({
   searchAllPublic,
   validatePublicUrl,
   logger = console,
+  isDb = () => false,
+  memory,
 }) {
   const settled = await Promise.allSettled(queries.map(query => searchAllPublic(query)));
   const available = settled.flatMap((item, index) =>
@@ -83,6 +86,18 @@ export async function runResearchPipeline({
     logger,
   });
 
+  const automaticLinks = await linkEvidenceAutomatically({
+    investigationId,
+    savedSources: saved,
+    Evidence,
+    Entity,
+    Relationship,
+    isDb,
+    memory,
+    listFor,
+    logger,
+  });
+
   const providers = [...new Set(available.map(item => item.provider).filter(Boolean))];
   return {
     investigationId,
@@ -94,6 +109,7 @@ export async function runResearchPipeline({
     savedCount: saved.length,
     graphEntitiesAdded,
     graphRelationshipsAdded,
+    ...automaticLinks,
     scrapeAttempted,
     scrapedCount,
     scrapeFailures,
