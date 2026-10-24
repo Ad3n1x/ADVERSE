@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('researcher can register, create an investigation, and inspect the evidence graph', async ({ page }) => {
   const email = 'e2e-' + Date.now() + '@example.org';
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /find anything/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find the lead/i })).toBeVisible();
   await page.locator('.find-top-links').getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
 
