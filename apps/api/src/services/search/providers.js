@@ -228,7 +228,7 @@ export async function scrapePublicPage(inputUrl) {
     finalUrl: current.href,
     redirects,
     httpStatus: response.status,
-    title: title || parsed.hostname,
+    title: title || current.hostname,
     description,
     excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
     retrievedAt: new Date().toISOString(),
