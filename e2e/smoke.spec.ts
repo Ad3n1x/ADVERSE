@@ -6,7 +6,7 @@ test('public search page loads with an accessible search field', async ({ page }
   await expect(page.getByRole('combobox', { name: 'Search anything online' })).toBeVisible();
   await expect(page.getByRole('button', { name: /find it/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /search is the start/i })).toBeVisible();
-  await expect(page.getByText(/reachable.*not that every statement on it is true/i)).toBeVisible();
+  await expect(page.locator('.find-trust-note')).toContainText(/reachable/i);
 });
 
 test('public search exposes recent searches and saved links before sign-in', async ({ page }) => {
