@@ -152,22 +152,37 @@ export async function searchOrganizations(query) {
  * no private network targets, no non-text payloads, and a 1 MB response ceiling.
  */
 export async function scrapePublicPage(inputUrl) {
-  const parsed = validatePublicUrl(inputUrl);
-  let addresses;
-  try { addresses = await lookup(parsed.hostname, { all: true, verbatim: true }); }
-  catch { throw new Error('The source domain could not be resolved.'); }
-  if (!addresses.length || addresses.some(record => net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address))) {
-    throw new Error('The source resolves to a private or restricted network address.');
-  }
-  const response = await fetch(parsed.href, {
-    redirect: 'manual',
-    signal: AbortSignal.timeout(10000),
-    headers: {
-      'user-agent': 'ADVERSE-Research/0.2 (+public-interest research; bounded text retrieval)',
-      accept: 'text/html, text/plain;q=0.9'
+  const original = validatePublicUrl(inputUrl);
+  let current = original;
+  const redirects = [];
+  let response;
+  // Follow a small, bounded redirect chain, validating every destination before fetching it.
+  for (let hop = 0; hop <= 5; hop += 1) {
+    let addresses;
+    try { addresses = await lookup(current.hostname, { all: true, verbatim: true }); }
+    catch { throw new Error('The source domain could not be resolved.'); }
+    if (!addresses.length || addresses.some(record => net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address))) {
+      throw new Error('The source or redirect resolves to a private or restricted network address.');
     }
-  });
-  if (response.status >= 300 && response.status < 400) throw new Error('Redirect not followed; open the original source link to inspect it.');
+    response = await fetch(current.href, {
+      redirect: 'manual',
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        'user-agent': 'ADVERSE-Research/0.3 (+public-interest research; bounded text retrieval)',
+        accept: 'text/html, text/plain;q=0.9'
+      }
+    });
+    if (response.status < 300 || response.status >= 400) break;
+    const location = response.headers.get('location');
+    if (!location) throw new Error('The source returned a redirect without a destination.');
+    if (hop === 5) throw new Error('The source exceeded the five-redirect safety limit.');
+    let next;
+    try { next = validatePublicUrl(new URL(location, current).href); }
+    catch { throw new Error('The source redirected to an invalid or restricted destination.'); }
+    redirects.push({ status: response.status, from: current.href, to: next.href });
+    current = next;
+  }
+  if (!response || response.status >= 300 && response.status < 400) throw new Error('The redirect chain could not be confirmed.');
   if (!response.ok) throw new Error('Source returned HTTP ' + response.status + '.');
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml+xml')) {
@@ -209,8 +224,10 @@ export async function scrapePublicPage(inputUrl) {
     .replace(/\s+/g, ' ')
     .trim()).slice(0, 3500);
   return {
-    url: parsed.href,
-    finalUrl: parsed.href,
+    url: original.href,
+    finalUrl: current.href,
+    redirects,
+    httpStatus: response.status,
     title: title || parsed.hostname,
     description,
     excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
