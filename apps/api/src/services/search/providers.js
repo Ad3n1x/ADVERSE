@@ -183,7 +183,21 @@ export async function scrapePublicPage(inputUrl) {
     current = next;
   }
   if (!response || response.status >= 300 && response.status < 400) throw new Error('The redirect chain could not be confirmed.');
-  if (!response.ok) throw new Error('Source returned HTTP ' + response.status + '.');
+  if (!response.ok) {
+    return {
+      url: original.href,
+      finalUrl: current.href,
+      redirects,
+      httpStatus: response.status,
+      title: current.hostname,
+      description: '',
+      excerpt: '',
+      retrievedAt: new Date().toISOString(),
+      contentType: String(response.headers.get('content-type') || ''),
+      readable: false,
+      note: 'The server responded with HTTP ' + response.status + ', but ADVERSE could not read a public page.'
+    };
+  }
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml+xml')) {
     throw new Error('Source is not an HTML or plain-text page.');
@@ -233,6 +247,7 @@ export async function scrapePublicPage(inputUrl) {
     excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
     retrievedAt: new Date().toISOString(),
     contentType,
+    readable: true,
     httpStatus: response.status,
     contentHash: (await import('node:crypto')).createHash('sha256').update(raw).digest('hex'),
     method: 'bounded public HTML/text retrieval',
