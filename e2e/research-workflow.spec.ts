@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('researcher can register, create an investigation, and inspect the evidence graph', async ({ page }) => {
   const email = 'e2e-' + Date.now() + '@example.org';
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /find the lead/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find the website/i })).toBeVisible();
   await page.locator('.find-top-links').getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
 
@@ -27,8 +27,6 @@ test('researcher can register, create an investigation, and inspect the evidence
   await page.getByLabel('Public link (optional)').fill('https://example.org');
   await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
 
-  // The current graph exposes a dedicated entity picker rather than the older
-  // filter/.graph-entity-option UI. Select the newly-created entity directly.
   const entityOption = page.locator('.graph-entity-picker-list button').filter({ hasText: 'Example Corporation' });
   await expect(entityOption).toBeVisible();
   await entityOption.click();
