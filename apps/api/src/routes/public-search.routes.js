@@ -30,11 +30,13 @@ export function registerPublicSearchRoutes(app, {
           httpStatus: page?.httpStatus || null,
           title: page?.title || '',
           excerpt: page?.excerpt || page?.description || '',
-          status: 'reachable',
+          status: page?.readable === false ? 'not_confirmed' : 'reachable',
           checkedAt,
-          note: redirected
-            ? 'A readable public page responded after redirects. This confirms access at check time, not the legitimacy or truth of the destination.'
-            : 'A readable public page responded at check time. This does not verify the page owner or the truth of its claims.'
+          note: page?.readable === false
+            ? (page?.note || 'The server responded, but ADVERSE could not read a public page.')
+            : redirected
+              ? 'A readable public page responded after redirects. This confirms access at check time, not the legitimacy or truth of the destination.'
+              : 'A readable public page responded at check time. This does not verify the page owner or the truth of its claims.'
         },
         meta: { notice: 'Only public HTTP(S) pages are checked. Private/restricted network destinations and unsafe redirect targets are rejected.' }
       });
@@ -192,14 +194,16 @@ export function registerPublicSearchRoutes(app, {
       try {
         const page = await scrapePublicPage(item.url);
         return { ...item, _indexedPage: { title: page?.title || '', excerpt: page?.excerpt || '' }, linkCheck: {
-          status: 'reachable',
+          status: page?.readable === false ? 'not_confirmed' : 'reachable',
           checkedAt,
           httpStatus: page?.httpStatus || null,
           finalUrl: page?.finalUrl || item.url,
           redirects: Array.isArray(page?.redirects) ? page.redirects : [],
-          note: page?.finalUrl && page.finalUrl !== item.url
-            ? 'The original URL redirected to a readable public page. The final destination was checked; this does not verify every claim on it.'
-            : 'The public page responded with readable text during this check. This does not verify every claim on the page.'
+          note: page?.readable === false
+            ? (page?.note || 'The server responded, but ADVERSE could not read a public page.')
+            : page?.finalUrl && page.finalUrl !== item.url
+              ? 'The original URL redirected to a readable public page. The final destination was checked; this does not verify every claim on it.'
+              : 'The public page responded with readable text during this check. This does not verify every claim on the page.'
         } };
       } catch {
         return { ...item, linkCheck: { status: 'not_confirmed', checkedAt, note: 'ADVERSE could not confirm readable page access. The link may redirect, block automated access, or be temporarily unavailable; inspect it directly before relying on it.' } };
