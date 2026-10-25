@@ -144,7 +144,16 @@ export function registerPublicSearchRoutes(app, {
       const checkedAt = new Date().toISOString();
       try {
         const page = await scrapePublicPage(item.url);
-        return { ...item, _indexedPage: { title: page?.title || '', excerpt: page?.excerpt || '' }, linkCheck: { status: 'reachable', checkedAt, note: 'The public page responded with readable text during this check. This does not verify every claim on the page.' } };
+        return { ...item, _indexedPage: { title: page?.title || '', excerpt: page?.excerpt || '' }, linkCheck: {
+          status: 'reachable',
+          checkedAt,
+          httpStatus: page?.httpStatus || null,
+          finalUrl: page?.finalUrl || item.url,
+          redirects: Array.isArray(page?.redirects) ? page.redirects : [],
+          note: page?.finalUrl && page.finalUrl !== item.url
+            ? 'The original URL redirected to a readable public page. The final destination was checked; this does not verify every claim on it.'
+            : 'The public page responded with readable text during this check. This does not verify every claim on the page.'
+        } };
       } catch {
         return { ...item, linkCheck: { status: 'not_confirmed', checkedAt, note: 'ADVERSE could not confirm readable page access. The link may redirect, block automated access, or be temporarily unavailable; inspect it directly before relying on it.' } };
       }
@@ -157,6 +166,9 @@ export function registerPublicSearchRoutes(app, {
         ...item, linkCheck: { status: 'not_checked', checkedAt: null, note: 'This result was not link-checked in this search.' },
       })),
     ];
+    // Put confirmed reachable destinations first, while preserving relevance order within each status group.
+    const linkPriority = { reachable: 0, not_checked: 1, not_confirmed: 2 };
+    rawResults.sort((a, b) => (linkPriority[a.linkCheck?.status] ?? 1) - (linkPriority[b.linkCheck?.status] ?? 1));
     const results = rawResults.slice(0, 24).map(item => {
       const host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, '');
       const corroborating = [...new Map(rawResults
