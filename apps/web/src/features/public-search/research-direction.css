@@ -25,3 +25,25 @@
 .find-result-foot .find-link-status.reachable{border-color:#356a58;color:#9de9cd}
 .find-result-foot .find-link-status.unconfirmed{border-color:#67563b;color:#e3c58b}
 @media(max-width:600px){.find-alternatives-button{width:100%;min-height:38px}.find-result-foot .find-redirect-note{overflow-wrap:anywhere}}
+
+
+/* Direct public URL checking: useful utility, deliberately secondary to search */
+.find-direct-check{max-width:1040px;margin:18px auto 22px;padding:18px 20px;border:1px solid rgba(133,226,206,.16);border-radius:15px;background:linear-gradient(120deg,rgba(19,31,28,.9),rgba(15,19,20,.88));color:var(--text,#e5ecea)}
+.find-direct-check-copy>span{display:flex;align-items:center;gap:7px;color:#85e2ce;font:500 10px var(--mono,monospace);letter-spacing:.12em}
+.find-direct-check-copy h2{margin:7px 0 4px;font:600 18px/1.25 var(--display,'Space Grotesk',sans-serif);letter-spacing:-.025em}
+.find-direct-check-copy p{margin:0;color:#9baba5;font-size:12px;line-height:1.65}
+.find-direct-check-form{display:flex;gap:9px;margin-top:14px}
+.find-direct-check-form input{flex:1;min-width:0;min-height:42px;padding:0 12px;border:1px solid #344b43;border-radius:9px;background:#0d1412;color:#e5ecea;font-size:13px;outline:none}
+.find-direct-check-form input:focus{border-color:#85e2ce;box-shadow:0 0 0 3px rgba(133,226,206,.1)}
+.find-direct-check-form button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 13px;border:1px solid #4c8a78;border-radius:9px;background:#1b382e;color:#d7fff2;font-size:12px;font-weight:700;white-space:nowrap}
+.find-direct-check-form button:disabled{opacity:.65;cursor:wait}
+.find-direct-check-note{margin:8px 0 0;color:#7f9289;font-size:10px;line-height:1.6}
+.find-direct-check-error{margin:10px 0 0;color:#f0b6a8;font-size:12px}
+.find-direct-check-result{display:grid;gap:7px;margin-top:13px;padding:12px;border:1px solid #66583e;border-radius:10px;background:rgba(65,48,22,.14)}
+.find-direct-check-result.is-reachable{border-color:#356a58;background:rgba(25,75,57,.12)}
+.find-direct-check-result>div{display:grid;gap:4px}
+.find-direct-check-result>div b{font-size:12px;color:#dcebe4}
+.find-direct-check-result>div span,.find-direct-check-result small{font-size:11px;line-height:1.65;color:#9eaea6;overflow-wrap:anywhere}
+.find-direct-check-result>strong{font-size:12px;overflow-wrap:anywhere}
+.find-direct-check-result>a{display:inline-flex;align-items:center;gap:5px;width:max-content;max-width:100%;color:#a7e8d3;font-size:11px;overflow-wrap:anywhere}
+@media(max-width:600px){.find-direct-check{padding:15px;border-radius:12px}.find-direct-check-form{flex-direction:column}.find-direct-check-form button{width:100%}}
