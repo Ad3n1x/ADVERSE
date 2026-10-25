@@ -4,7 +4,7 @@ test.describe('public Find Anything responsive experience', () => {
   test('keeps the search flow usable at a narrow mobile viewport', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /find the lead/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /find the website/i })).toBeVisible();
     const search = page.getByRole('combobox', { name: 'Search anything online' });
     await expect(search).toBeVisible();
     await expect(page.getByRole('button', { name: /find it/i })).toBeVisible();
@@ -22,7 +22,7 @@ test.describe('public Find Anything responsive experience', () => {
   test('keeps the public search form usable at a desktop viewport', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
-    await expect(page.getByRole('heading', { name: /find the lead/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /find the website/i })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Search anything online' })).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
@@ -36,7 +36,7 @@ test.describe('public Find Anything responsive experience', () => {
 test('authenticated workspace keeps navigation, account settings, and panels usable on mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /find the lead/i })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: /find the website/i })).toBeVisible({ timeout: 20_000 });
   await page.locator('.find-top-links').getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
 
