@@ -13,3 +13,15 @@
 .find-research-pillars p{margin:0;color:#94a49d;font-size:11px;line-height:1.7}
 @media(max-width:760px){.find-research-next{grid-template-columns:minmax(0,1fr);gap:23px;margin:40px 0 22px;padding:22px;border-radius:17px}.find-research-intro h2{font-size:clamp(28px,8vw,36px)}.find-research-pillars article{padding:13px}}
 @media(prefers-reduced-motion:reduce){.find-research-cta{transition:none}.find-research-cta:hover{transform:none}}
+
+
+/* Website-first destination recovery */
+.find-hero .find-subtitle{max-width:760px}
+.find-hero h1{max-width:850px}
+.find-result-foot .find-check-time,.find-result-foot .find-redirect-note{display:block;margin-top:4px;color:#91a59d;font-size:10px;line-height:1.55}
+.find-result-foot .find-redirect-note{color:#a8d8ca;overflow-wrap:anywhere}
+.find-alternatives-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:30px;padding:6px 9px;border:1px solid #5d7569;border-radius:8px;background:#182722;color:#c7f2e4;font-size:11px;font-weight:700;white-space:nowrap}
+.find-alternatives-button:hover{border-color:#85e2ce;background:#20382f}
+.find-result-foot .find-link-status.reachable{border-color:#356a58;color:#9de9cd}
+.find-result-foot .find-link-status.unconfirmed{border-color:#67563b;color:#e3c58b}
+@media(max-width:600px){.find-alternatives-button{width:100%;min-height:38px}.find-result-foot .find-redirect-note{overflow-wrap:anywhere}}
