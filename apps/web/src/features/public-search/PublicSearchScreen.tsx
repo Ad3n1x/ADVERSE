@@ -8,7 +8,8 @@ function readLocal<T>(key:string,fallback:T):T{try{const raw=localStorage.getIte
 function PublicSearchScreen({onSignIn}:{onSignIn:()=>void}){
  const [query,setQuery]=useState(()=>new URLSearchParams(window.location.search).get('q')||''),[results,setResults]=useState<PublicSearchResult[]>([]),[meta,setMeta]=useState<any>(null),[loading,setLoading]=useState(false),[error,setError]=useState(''),[shareMessage,setShareMessage]=useState(''),[suggestions,setSuggestions]=useState<{query:string;source?:string}[]>([]),[activeSuggestion,setActiveSuggestion]=useState(-1);
  const [history,setHistory]=useState<SearchHistoryEntry[]>(()=>readLocal(HISTORY_KEY,[])),[saved,setSaved]=useState<PublicSearchResult[]>(()=>readLocal(SAVED_KEY,[]));
- const [filter,setFilter]=useState<'all'|'reachable'|'not_confirmed'|'not_checked'>('all'),[providerFilter,setProviderFilter]=useState('all'),[showHistory,setShowHistory]=useState(false),[showSaved,setShowSaved]=useState(false);\n const [checkUrl,setCheckUrl]=useState(''),[checkingUrl,setCheckingUrl]=useState(false),[checkedLink,setCheckedLink]=useState<any>(null),[checkError,setCheckError]=useState('');
+ const [filter,setFilter]=useState<'all'|'reachable'|'not_confirmed'|'not_checked'>('all'),[providerFilter,setProviderFilter]=useState('all'),[showHistory,setShowHistory]=useState(false),[showSaved,setShowSaved]=useState(false);
+ const [checkUrl,setCheckUrl]=useState(''),[checkingUrl,setCheckingUrl]=useState(false),[checkedLink,setCheckedLink]=useState<any>(null),[checkError,setCheckError]=useState('');
  const examples=['Best free coding courses','Official Nigerian university admission portal','Python documentation','How to renew a passport'];
  useEffect(()=>{try{localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,12)));}catch{}},[history]);
  useEffect(()=>{try{localStorage.setItem(SAVED_KEY,JSON.stringify(saved.slice(0,100)));}catch{}},[saved]);
