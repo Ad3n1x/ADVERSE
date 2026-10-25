@@ -9,6 +9,53 @@ export function registerPublicSearchRoutes(app, {
   diversifyPublicResults, normalizeResultUrl, searchImages, searchVideos,
   searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth,
 }) {
+  app.post('/api/v1/public-search/check-link', limitProvider, wrap(async (req, res) => {
+    const input = String(req.body?.url || '').trim().slice(0, 2048);
+    if (!input) return sendError(res, 400, 'URL_REQUIRED', 'Paste a public website URL to check.');
+    let parsed;
+    try {
+      parsed = validatePublicUrl(input);
+    } catch {
+      return sendError(res, 400, 'INVALID_PUBLIC_URL', 'Enter a valid public HTTP or HTTPS URL. Private and restricted network addresses cannot be checked.');
+    }
+    const checkedAt = new Date().toISOString();
+    try {
+      const page = await scrapePublicPage(parsed.href);
+      const redirected = Boolean(page?.finalUrl && page.finalUrl !== parsed.href);
+      return res.json({
+        data: {
+          url: parsed.href,
+          finalUrl: page?.finalUrl || parsed.href,
+          redirects: Array.isArray(page?.redirects) ? page.redirects : [],
+          httpStatus: page?.httpStatus || null,
+          title: page?.title || '',
+          excerpt: page?.excerpt || page?.description || '',
+          status: 'reachable',
+          checkedAt,
+          note: redirected
+            ? 'A readable public page responded after redirects. This confirms access at check time, not the legitimacy or truth of the destination.'
+            : 'A readable public page responded at check time. This does not verify the page owner or the truth of its claims.'
+        },
+        meta: { notice: 'Only public HTTP(S) pages are checked. Private/restricted network destinations and unsafe redirect targets are rejected.' }
+      });
+    } catch {
+      return res.json({
+        data: {
+          url: parsed.href,
+          finalUrl: null,
+          redirects: [],
+          httpStatus: null,
+          title: '',
+          excerpt: '',
+          status: 'not_confirmed',
+          checkedAt,
+          note: 'ADVERSE could not confirm readable page access. The site may block automated requests, redirect unsafely, require a login, or be temporarily unavailable. Open it directly before relying on it.'
+        },
+        meta: { notice: 'A failed automated check is not proof that a website is dead or fraudulent.' }
+      });
+    }
+  }));
+
   app.post('/api/v1/public-search/visual-match', limitProvider, wrap(async (req, res) => {
     const body = req.body || {};
     let analysis;
