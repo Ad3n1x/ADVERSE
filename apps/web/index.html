@@ -35,7 +35,7 @@
     <meta property="og:locale" content="en_US" />
 
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="ADVERSE — Public-Source Intelligence Workspace" />
+    <meta name="twitter:title" content="ADVERSE by AD3N1X — Public-Source Search & Research" />
     <meta
       name="twitter:description"
       content="Search public sources, follow leads, map connections, and organize evidence with transparent provenance."
@@ -45,18 +45,28 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "ADVERSE",
-        "creator": {
-          "@type": "Person",
-          "name": "AD3N1X",
-          "url": "https://engnradeniran.com/"
-        },
-        "applicationCategory": "ResearchApplication",
-        "operatingSystem": "Web",
-        "url": "https://adverse-web.onrender.com/",
-        "description": "A public-source research workspace for searching available public sources, organizing evidence, mapping relationships, and reconstructing timelines.",
-        "isAccessibleForFree": true
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://adverse-web.onrender.com/#product",
+            "name": "ADVERSE",
+            "url": "https://adverse-web.onrender.com/",
+            "description": "An independent public-source search and research product for discovering sources and reviewing evidence.",
+            "applicationCategory": "ResearchApplication",
+            "operatingSystem": "Web",
+            "isAccessibleForFree": true,
+            "creator": { "@id": "https://engnradeniran.com/#creator" },
+            "sameAs": ["https://github.com/Ad3n1x/ADVERSE"]
+          },
+          {
+            "@type": "Person",
+            "@id": "https://engnradeniran.com/#creator",
+            "name": "AD3N1X",
+            "url": "https://engnradeniran.com/",
+            "sameAs": ["https://github.com/Ad3n1x"],
+            "creator": { "@id": "https://adverse-web.onrender.com/#product" }
+          }
+        ]
       }
     </script>
   </head>
