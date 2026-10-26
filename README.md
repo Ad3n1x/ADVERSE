@@ -4,6 +4,17 @@
 
 ADVERSE is an evidence-led investigative research workspace. It helps people discover information across available public sources, inspect original pages, preserve source context, and organise people, organisations, events, documents, and relationships into structured investigations. Public search is a starting point—not a complete index of the web. Link reachability is an access signal, not proof that a page is true, safe, current, or endorsed. ADVERSE is designed to help researchers keep a clear trail from a question to the sources behind their findings.
 
+## Creator and official links
+
+**ADVERSE is an independent product created by [AD3N1X](https://engnradeniran.com/).**
+
+- **Live website:** https://adverse-web.onrender.com/
+- **Creator portfolio:** https://engnradeniran.com/
+- **Source repository:** https://github.com/Ad3n1x/ADVERSE
+- **Developer profile:** https://github.com/Ad3n1x
+
+These links identify the product, its creator, and the canonical source repository. ADVERSE is independently developed and is not affiliated with or endorsed by any third party unless explicitly stated.
+
 ## Engineering transparency
 
 ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
