@@ -10,8 +10,8 @@ android {
         applicationId = "com.ad3n1x.adverse"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "2.0.0"
+        versionCode = 5
+        versionName = "2.1.0"
     }
     buildFeatures { compose = true }
     compileOptions {
