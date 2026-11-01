@@ -620,7 +620,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         if (saved.isEmpty()) EmptyState("No saved sources yet", "Save a result from Search and it will appear here.")
                         else LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(saved, key = { it.url }) { item ->
-                                ResultCard(item, true, { _ -> saved = saved.filterNot { it.url == item.url }; saveLocal() }, { openUrl(item.url) })
+                                ResultCard(item, true, { _ -> saved = saved.filterNot { it.url == item.url }; saveLocal() }, { openUrl(item.finalUrl.ifBlank { item.url }) })
                             }
                         }
                     }
