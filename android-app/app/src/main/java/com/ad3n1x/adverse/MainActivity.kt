@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -62,6 +64,7 @@ import java.util.concurrent.TimeUnit
 private val Ink = Color(0xFF0B1220)
 private val Surface = Color(0xFF111C2E)
 private val Raised = Color(0xFF18263A)
+private val SearchSurface = Color(0xFF17292E)
 private val Stroke = Color(0xFF2A3B52)
 private val White = Color(0xFFF8FAFC)
 private val Muted = Color(0xFFA8B5C7)
@@ -503,8 +506,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Accent, unfocusedBorderColor = Stroke,
                                     focusedTextColor = White, unfocusedTextColor = White,
-                                    cursorColor = Mint, focusedContainerColor = Surface,
-                                    unfocusedContainerColor = Surface
+                                    cursorColor = Mint, focusedContainerColor = SearchSurface,
+                                    unfocusedContainerColor = SearchSurface
                                 ),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { search(query) })
@@ -739,7 +742,10 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 @Composable
 private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit, onDismiss: (() -> Unit)? = null, onFindAlternatives: (() -> Unit)? = null) {
     Column(
-        Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp)).padding(15.dp)
+        Modifier.fillMaxWidth()
+            .border(1.dp, Stroke.copy(alpha = .9f), RoundedCornerShape(15.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF1A2F34), Color(0xFF14262B))), RoundedCornerShape(15.dp))
+            .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(item.publisher.ifBlank { "Public source" }, color = Mint, fontSize = 10.sp,
