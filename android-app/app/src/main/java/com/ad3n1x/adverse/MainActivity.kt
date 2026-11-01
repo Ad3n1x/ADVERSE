@@ -124,20 +124,24 @@ private fun prepareVisualImage(context: Context, uri: Uri): String {
     var bitmap = if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt().coerceAtLeast(1), (decoded.height * scale).toInt().coerceAtLeast(1), true) else decoded
     if (bitmap !== decoded) decoded.recycle()
     var quality = 78
-    var bytes: ByteArray
-    do {
+    var bytes = ByteArray(0)
+    var attempts = 0
+    while (attempts < 10) {
         val output = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
         bytes = output.toByteArray()
         if (bytes.size <= 350 * 1024) break
-        if (quality > 50) quality -= 8
-        else {
+        if (quality > 50) {
+            quality -= 8
+        } else {
+            if (maxOf(bitmap.width, bitmap.height) <= 320) break
             val smaller = Bitmap.createScaledBitmap(bitmap, (bitmap.width * 0.82f).toInt().coerceAtLeast(1), (bitmap.height * 0.82f).toInt().coerceAtLeast(1), true)
             if (smaller !== bitmap) bitmap.recycle()
             bitmap = smaller
             quality = 68
         }
-    } while (bitmap.width > 320 || bitmap.height > 320)
+        attempts++
+    }
     bitmap.recycle()
     if (bytes.size > 350 * 1024) throw IOException("That image is too detailed to upload. Try a smaller image.")
     return "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
