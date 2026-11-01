@@ -1,5 +1,7 @@
 package com.ad3n1x.adverse
 
+// Native Compose client for the ADVERSE public-search API.
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
