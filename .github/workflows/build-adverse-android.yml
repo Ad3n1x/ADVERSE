@@ -2,10 +2,14 @@ name: Build ADVERSE Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, ui/smooth-fingerprint-polish]
     paths:
       - "android-app/**"
       - "apps/web/src/features/public-search/**"
+      - "apps/web/src/app/WorkspaceApp.tsx"
+      - "apps/web/src/features/auth/AuthScreen.tsx"
+      - "apps/web/src/search-engine-theme.css"
+      - "apps/web/src/main.tsx"
       - ".github/workflows/build-adverse-android.yml"
   workflow_dispatch:
 
