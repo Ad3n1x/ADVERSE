@@ -4,7 +4,7 @@ name: Build ADVERSE Android APK
 
 on:
   push:
-    branches: [main, ui/smooth-fingerprint-polish, fix/android-standalone-experience, feat/native-android-search-experience, feat/native-app-feature-parity]
+    branches: [main, ui/smooth-fingerprint-polish, fix/android-standalone-experience, feat/native-android-search-experience, feat/native-app-feature-parity, feat/android-responsive-website-parity]
     paths:
       - "android-app/**"
       - "apps/web/src/features/public-search/**"
@@ -61,10 +61,12 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - name: Prepare public download
+        if: github.ref == 'refs/heads/main'
         run: |
           cp android-app/app/build/outputs/apk/debug/app-debug.apk /tmp/ADVERSE.apk
           cp android-app/app/build/outputs/apk/debug/app-debug.apk "/tmp/ADVERSE-${GITHUB_SHA}.apk"
       - name: Publish public APK download
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
