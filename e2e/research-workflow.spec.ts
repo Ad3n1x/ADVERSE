@@ -1,35 +1,22 @@
 import { test, expect } from '@playwright/test';
 
-test('researcher can register, create an investigation, and inspect the evidence graph', async ({ page }) => {
-  const email = 'e2e-' + Date.now() + '@example.org';
+test('authenticated users return to the personal search engine, not the retired research workspace', async ({ page }) => {
+  const email = 'search-engine-' + Date.now() + '@example.org';
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /find the website/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find what you’re looking for/i })).toBeVisible();
   await page.locator('.find-top-links').getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.getByRole('heading', { name: 'Welcome back.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome back to ADVERSE.' })).toBeVisible();
 
   await page.locator('.auth-toggle button').click();
-  await page.getByLabel('Display name').fill('Browser Test Researcher');
+  await page.getByLabel('Display name').fill('ADVERSE Search User');
   await page.getByLabel('Email address').fill(email);
-  await page.getByLabel('Password').fill('browser-test-password-123');
+  await page.getByLabel('Password').fill('search-engine-test-password-123');
   await page.locator('button.auth-submit').click();
 
-  await expect(page.getByRole('button', { name: /New collection/ })).toBeVisible();
-  await page.getByRole('button', { name: /New collection/ }).click();
-  await page.getByLabel('Collection name').fill('E2E Public History Case');
-  await page.getByLabel(/What do you want to find/).fill('Can the source history be reconstructed?');
-  await page.getByRole('button', { name: /Create collection/ }).click();
-  await expect(page.locator('header').getByText('E2E Public History Case')).toBeVisible();
-
-  await page.getByRole('button', { name: /Graph & links/i }).click();
-  await expect(page.getByRole('heading', { name: /Within-collection connections/i })).toBeVisible();
-  await page.getByRole('button', { name: /Add entity/ }).click();
-  await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Example Corporation');
-  await page.getByLabel('Public link (optional)').fill('https://example.org');
-  await page.locator('.modal form').getByRole('button', { name: 'Add entity' }).click();
-
-  const entityOption = page.locator('.graph-entity-picker-list button').filter({ hasText: 'Example Corporation' });
-  await expect(entityOption).toBeVisible();
-  await entityOption.click();
-  await expect(page.getByText('SELECTED ENTITY')).toBeVisible();
-  await expect(page.getByRole('dialog', { name: /Open source: Example Corporation/i })).toBeVisible();
+  await expect(page.getByText('Account active')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('combobox', { name: 'Search anything online' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /recent searches/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /saved links/i })).toBeVisible();
+  await expect(page.locator('.sidebar')).toHaveCount(0);
+  await expect(page.locator('.find-research-next')).toHaveCount(0);
 });
