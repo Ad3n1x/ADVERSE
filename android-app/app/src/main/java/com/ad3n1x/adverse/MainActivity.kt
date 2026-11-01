@@ -1,221 +1,398 @@
 package com.ad3n1x.adverse
 
-import android.app.Activity
+// Native Compose client for the ADVERSE public-search API.
+
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
-import android.view.View
-import android.webkit.WebChromeClient
-import android.webkit.WebResourceError
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
-import android.widget.ProgressBar
-import android.widget.FrameLayout
-import android.view.Gravity
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.graphics.Color
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.IOException
 
-class MainActivity : Activity() {
-    private lateinit var webView: WebView
-    private lateinit var progress: ProgressBar
-    private lateinit var splashOverlay: FrameLayout
-    private val homeUrl = "https://adverse-web.onrender.com/"
-    private val nativeUserAgentMarker = " ADVERSENativeAndroid/2"
+private val Ink = Color(0xFF0B1220)
+private val Surface = Color(0xFF111C2E)
+private val Raised = Color(0xFF18263A)
+private val Stroke = Color(0xFF2A3B52)
+private val White = Color(0xFFF8FAFC)
+private val Muted = Color(0xFFA8B5C7)
+private val Blue = Color(0xFF3B82F6)
+private val BlueSoft = Color(0xFF93C5FD)
+private val Cyan = Color(0xFF22D3EE)
+private val Green = Color(0xFF34D399)
+private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
 
+private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)
+
+private data class SearchResult(
+    val title: String, val url: String, val excerpt: String,
+    val publisher: String, val status: String, val note: String
+) {
+    fun json() = JSONObject().apply {
+        put("title", title); put("url", url); put("excerpt", excerpt)
+        put("publisher", publisher); put("status", status); put("note", note)
+    }
+    companion object {
+        fun parse(o: JSONObject) = SearchResult(
+            o.optString("title", o.optString("url")),
+            o.optString("url"), o.optString("excerpt"),
+            o.optString("publisher", o.optString("provider", "Public source")),
+            o.optJSONObject("linkCheck")?.optString("status") ?: o.optString("status", "not_checked"),
+            o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note")
+        )
+    }
+}
+
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(16, 29, 34)
-        window.navigationBarColor = Color.rgb(16, 29, 34)
+        window.statusBarColor = android.graphics.Color.rgb(11, 18, 32)
+        window.navigationBarColor = android.graphics.Color.rgb(11, 18, 32)
         window.decorView.systemUiVisibility = 0
+        setContent { AdverseApp { value ->
+            runCatching {
+                val uri = Uri.parse(value)
+                if (uri.scheme == "https" || uri.scheme == "http") startActivity(Intent(Intent.ACTION_VIEW, uri))
+            }
+        } }
+    }
+}
 
-        val root = FrameLayout(this)
-        root.setBackgroundColor(Color.rgb(16, 29, 34))
-        webView = WebView(this)
-        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal)
-        progress.max = 100
-        progress.progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
-        progress.indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
+@Composable
+private fun AdverseApp(openUrl: (String) -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("adverse_native", 0) }
+    val client = remember { OkHttpClient() }
+    val scope = rememberCoroutineScope()
+    val focus = LocalFocusManager.current
+    var query by remember { mutableStateOf("") }
+    var results by remember { mutableStateOf(emptyList<SearchResult>()) }
+    var saved by remember { mutableStateOf(loadSaved(prefs)) }
+    var history by remember { mutableStateOf(loadHistory(prefs)) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf("") }
+    var emptyMessage by remember { mutableStateOf("") }
+    var urlToCheck by remember { mutableStateOf("") }
+    var checkingLink by remember { mutableStateOf(false) }
+    var linkCheck by remember { mutableStateOf<LinkCheckResult?>(null) }
+    var linkError by remember { mutableStateOf("") }
+    var tab by remember { mutableStateOf("Search") }
 
-        root.addView(webView, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ))
-        root.addView(progress, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP
-        ))
-        splashOverlay = createWelcomeScreen()
-        root.addView(splashOverlay, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT
-        ))
-        setContentView(root)
-
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.loadsImagesAutomatically = true
-        webView.settings.javaScriptCanOpenWindowsAutomatically = false
-        webView.settings.setSupportMultipleWindows(false)
-        webView.settings.allowFileAccess = false
-        webView.settings.allowContentAccess = false
-        webView.settings.setGeolocationEnabled(false)
-        webView.settings.safeBrowsingEnabled = true
-        val defaultUserAgent = webView.settings.userAgentString.orEmpty()
-        if (!defaultUserAgent.contains("ADVERSENativeAndroid/")) {
-            webView.settings.userAgentString = defaultUserAgent + nativeUserAgentMarker
+    fun saveLocal() {
+        prefs.edit().putString("saved", JSONArray().apply { saved.forEach { put(it.json()) } }.toString()).apply()
+    }
+    fun saveHistory() {
+        prefs.edit().putString("history", JSONArray().apply { history.forEach { put(it) } }.toString()).apply()
+    }
+    fun search(term: String) {
+        val clean = term.trim()
+        if (clean.length < 2) { error = "Enter at least two characters."; return }
+        query = clean
+        focus.clearFocus()
+        loading = true; error = ""; emptyMessage = ""
+        scope.launch {
+            try {
+                val data = withContext(Dispatchers.IO) {
+                    val url = (API_BASE + "/public-search").toHttpUrl().newBuilder()
+                        .addQueryParameter("q", clean).build()
+                    val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
+                    client.newCall(request).execute().use { response ->
+                        val raw = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                            throw IOException(message ?: "Search is temporarily unavailable.")
+                        }
+                        val array = JSONObject(raw).optJSONArray("data") ?: JSONArray()
+                        (0 until array.length()).mapNotNull { i ->
+                            runCatching { SearchResult.parse(array.getJSONObject(i)) }.getOrNull()
+                        }
+                    }
+                }
+                results = data
+                history = (listOf(clean) + history.filterNot { it.equals(clean, true) }).take(12)
+                saveHistory()
+                if (data.isEmpty()) emptyMessage = "No results came back from the available public sources. Try another phrase."
+            } catch (e: Exception) {
+                results = emptyList()
+                error = e.message ?: "Could not search right now."
+            } finally { loading = false }
         }
-        webView.isVerticalScrollBarEnabled = false
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                progress.progress = newProgress
-                progress.visibility = if (newProgress >= 100) View.GONE else View.VISIBLE
-            }
+    }
+
+    fun checkLink() {
+        val candidate = urlToCheck.trim()
+        if (candidate.isBlank()) { linkError = "Paste a public website URL first."; return }
+        checkingLink = true; linkError = ""; linkCheck = null
+        scope.launch {
+            try {
+                val checked = withContext(Dispatchers.IO) {
+                    val body = JSONObject().put("url", candidate).toString().toRequestBody("application/json".toMediaType())
+                    val request = Request.Builder().url("$API_BASE/public-search/check-link")
+                        .post(body).header("Accept", "application/json").build()
+                    client.newCall(request).execute().use { response ->
+                        val raw = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                            throw IOException(message ?: "This URL could not be checked.")
+                        }
+                        val data = JSONObject(raw).optJSONObject("data") ?: JSONObject()
+                        LinkCheckResult(data.optString("title"), data.optString("finalUrl"),
+                            data.optString("status", "not_confirmed"), data.optString("note"))
+                    }
+                }
+                linkCheck = checked
+            } catch (e: Exception) { linkError = e.message ?: "Could not check this URL." }
+            finally { checkingLink = false }
         }
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                val uri = request.url
-                if (uri.scheme == "https" || uri.scheme == "http") return false
-                return true
-            }
+    }
 
-            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                progress.visibility = View.VISIBLE
-            }
-
-            override fun onPageFinished(view: WebView?, url: String?) {
-                // Keep the web and APK experiences distinct even when an older cached
-                // web bundle is loaded before the latest native-aware CSS arrives.
-                val nativePresentation = """
-                    (function() {
-                      document.documentElement.classList.add('adverse-native-android');
-                      document.documentElement.dataset.adverseApp = 'android';
-                      var style = document.getElementById('adverse-native-app-cleanup');
-                      if (!style) {
-                        style = document.createElement('style');
-                        style.id = 'adverse-native-app-cleanup';
-                        style.textContent = '.adverse-android-download, .adverse-download-nudge, .adverse-home-download, .find-footer { display: none !important; }';
-                        (document.head || document.documentElement).appendChild(style);
-                      }
-                      document.querySelectorAll('.adverse-android-download, .adverse-download-nudge, .adverse-home-download, .find-footer').forEach(function(el) {
-                        el.style.setProperty('display', 'none', 'important');
-                        el.setAttribute('aria-hidden', 'true');
-                      });
-                      return true;
-                    })();
-                """.trimIndent()
-                view?.evaluateJavascript(nativePresentation) {
-                    progress.visibility = View.GONE
-                    if (::splashOverlay.isInitialized) {
-                        splashOverlay.animate().alpha(0f).setDuration(220).withEndAction {
-                            (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
-                        }.start()
+    MaterialTheme(colorScheme = darkColorScheme(
+        primary = Blue, onPrimary = White, secondary = Cyan,
+        background = Ink, surface = Surface, onSurface = White,
+        onBackground = White, surfaceVariant = Raised, onSurfaceVariant = Muted,
+        outline = Stroke
+    )) {
+        Scaffold(
+            containerColor = Ink,
+            bottomBar = {
+                NavigationBar(containerColor = Surface, contentColor = White) {
+                    listOf("Search", "Saved", "History").forEach { item ->
+                        NavigationBarItem(
+                            selected = tab == item,
+                            onClick = { tab = item; error = ""; emptyMessage = "" },
+                            icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; else -> "◷" }, fontSize = 22.sp) },
+                            label = { Text(item) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = BlueSoft, selectedTextColor = BlueSoft,
+                                indicatorColor = Blue.copy(alpha = .18f),
+                                unselectedIconColor = Muted, unselectedTextColor = Muted
+                            )
+                        )
                     }
                 }
             }
+        ) { inset ->
+            Column(Modifier.fillMaxSize().background(Ink).padding(inset).statusBarsPadding()) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(painterResource(R.drawable.adverse_fingerprint), "ADVERSE fingerprint", Modifier.size(42.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text("ADVERSE", color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                        Text("FIND ANYTHING", color = BlueSoft, fontSize = 9.sp, letterSpacing = 2.sp)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("PUBLIC SEARCH", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
+                }
 
-            override fun onReceivedError(
-                view: WebView?,
-                request: WebResourceRequest?,
-                error: WebResourceError?
-            ) {
-                if (request?.isForMainFrame == true && ::splashOverlay.isInitialized) {
-                    splashOverlay.animate().alpha(0f).setDuration(180).withEndAction {
-                        (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
-                    }.start()
+                when (tab) {
+                    "Search" -> {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                            Spacer(Modifier.height(20.dp))
+                            Text("Search the web.", color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
+                            Text("Find useful sources. Open the originals.", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp, bottom = 20.dp))
+                            OutlinedTextField(
+                                value = query, onValueChange = { query = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Search anything online", color = Muted) },
+                                singleLine = true, shape = RoundedCornerShape(15.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Blue, unfocusedBorderColor = Stroke,
+                                    focusedTextColor = White, unfocusedTextColor = White,
+                                    cursorColor = Cyan, focusedContainerColor = Surface,
+                                    unfocusedContainerColor = Surface
+                                ),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { search(query) })
+                            )
+                            Button(
+                                onClick = { search(query) }, enabled = !loading,
+                                modifier = Modifier.fillMaxWidth().padding(top = 11.dp).height(49.dp),
+                                shape = RoundedCornerShape(13.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                            ) {
+                                if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = White, strokeWidth = 2.dp)
+                                else Text("Search", fontWeight = FontWeight.SemiBold)
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            Text("CHECK A LINK", color = BlueSoft, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = urlToCheck, onValueChange = { urlToCheck = it },
+                                    modifier = Modifier.weight(1f), singleLine = true,
+                                    placeholder = { Text("https://example.com", color = Muted, fontSize = 12.sp) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Cyan, unfocusedBorderColor = Stroke,
+                                        focusedTextColor = White, unfocusedTextColor = White,
+                                        focusedContainerColor = Surface, unfocusedContainerColor = Surface
+                                    ),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { checkLink() })
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Button(onClick = { checkLink() }, enabled = !checkingLink,
+                                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
+                                    if (checkingLink) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                    else Text("Check", color = White, fontSize = 12.sp)
+                                }
+                            }
+                            if (linkError.isNotBlank()) Text(linkError, color = Color(0xFFFCA5A5), fontSize = 11.sp, modifier = Modifier.padding(top = 7.dp))
+                            linkCheck?.let { checked ->
+                                Column(Modifier.fillMaxWidth().padding(top = 8.dp).background(Raised, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                                    Text(if (checked.status == "reachable") "PAGE RESPONDED" else "NOT CONFIRMED",
+                                        color = if (checked.status == "reachable") Green else Color(0xFFFBBF24), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    if (checked.title.isNotBlank()) Text(checked.title, color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                                    Text(checked.note, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                                    if (checked.finalUrl.startsWith("http")) Text("Open checked page ↗", color = BlueSoft, fontSize = 11.sp,
+                                        modifier = Modifier.clickable { openUrl(checked.finalUrl) }.padding(top = 7.dp))
+                                }
+                            }
+                            if (error.isNotBlank()) Text(error, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+                            if (emptyMessage.isNotBlank()) Text(emptyMessage, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+                        }
+                        if (results.isNotEmpty()) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("${results.size} results", color = White, fontWeight = FontWeight.SemiBold)
+                                Spacer(Modifier.weight(1f))
+                                Text("LINK STATUS IS NOT A TRUST SCORE", color = Muted, fontSize = 8.sp)
+                            }
+                            LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(results, key = { it.url }) { item ->
+                                    ResultCard(item, saved.any { it.url == item.url }, { toggle ->
+                                        saved = if (toggle) (listOf(item) + saved.filterNot { it.url == item.url }).take(100)
+                                        else saved.filterNot { it.url == item.url }
+                                        saveLocal()
+                                    }, { openUrl(item.url) })
+                                }
+                            }
+                        } else if (!loading && history.isNotEmpty()) {
+                            Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp)) {
+                                Text("RECENT SEARCHES", color = Muted, fontSize = 10.sp, letterSpacing = 1.5.sp)
+                                history.take(5).forEach { term ->
+                                    Text(term, color = BlueSoft, fontSize = 13.sp,
+                                        modifier = Modifier.fillMaxWidth().clickable { search(term) }.padding(vertical = 11.dp))
+                                }
+                            }
+                        }
+                    }
+                    "Saved" -> {
+                        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                            Text("Saved sources", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("Your reading list stays on this device.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
+                        }
+                        if (saved.isEmpty()) EmptyState("No saved sources yet", "Save a result from Search and it will appear here.")
+                        else LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(saved, key = { it.url }) { item ->
+                                ResultCard(item, true, { _ -> saved = saved.filterNot { it.url == item.url }; saveLocal() }, { openUrl(item.url) })
+                            }
+                        }
+                    }
+                    else -> {
+                        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                            Text("Search history", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("Recent searches on this device.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
+                            history.forEach { term ->
+                                Row(
+                                    Modifier.fillMaxWidth().clickable { tab = "Search"; search(term) }.padding(vertical = 13.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("◷", color = Cyan, fontSize = 18.sp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(term, color = White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                HorizontalDivider(color = Stroke)
+                            }
+                            TextButton(onClick = { history = emptyList(); saveHistory() }) { Text("Clear history", color = BlueSoft) }
+                        }
+                    }
                 }
             }
         }
-        handleIntent(intent)
     }
-
-    private fun createWelcomeScreen(): FrameLayout {
-        val overlay = FrameLayout(this)
-        overlay.setBackgroundColor(Color.rgb(16, 29, 34))
-        val content = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(24), dp(24), dp(24), dp(24))
-        }
-        val logo = ImageView(this).apply {
-            setImageResource(R.drawable.adverse_fingerprint)
-            contentDescription = "ADVERSE fingerprint logo"
-            scaleType = ImageView.ScaleType.FIT_CENTER
-        }
-        content.addView(logo, LinearLayout.LayoutParams(dp(88), dp(88)).apply { bottomMargin = dp(20) })
-        val title = TextView(this).apply {
-            text = "ADVERSE"
-            setTextColor(Color.rgb(231, 240, 237))
-            textSize = 25f
-            letterSpacing = 0.16f
-            gravity = Gravity.CENTER
-        }
-        content.addView(title)
-        val subtitle = TextView(this).apply {
-            text = "FIND ANYTHING"
-            setTextColor(Color.rgb(101, 230, 192))
-            textSize = 11f
-            letterSpacing = 0.22f
-            gravity = Gravity.CENTER
-        }
-        content.addView(subtitle, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(7) })
-        val spinner = ProgressBar(this).apply {
-            indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
-        }
-        content.addView(spinner, LinearLayout.LayoutParams(dp(28), dp(28)).apply { topMargin = dp(30) })
-        val loading = TextView(this).apply {
-            text = "Preparing your search…"
-            setTextColor(Color.rgb(154, 177, 169))
-            textSize = 12f
-            gravity = Gravity.CENTER
-        }
-        content.addView(loading, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = dp(12) })
-        overlay.addView(content, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER
-        ))
-        return overlay
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        val incoming = when (intent?.action) {
-            Intent.ACTION_VIEW -> intent.dataString
-            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let(::extractUrl)
-            else -> null
-        }
-        webView.loadUrl(validateWebUrl(incoming) ?: homeUrl)
-    }
-
-    private fun extractUrl(text: String): String? {
-        val match = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE).find(text) ?: return null
-        return match.value.trimEnd(',', '.', ';', ')', '!', '?')
-    }
-
-    private fun validateWebUrl(value: String?): String? {
-        if (value.isNullOrBlank()) return null
-        return try {
-            val uri = Uri.parse(value)
-            if ((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) uri.toString() else null
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    @Deprecated("Deprecated in Android API 33")
-    override fun onBackPressed() {
-        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
-    }
-
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 }
+
+@Composable
+private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp))
+            .clickable { onOpen() }.padding(15.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(item.publisher.ifBlank { "Public source" }, color = Cyan, fontSize = 10.sp,
+                modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val status = when (item.status) {
+                "reachable" -> "REACHABLE" to Green
+                "not_confirmed" -> "NOT CONFIRMED" to Color(0xFFFBBF24)
+                else -> "NOT CHECKED" to Muted
+            }
+            Text(status.first, color = status.second, fontSize = 8.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(item.title.ifBlank { item.url }, color = White, fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp),
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (item.excerpt.isNotBlank()) Text(item.excerpt, color = Muted, fontSize = 12.sp,
+            lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+        Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Open source ↗", color = BlueSoft, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            TextButton(onClick = { onSave(!isSaved) }) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 11.sp) }
+        }
+    }
+}
+
+@Composable
+private fun EmptyState(title: String, body: String) {
+    Column(Modifier.fillMaxWidth().padding(34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("◌", color = Cyan, fontSize = 34.sp)
+        Text(title, color = White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+        Text(body, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+private fun loadSaved(prefs: android.content.SharedPreferences): List<SearchResult> = runCatching {
+    val array = JSONArray(prefs.getString("saved", "[]"))
+    (0 until array.length()).mapNotNull { i -> runCatching { SearchResult.parse(array.getJSONObject(i)) }.getOrNull() }
+}.getOrDefault(emptyList())
+
+private fun loadHistory(prefs: android.content.SharedPreferences): List<String> = runCatching {
+    val array = JSONArray(prefs.getString("history", "[]"))
+    (0 until array.length()).mapNotNull { i -> array.optString(i) }.filter { it.isNotBlank() }
+}.getOrDefault(emptyList())
