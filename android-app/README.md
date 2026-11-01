@@ -10,7 +10,8 @@ ADVERSE for Android is a **native Kotlin + Jetpack Compose app**. It does not em
 - Image-based visual matching through the public visual-match endpoint. The selected image is sent to ADVERSE for analysis and related public image/video discovery; matches are candidates, not identity verification.
 - Native result cards with source previews, retrieval explanations, caution signals, corroboration context, and clearly labelled link-access status.
 - Direct public URL checking with safe server-side URL validation.
-- Filter results by link-access status.
+- Filter results by link-access status or provider, dismiss irrelevant results, and search for alternatives to unconfirmed links.
+- Share a search using Android's native share sheet.
 - Save and remove sources, plus recent search history, stored locally.
 - Account registration, sign-in, session restore, sign-out, and password-reset email requests.
 - Session cookies are persisted using Android Keystore-backed encrypted preferences.
