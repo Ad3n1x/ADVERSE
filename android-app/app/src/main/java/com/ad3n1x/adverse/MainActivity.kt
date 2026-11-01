@@ -262,6 +262,22 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
         authBusy = true; authError = ""; authMessage = ""
         scope.launch {
             try {
+                if (authMode == "forgot") {
+                    val message = withContext(Dispatchers.IO) {
+                        val payload = JSONObject().put("email", authEmail.trim())
+                        val request = Request.Builder().url(API_BASE + "/auth/forgot-password")
+                            .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                            .header("Accept", "application/json").build()
+                        client.newCall(request).execute().use { response ->
+                            val raw = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) throw IOException("Could not request a password reset.")
+                            JSONObject(raw).optJSONObject("data")?.optString("message")
+                                ?: "If an account exists, reset instructions will be sent."
+                        }
+                    }
+                    authMessage = message
+                    return@launch
+                }
                 val signedIn = withContext(Dispatchers.IO) {
                     val payload = JSONObject().put("email", authEmail.trim()).put("password", authPassword)
                     if (authMode == "register") payload.put("displayName", authDisplayName.trim())
@@ -563,17 +579,22 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     OutlinedTextField(value = authDisplayName, onValueChange = { authDisplayName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Display name") })
                                 }
                                 OutlinedTextField(value = authEmail, onValueChange = { authEmail = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Email address") })
-                                OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Password (12+ characters)") })
+                                if (authMode != "forgot") {
+                                    OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Password (12+ characters)") })
+                                }
                                 if (authError.isNotBlank()) Text(authError, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
                                 if (authMessage.isNotBlank()) Text(authMessage, color = Green, fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
-                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && authPassword.length >= 12 && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && (authMode == "forgot" || authPassword.length >= 12) && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
                                     if (authBusy) CircularProgressIndicator(Modifier.size(17.dp), color = White, strokeWidth = 2.dp)
-                                    else Text(if (authMode == "register") "Create account" else "Sign in", color = White)
+                                    else Text(if (authMode == "register") "Create account" else if (authMode == "forgot") "Send reset email" else "Sign in", color = White)
                                 }
-                                TextButton(onClick = { authMode = if (authMode == "login") "register" else "login"; authError = ""; authMessage = "" }) {
-                                    Text(if (authMode == "login") "New to ADVERSE? Create an account" else "Already registered? Sign in", color = BlueSoft)
+                                if (authMode == "login") {
+                                    TextButton(onClick = { authMode = "register"; authError = ""; authMessage = "" }) { Text("New to ADVERSE? Create an account", color = BlueSoft) }
+                                    TextButton(onClick = { authMode = "forgot"; authError = ""; authMessage = "" }) { Text("Forgot password?", color = BlueSoft) }
+                                } else {
+                                    TextButton(onClick = { authMode = "login"; authError = ""; authMessage = "" }) { Text("Back to sign in", color = BlueSoft) }
                                 }
-                                Text("Passwords must be at least 12 characters. Search, saved links and history remain available without signing in.", color = Muted, fontSize = 11.sp)
+                                Text(if (authMode == "forgot") "If the email belongs to an account, ADVERSE will send reset instructions." else "Passwords must be at least 12 characters. Search, saved links and history remain available without signing in.", color = Muted, fontSize = 11.sp)
                             }
                         }
                     }
