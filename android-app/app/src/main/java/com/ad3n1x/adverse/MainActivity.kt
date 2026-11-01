@@ -33,6 +33,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -49,7 +51,7 @@ private val Cyan = Color(0xFF22D3EE)
 private val Green = Color(0xFF34D399)
 private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
 
-private data class SearchResult(
+private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)\n\nprivate data class SearchResult(
     val title: String, val url: String, val excerpt: String,
     val publisher: String, val status: String, val note: String
 ) {
@@ -140,6 +142,33 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
         }
     }
 
+    fun checkLink() {
+        val candidate = urlToCheck.trim()
+        if (candidate.isBlank()) { linkError = "Paste a public website URL first."; return }
+        checkingLink = true; linkError = ""; linkCheck = null
+        scope.launch {
+            try {
+                val checked = withContext(Dispatchers.IO) {
+                    val body = JSONObject().put("url", candidate).toString().toRequestBody("application/json".toMediaType())
+                    val request = Request.Builder().url("$API_BASE/public-search/check-link")
+                        .post(body).header("Accept", "application/json").build()
+                    client.newCall(request).execute().use { response ->
+                        val raw = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                            throw IOException(message ?: "This URL could not be checked.")
+                        }
+                        val data = JSONObject(raw).optJSONObject("data") ?: JSONObject()
+                        LinkCheckResult(data.optString("title"), data.optString("finalUrl"),
+                            data.optString("status", "not_confirmed"), data.optString("note"))
+                    }
+                }
+                linkCheck = checked
+            } catch (e: Exception) { linkError = e.message ?: "Could not check this URL." }
+            finally { checkingLink = false }
+        }
+    }
+
     MaterialTheme(colorScheme = darkColorScheme(
         primary = Blue, onPrimary = White, secondary = Cyan,
         background = Ink, surface = Surface, onSurface = White,
@@ -209,6 +238,41 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             ) {
                                 if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = White, strokeWidth = 2.dp)
                                 else Text("Search", fontWeight = FontWeight.SemiBold)
+                            }
+                            Spacer(Modifier.height(20.dp))
+                            Text("CHECK A LINK", color = BlueSoft, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                OutlinedTextField(
+                                    value = urlToCheck, onValueChange = { urlToCheck = it },
+                                    modifier = Modifier.weight(1f), singleLine = true,
+                                    placeholder = { Text("https://example.com", color = Muted, fontSize = 12.sp) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = Cyan, unfocusedBorderColor = Stroke,
+                                        focusedTextColor = White, unfocusedTextColor = White,
+                                        focusedContainerColor = Surface, unfocusedContainerColor = Surface
+                                    ),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { checkLink() })
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Button(onClick = { checkLink() }, enabled = !checkingLink,
+                                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
+                                    if (checkingLink) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                    else Text("Check", color = White, fontSize = 12.sp)
+                                }
+                            }
+                            if (linkError.isNotBlank()) Text(linkError, color = Color(0xFFFCA5A5), fontSize = 11.sp, modifier = Modifier.padding(top = 7.dp))
+                            linkCheck?.let { checked ->
+                                Column(Modifier.fillMaxWidth().padding(top = 8.dp).background(Raised, RoundedCornerShape(12.dp)).padding(12.dp)) {
+                                    Text(if (checked.status == "reachable") "PAGE RESPONDED" else "NOT CONFIRMED",
+                                        color = if (checked.status == "reachable") Green else Color(0xFFFBBF24), fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                    if (checked.title.isNotBlank()) Text(checked.title, color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                                    Text(checked.note, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                                    if (checked.finalUrl.startsWith("http")) Text("Open checked page ↗", color = BlueSoft, fontSize = 11.sp,
+                                        modifier = Modifier.clickable { openUrl(checked.finalUrl) }.padding(top = 7.dp))
+                                }
                             }
                             if (error.isNotBlank()) Text(error, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
                             if (emptyMessage.isNotBlank()) Text(emptyMessage, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
