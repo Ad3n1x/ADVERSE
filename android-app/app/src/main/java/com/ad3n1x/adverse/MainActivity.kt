@@ -165,6 +165,18 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     var linkCheck by remember { mutableStateOf<LinkCheckResult?>(null) }
     var linkError by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Search") }
+    var searchMode by remember { mutableStateOf("web") }
+    var suggestions by remember { mutableStateOf(emptyList<String>()) }
+    var statusFilter by remember { mutableStateOf("all") }
+    var account by remember { mutableStateOf<Account?>(null) }
+    var authMode by remember { mutableStateOf("login") }
+    var authEmail by remember { mutableStateOf("") }
+    var authPassword by remember { mutableStateOf("") }
+    var authDisplayName by remember { mutableStateOf("") }
+    var authMessage by remember { mutableStateOf("") }
+    var authBusy by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf("") }
+    var authChecked by remember { mutableStateOf(false) }
 
     fun saveLocal() {
         prefs.edit().putString("saved", JSONArray().apply { saved.forEach { put(it.json()) } }.toString()).apply()
@@ -176,14 +188,16 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
         val clean = term.trim()
         if (clean.length < 2) { error = "Enter at least two characters."; return }
         query = clean
+        suggestions = emptyList()
         focus.clearFocus()
-        loading = true; error = ""; emptyMessage = ""
+        loading = true; error = ""; emptyMessage = ""; statusFilter = "all"
         scope.launch {
             try {
                 val data = withContext(Dispatchers.IO) {
-                    val url = (API_BASE + "/public-search").toHttpUrl().newBuilder()
-                        .addQueryParameter("q", clean).build()
-                    val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
+                    val route = if (searchMode == "web") "/public-search" else "/public-search/media"
+                    val builder = (API_BASE + route).toHttpUrl().newBuilder().addQueryParameter("q", clean)
+                    if (searchMode != "web") builder.addQueryParameter("type", searchMode)
+                    val request = Request.Builder().url(builder.build()).header("Accept", "application/json").get().build()
                     client.newCall(request).execute().use { response ->
                         val raw = response.body?.string().orEmpty()
                         if (!response.isSuccessful) {
@@ -206,7 +220,6 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
             } finally { loading = false }
         }
     }
-
     fun checkLink() {
         val candidate = urlToCheck.trim()
         if (candidate.isBlank()) { linkError = "Paste a public website URL first."; return }
