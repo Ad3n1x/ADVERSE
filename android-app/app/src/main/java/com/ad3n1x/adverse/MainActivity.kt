@@ -16,6 +16,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -62,6 +64,7 @@ import java.util.concurrent.TimeUnit
 private val Ink = Color(0xFF0B1220)
 private val Surface = Color(0xFF111C2E)
 private val Raised = Color(0xFF18263A)
+private val SearchSurface = Color(0xFF17292E)
 private val Stroke = Color(0xFF2A3B52)
 private val White = Color(0xFFF8FAFC)
 private val Muted = Color(0xFFA8B5C7)
@@ -463,15 +466,26 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                 }
             }
         ) { inset ->
-            Column(Modifier.fillMaxSize().background(Ink).padding(inset).statusBarsPadding()) {
+            BoxWithConstraints(Modifier.fillMaxSize().background(Ink)) {
+                val isWideLayout = maxWidth >= 600.dp
+                val isCompactLayout = maxWidth < 360.dp
+                val sidePadding = when { isWideLayout -> 32.dp; isCompactLayout -> 12.dp; else -> 18.dp }
+                val responsiveContentWidth = if (isWideLayout) 1040.dp else maxWidth
+                Column(
+                    Modifier.widthIn(max = responsiveContentWidth)
+                        .fillMaxSize()
+                        .align(Alignment.TopCenter)
+                        .padding(inset)
+                        .statusBarsPadding()
+                ) {
                 Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                    Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = if (isCompactLayout) 10.dp else 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Image(painterResource(R.drawable.adverse_fingerprint), "ADVERSE fingerprint", Modifier.size(42.dp))
+                    Image(painterResource(R.drawable.adverse_fingerprint), "ADVERSE fingerprint", Modifier.size(if (isCompactLayout) 36.dp else 42.dp))
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("ADVERSE", color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                        Text("ADVERSE", color = White, fontSize = if (isCompactLayout) 15.sp else 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                         Text("FIND ANYTHING", color = AccentSoft, fontSize = 9.sp, letterSpacing = 2.sp)
                     }
                     Spacer(Modifier.weight(1f))
@@ -480,9 +494,9 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 
                 when (tab) {
                     "Search" -> {
-                        Column(Modifier.fillMaxWidth().weight(if (results.isNotEmpty()) 0.42f else 1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
+                        Column(Modifier.fillMaxWidth().weight(if (results.isNotEmpty()) if (isWideLayout) 0.34f else 0.42f else 1f).verticalScroll(rememberScrollState()).padding(horizontal = sidePadding)) {
                             Spacer(Modifier.height(20.dp))
-                            Text("Search the web.", color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
+                            Text("Search the web.", color = White, fontSize = when { isWideLayout -> 34.sp; isCompactLayout -> 25.sp; else -> 30.sp }, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
                             Text("Find useful sources. Open the originals.", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp, bottom = 20.dp))
                             OutlinedTextField(
                                 value = query, onValueChange = { query = it },
@@ -492,18 +506,18 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Accent, unfocusedBorderColor = Stroke,
                                     focusedTextColor = White, unfocusedTextColor = White,
-                                    cursorColor = Mint, focusedContainerColor = Surface,
-                                    unfocusedContainerColor = Surface
+                                    cursorColor = Mint, focusedContainerColor = SearchSurface,
+                                    unfocusedContainerColor = SearchSurface
                                 ),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { search(query) })
                             )
-                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(if (isCompactLayout) 3.dp else 6.dp)) {
                                 listOf("web", "images", "videos", "people").forEach { mode ->
                                     FilterChip(
                                         selected = searchMode == mode,
                                         onClick = { searchMode = mode; results = emptyList(); suggestions = emptyList() },
-                                        label = { Text(mode.replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
+                                        label = { Text(mode.replaceFirstChar { it.uppercase() }, fontSize = if (isCompactLayout) 10.sp else 11.sp, maxLines = 1) },
                                         colors = FilterChipDefaults.filterChipColors(
                                             selectedContainerColor = Accent.copy(alpha = .2f),
                                             selectedLabelColor = AccentSoft,
@@ -587,7 +601,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                         }
                             val providers = results.map { it.publisher.ifBlank { "Public source" } }.distinct().sorted()
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${results.size - dismissedResults.size} results", color = White, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.weight(1f))
                                 Box {
@@ -602,7 +616,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     }
                                 }
                             }
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding), verticalAlignment = Alignment.CenterVertically) {
                                 Text("LINK STATUS IS NOT A TRUST SCORE", color = Muted, fontSize = 8.sp)
                                 Spacer(Modifier.weight(1f))
                                 TextButton(onClick = {
@@ -613,7 +627,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     context.startActivity(Intent.createChooser(share, "Share ADVERSE search"))
                                 }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Share search", color = AccentSoft, fontSize = 10.sp) }
                             }
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = sidePadding), horizontalArrangement = Arrangement.spacedBy(if (isCompactLayout) 2.dp else 6.dp)) {
                                 listOf("all", "reachable", "not_confirmed", "not_checked").forEach { status ->
                                     FilterChip(
                                         selected = statusFilter == status,
@@ -625,7 +639,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             }
                             LazyColumn(
                                 modifier = Modifier.weight(1f),
-                                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 14.dp),
+                                contentPadding = PaddingValues(start = sidePadding, end = sidePadding, bottom = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 items(results.filter { (statusFilter == "all" || it.status == statusFilter) && (providerFilter == "all" || it.publisher.ifBlank { "Public source" } == providerFilter) && it.url !in dismissedResults }, key = { it.url }) { item ->
@@ -689,7 +703,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         }
                     }
                     "Saved" -> {
-                        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                        Column(Modifier.padding(horizontal = sidePadding, vertical = 16.dp)) {
                             Text("Saved sources", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                             Text("Your reading list stays on this device.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
                         }
@@ -701,7 +715,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         }
                     }
                     else -> {
-                        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                        Column(Modifier.padding(horizontal = sidePadding, vertical = 16.dp)) {
                             Text("Search history", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                             Text("Recent searches on this device.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
                             history.forEach { term ->
@@ -719,6 +733,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -727,7 +742,10 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 @Composable
 private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit, onDismiss: (() -> Unit)? = null, onFindAlternatives: (() -> Unit)? = null) {
     Column(
-        Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp)).padding(15.dp)
+        Modifier.fillMaxWidth()
+            .border(1.dp, Stroke.copy(alpha = .9f), RoundedCornerShape(15.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFF1A2F34), Color(0xFF14262B))), RoundedCornerShape(15.dp))
+            .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(item.publisher.ifBlank { "Public source" }, color = Mint, fontSize = 10.sp,
