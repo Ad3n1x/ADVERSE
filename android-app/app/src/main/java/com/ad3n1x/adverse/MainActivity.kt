@@ -183,12 +183,22 @@ class MainActivity : ComponentActivity() {
         window.statusBarColor = android.graphics.Color.rgb(16, 29, 34)
         window.navigationBarColor = android.graphics.Color.rgb(16, 29, 34)
         window.decorView.systemUiVisibility = 0
+        if (routeIncomingLink(intent)) return
         setContent { AdverseApp { value ->
             runCatching {
                 val uri = Uri.parse(value)
-                if (uri.scheme == "https" || uri.scheme == "http") startActivity(Intent(Intent.ACTION_VIEW, uri))
+                if (uri.scheme == "https" || uri.scheme == "http") startActivity(Intent(this, BrowserActivity::class.java).putExtra(BrowserActivity.EXTRA_URL, uri.toString()))
             }
         } }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent); setIntent(intent); routeIncomingLink(intent)
+    }
+    private fun routeIncomingLink(source: Intent): Boolean {
+        val uri = source.data ?: return false
+        if (source.action != Intent.ACTION_VIEW || (uri.scheme != "http" && uri.scheme != "https")) return false
+        startActivity(Intent(this, BrowserActivity::class.java).putExtra(BrowserActivity.EXTRA_URL, uri.toString()))
+        finish(); return true
     }
 }
 
