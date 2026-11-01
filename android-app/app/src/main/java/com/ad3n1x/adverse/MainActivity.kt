@@ -220,6 +220,78 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
             } finally { loading = false }
         }
     }
+    fun submitAuth() {
+        authBusy = true; authError = ""; authMessage = ""
+        scope.launch {
+            try {
+                val signedIn = withContext(Dispatchers.IO) {
+                    val payload = JSONObject().put("email", authEmail.trim()).put("password", authPassword)
+                    if (authMode == "register") payload.put("displayName", authDisplayName.trim())
+                    val request = Request.Builder().url(API_BASE + "/auth/" + authMode)
+                        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                        .header("Accept", "application/json").build()
+                    client.newCall(request).execute().use { response ->
+                        val raw = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                            throw IOException(message ?: "Account request failed.")
+                        }
+                        val data = JSONObject(raw).optJSONObject("data") ?: JSONObject()
+                        Account(data.optString("email"), data.optString("displayName"), data.optString("role", "user"))
+                    }
+                }
+                account = signedIn
+                authPassword = ""
+                authMessage = "Signed in successfully."
+                tab = "Search"
+            } catch (e: Exception) { authError = e.message ?: "Could not sign in." }
+            finally { authBusy = false }
+        }
+    }
+    fun logout() {
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                val request = Request.Builder().url(API_BASE + "/auth/logout")
+                    .post("{}".toRequestBody("application/json".toMediaType())).build()
+                runCatching { client.newCall(request).execute().close() }
+            }
+            (client.cookieJar as? PersistentCookieJar)?.clear()
+            account = null
+            authMessage = "You have been signed out."
+        }
+    }
+    LaunchedEffect(Unit) {
+        val current = withContext(Dispatchers.IO) {
+            val request = Request.Builder().url(API_BASE + "/auth/me").header("Accept", "application/json").get().build()
+            runCatching {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) null else {
+                        val data = JSONObject(response.body?.string().orEmpty()).optJSONObject("data") ?: JSONObject()
+                        Account(data.optString("email"), data.optString("displayName"), data.optString("role", "user"))
+                    }
+                }
+            }.getOrNull()
+        }
+        account = current
+        authChecked = true
+    }
+    LaunchedEffect(query, tab) {
+        if (tab != "Search" || query.trim().length < 2) { suggestions = emptyList(); return@LaunchedEffect }
+        delay(280)
+        val found = withContext(Dispatchers.IO) {
+            val url = (API_BASE + "/public-search/suggestions").toHttpUrl().newBuilder()
+                .addQueryParameter("q", query.trim()).build()
+            val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
+            runCatching {
+                client.newCall(request).execute().use { response ->
+                    val array = if (response.isSuccessful) JSONObject(response.body?.string().orEmpty()).optJSONArray("data") ?: JSONArray() else JSONArray()
+                    (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.optString("query")?.takeIf { it.isNotBlank() } }
+                }
+            }.getOrDefault(emptyList())
+        }
+        suggestions = found
+    }
+
     fun checkLink() {
         val candidate = urlToCheck.trim()
         if (candidate.isBlank()) { linkError = "Paste a public website URL first."; return }
