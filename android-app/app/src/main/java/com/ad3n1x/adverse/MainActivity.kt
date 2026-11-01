@@ -480,7 +480,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 
                 when (tab) {
                     "Search" -> {
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                        Column(Modifier.fillMaxWidth().weight(if (results.isNotEmpty()) 0.42f else 1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                             Spacer(Modifier.height(20.dp))
                             Text("Search the web.", color = White, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1).sp)
                             Text("Find useful sources. Open the originals.", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 7.dp, bottom = 20.dp))
