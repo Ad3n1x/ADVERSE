@@ -329,11 +329,11 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
             containerColor = Ink,
             bottomBar = {
                 NavigationBar(containerColor = Surface, contentColor = White) {
-                    listOf("Search", "Saved", "History").forEach { item ->
+                    listOf("Search", "Saved", "History", "Account").forEach { item ->
                         NavigationBarItem(
                             selected = tab == item,
                             onClick = { tab = item; error = ""; emptyMessage = "" },
-                            icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; else -> "◷" }, fontSize = 22.sp) },
+                            icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; "History" -> "◷"; else -> "●" }, fontSize = 22.sp) },
                             label = { Text(item) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = BlueSoft, selectedTextColor = BlueSoft,
@@ -380,6 +380,28 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { search(query) })
                             )
+                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("web", "images", "videos", "people").forEach { mode ->
+                                    FilterChip(
+                                        selected = searchMode == mode,
+                                        onClick = { searchMode = mode; results = emptyList(); suggestions = emptyList() },
+                                        label = { Text(mode.replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = Blue.copy(alpha = .2f),
+                                            selectedLabelColor = BlueSoft,
+                                            labelColor = Muted
+                                        )
+                                    )
+                                }
+                            }
+                            if (suggestions.isNotEmpty()) {
+                                Column(Modifier.fillMaxWidth().padding(top = 5.dp).background(Raised, RoundedCornerShape(12.dp)).padding(6.dp)) {
+                                    suggestions.forEach { suggestion ->
+                                        Text(suggestion, color = BlueSoft, fontSize = 12.sp,
+                                            modifier = Modifier.fillMaxWidth().clickable { search(suggestion) }.padding(10.dp))
+                                    }
+                                }
+                            }
                             Button(
                                 onClick = { search(query) }, enabled = !loading,
                                 modifier = Modifier.fillMaxWidth().padding(top = 11.dp).height(49.dp),
@@ -433,12 +455,22 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 Spacer(Modifier.weight(1f))
                                 Text("LINK STATUS IS NOT A TRUST SCORE", color = Muted, fontSize = 8.sp)
                             }
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("all", "reachable", "not_confirmed", "not_checked").forEach { status ->
+                                    FilterChip(
+                                        selected = statusFilter == status,
+                                        onClick = { statusFilter = status },
+                                        label = { Text(when(status) { "all" -> "All"; "reachable" -> "Reachable"; "not_confirmed" -> "Unconfirmed"; else -> "Unchecked" }, fontSize = 10.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Blue.copy(alpha = .2f), selectedLabelColor = BlueSoft, labelColor = Muted)
+                                    )
+                                }
+                            }
                             LazyColumn(
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(results, key = { it.url }) { item ->
+                                items(results.filter { statusFilter == "all" || it.status == statusFilter }, key = { it.url }) { item ->
                                     ResultCard(item, saved.any { it.url == item.url }, { toggle ->
                                         saved = if (toggle) (listOf(item) + saved.filterNot { it.url == item.url }).take(100)
                                         else saved.filterNot { it.url == item.url }
@@ -453,6 +485,41 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     Text(term, color = BlueSoft, fontSize = 13.sp,
                                         modifier = Modifier.fillMaxWidth().clickable { search(term) }.padding(vertical = 11.dp))
                                 }
+                            }
+                        }
+                    }
+                    "Account" -> {
+                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
+                            Text("Your account", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("Sign in to use your ADVERSE account across supported features.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
+                            if (!authChecked) {
+                                CircularProgressIndicator(color = Cyan)
+                            } else if (account != null) {
+                                Column(Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                                    Text(account!!.displayName.ifBlank { "ADVERSE user" }, color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(account!!.email, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+                                    Text("Role: " + account!!.role, color = BlueSoft, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
+                                    Text("Your session cookie is stored encrypted on this device.", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+                                }
+                                Button(onClick = { logout() }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
+                                    Text("Sign out", color = White)
+                                }
+                            } else {
+                                if (authMode == "register") {
+                                    OutlinedTextField(value = authDisplayName, onValueChange = { authDisplayName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Display name") })
+                                }
+                                OutlinedTextField(value = authEmail, onValueChange = { authEmail = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Email address") })
+                                OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Password (12+ characters)") })
+                                if (authError.isNotBlank()) Text(authError, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
+                                if (authMessage.isNotBlank()) Text(authMessage, color = Green, fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
+                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && authPassword.length >= 12 && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                                    if (authBusy) CircularProgressIndicator(Modifier.size(17.dp), color = White, strokeWidth = 2.dp)
+                                    else Text(if (authMode == "register") "Create account" else "Sign in", color = White)
+                                }
+                                TextButton(onClick = { authMode = if (authMode == "login") "register" else "login"; authError = ""; authMessage = "" }) {
+                                    Text(if (authMode == "login") "New to ADVERSE? Create an account" else "Already registered? Sign in", color = BlueSoft)
+                                }
+                                Text("Passwords must be at least 12 characters. Search, saved links and history remain available without signing in.", color = Muted, fontSize = 11.sp)
                             }
                         }
                     }
