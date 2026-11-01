@@ -59,12 +59,12 @@ import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
-private val Ink = Color(0xFF101D22)
-private val Surface = Color(0xFF17272C)
-private val Raised = Color(0xFF1B3035)
-private val Stroke = Color(0xFF2B4549)
-private val White = Color(0xFFE7F0ED)
-private val Muted = Color(0xFFA9BBB5)
+private val Ink = Color(0xFF0B1220)
+private val Surface = Color(0xFF111C2E)
+private val Raised = Color(0xFF18263A)
+private val Stroke = Color(0xFF2A3B52)
+private val White = Color(0xFFF8FAFC)
+private val Muted = Color(0xFFA8B5C7)
 private val Accent = Color(0xFF65E6C0)
 private val AccentSoft = Color(0xFF9CF2D8)
 private val Mint = Color(0xFF65E6C0)
@@ -180,8 +180,8 @@ private data class SearchResult(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(16, 29, 34)
-        window.navigationBarColor = android.graphics.Color.rgb(16, 29, 34)
+        window.statusBarColor = android.graphics.Color.rgb(11, 18, 32)
+        window.navigationBarColor = android.graphics.Color.rgb(11, 18, 32)
         window.decorView.systemUiVisibility = 0
         if (routeIncomingLink(intent)) return
         setContent { AdverseApp { value ->
