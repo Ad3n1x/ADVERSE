@@ -59,16 +59,16 @@ import java.io.IOException
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
-private val Ink = Color(0xFF0B1220)
-private val Surface = Color(0xFF111C2E)
-private val Raised = Color(0xFF18263A)
-private val Stroke = Color(0xFF2A3B52)
-private val White = Color(0xFFF8FAFC)
-private val Muted = Color(0xFFA8B5C7)
-private val Blue = Color(0xFF3B82F6)
-private val BlueSoft = Color(0xFF93C5FD)
-private val Cyan = Color(0xFF22D3EE)
-private val Green = Color(0xFF34D399)
+private val Ink = Color(0xFF101D22)
+private val Surface = Color(0xFF17272C)
+private val Raised = Color(0xFF1B3035)
+private val Stroke = Color(0xFF2B4549)
+private val White = Color(0xFFE7F0ED)
+private val Muted = Color(0xFFA9BBB5)
+private val Accent = Color(0xFF65E6C0)
+private val AccentSoft = Color(0xFF9CF2D8)
+private val Mint = Color(0xFF65E6C0)
+private val Green = Color(0xFF65E6C0)
 private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
 
 private data class Account(val email: String, val displayName: String, val role: String)
@@ -180,8 +180,8 @@ private data class SearchResult(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(11, 18, 32)
-        window.navigationBarColor = android.graphics.Color.rgb(11, 18, 32)
+        window.statusBarColor = android.graphics.Color.rgb(16, 29, 34)
+        window.navigationBarColor = android.graphics.Color.rgb(16, 29, 34)
         window.decorView.systemUiVisibility = 0
         setContent { AdverseApp { value ->
             runCatching {
@@ -428,7 +428,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     }
 
     MaterialTheme(colorScheme = darkColorScheme(
-        primary = Blue, onPrimary = White, secondary = Cyan,
+        primary = Accent, onPrimary = White, secondary = Mint,
         background = Ink, surface = Surface, onSurface = White,
         onBackground = White, surfaceVariant = Raised, onSurfaceVariant = Muted,
         outline = Stroke
@@ -444,8 +444,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; "History" -> "◷"; else -> "●" }, fontSize = 22.sp) },
                             label = { Text(item) },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = BlueSoft, selectedTextColor = BlueSoft,
-                                indicatorColor = Blue.copy(alpha = .18f),
+                                selectedIconColor = AccentSoft, selectedTextColor = AccentSoft,
+                                indicatorColor = Accent.copy(alpha = .18f),
                                 unselectedIconColor = Muted, unselectedTextColor = Muted
                             )
                         )
@@ -462,7 +462,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text("ADVERSE", color = White, fontSize = 17.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
-                        Text("FIND ANYTHING", color = BlueSoft, fontSize = 9.sp, letterSpacing = 2.sp)
+                        Text("FIND ANYTHING", color = AccentSoft, fontSize = 9.sp, letterSpacing = 2.sp)
                     }
                     Spacer(Modifier.weight(1f))
                     Text("PUBLIC SEARCH", color = Muted, fontSize = 9.sp, letterSpacing = 1.sp)
@@ -480,9 +480,9 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 placeholder = { Text("Search anything online", color = Muted) },
                                 singleLine = true, shape = RoundedCornerShape(15.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = Blue, unfocusedBorderColor = Stroke,
+                                    focusedBorderColor = Accent, unfocusedBorderColor = Stroke,
                                     focusedTextColor = White, unfocusedTextColor = White,
-                                    cursorColor = Cyan, focusedContainerColor = Surface,
+                                    cursorColor = Mint, focusedContainerColor = Surface,
                                     unfocusedContainerColor = Surface
                                 ),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -495,8 +495,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                         onClick = { searchMode = mode; results = emptyList(); suggestions = emptyList() },
                                         label = { Text(mode.replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = Blue.copy(alpha = .2f),
-                                            selectedLabelColor = BlueSoft,
+                                            selectedContainerColor = Accent.copy(alpha = .2f),
+                                            selectedLabelColor = AccentSoft,
                                             labelColor = Muted
                                         )
                                     )
@@ -507,7 +507,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             if (suggestions.isNotEmpty()) {
                                 Column(Modifier.fillMaxWidth().padding(top = 5.dp).background(Raised, RoundedCornerShape(12.dp)).padding(6.dp)) {
                                     suggestions.forEach { suggestion ->
-                                        Text(suggestion, color = BlueSoft, fontSize = 12.sp,
+                                        Text(suggestion, color = AccentSoft, fontSize = 12.sp,
                                             modifier = Modifier.fillMaxWidth().clickable { search(suggestion) }.padding(10.dp))
                                     }
                                 }
@@ -516,23 +516,23 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 onClick = { imagePicker.launch("image/*") },
                                 enabled = !visualBusy,
                                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Mint),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, Stroke)
                             ) {
-                                if (visualBusy) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                if (visualBusy) CircularProgressIndicator(Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
                                 else Text("Search using an image")
                             }
                             Button(
                                 onClick = { search(query) }, enabled = !loading,
                                 modifier = Modifier.fillMaxWidth().padding(top = 11.dp).height(49.dp),
                                 shape = RoundedCornerShape(13.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Blue, contentColor = White)
+                                colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = White)
                             ) {
                                 if (loading) CircularProgressIndicator(Modifier.size(18.dp), color = White, strokeWidth = 2.dp)
                                 else Text("Search", fontWeight = FontWeight.SemiBold)
                             }
                             Spacer(Modifier.height(20.dp))
-                            Text("CHECK A LINK", color = BlueSoft, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
+                            Text("CHECK A LINK", color = AccentSoft, fontSize = 10.sp, letterSpacing = 1.5.sp, fontWeight = FontWeight.Bold)
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                                 OutlinedTextField(
                                     value = urlToCheck, onValueChange = { urlToCheck = it },
@@ -540,7 +540,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     placeholder = { Text("https://example.com", color = Muted, fontSize = 12.sp) },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = Cyan, unfocusedBorderColor = Stroke,
+                                        focusedBorderColor = Mint, unfocusedBorderColor = Stroke,
                                         focusedTextColor = White, unfocusedTextColor = White,
                                         focusedContainerColor = Surface, unfocusedContainerColor = Surface
                                     ),
@@ -551,7 +551,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 Button(onClick = { checkLink() }, enabled = !checkingLink,
                                     contentPadding = PaddingValues(horizontal = 13.dp, vertical = 12.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
-                                    if (checkingLink) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                    if (checkingLink) CircularProgressIndicator(Modifier.size(16.dp), color = Mint, strokeWidth = 2.dp)
                                     else Text("Check", color = White, fontSize = 12.sp)
                                 }
                             }
@@ -562,7 +562,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                         color = if (checked.status == "reachable") Green else Color(0xFFFBBF24), fontSize = 9.sp, fontWeight = FontWeight.Bold)
                                     if (checked.title.isNotBlank()) Text(checked.title, color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
                                     Text(checked.note, color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
-                                    if (checked.finalUrl.startsWith("http")) Text("Open checked page ↗", color = BlueSoft, fontSize = 11.sp,
+                                    if (checked.finalUrl.startsWith("http")) Text("Open checked page ↗", color = AccentSoft, fontSize = 11.sp,
                                         modifier = Modifier.clickable { openUrl(checked.finalUrl) }.padding(top = 7.dp))
                                 }
                             }
@@ -571,7 +571,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         }
                         if (results.isNotEmpty()) {
                         if (visualDescription.isNotBlank()) {
-                            Text("VISUAL DESCRIPTION", color = Cyan, fontSize = 9.sp, letterSpacing = 1.3.sp,
+                            Text("VISUAL DESCRIPTION", color = Mint, fontSize = 9.sp, letterSpacing = 1.3.sp,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
                             Text(visualDescription, color = Muted, fontSize = 12.sp,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -582,7 +582,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 Spacer(Modifier.weight(1f))
                                 Box {
                                     TextButton(onClick = { providerMenuExpanded = true }, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                                        Text(if (providerFilter == "all") "All sources ▾" else providerFilter + " ▾", color = BlueSoft, fontSize = 10.sp, maxLines = 1)
+                                        Text(if (providerFilter == "all") "All sources ▾" else providerFilter + " ▾", color = AccentSoft, fontSize = 10.sp, maxLines = 1)
                                     }
                                     DropdownMenu(expanded = providerMenuExpanded, onDismissRequest = { providerMenuExpanded = false }) {
                                         DropdownMenuItem(text = { Text("All sources") }, onClick = { providerFilter = "all"; providerMenuExpanded = false })
@@ -601,7 +601,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                         putExtra(Intent.EXTRA_TEXT, "https://adverse-web.onrender.com/?q=" + Uri.encode(query))
                                     }
                                     context.startActivity(Intent.createChooser(share, "Share ADVERSE search"))
-                                }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Share search", color = BlueSoft, fontSize = 10.sp) }
+                                }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Share search", color = AccentSoft, fontSize = 10.sp) }
                             }
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf("all", "reachable", "not_confirmed", "not_checked").forEach { status ->
@@ -609,7 +609,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                         selected = statusFilter == status,
                                         onClick = { statusFilter = status },
                                         label = { Text(when(status) { "all" -> "All"; "reachable" -> "Reachable"; "not_confirmed" -> "Unconfirmed"; else -> "Unchecked" }, fontSize = 10.sp) },
-                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Blue.copy(alpha = .2f), selectedLabelColor = BlueSoft, labelColor = Muted)
+                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Accent.copy(alpha = .2f), selectedLabelColor = AccentSoft, labelColor = Muted)
                                     )
                                 }
                             }
@@ -632,7 +632,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             Column(Modifier.padding(horizontal = 20.dp, vertical = 24.dp)) {
                                 Text("RECENT SEARCHES", color = Muted, fontSize = 10.sp, letterSpacing = 1.5.sp)
                                 history.take(5).forEach { term ->
-                                    Text(term, color = BlueSoft, fontSize = 13.sp,
+                                    Text(term, color = AccentSoft, fontSize = 13.sp,
                                         modifier = Modifier.fillMaxWidth().clickable { search(term) }.padding(vertical = 11.dp))
                                 }
                             }
@@ -643,12 +643,12 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             Text("Your account", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                             Text("Sign in to use your ADVERSE account across supported features.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
                             if (!authChecked) {
-                                CircularProgressIndicator(color = Cyan)
+                                CircularProgressIndicator(color = Mint)
                             } else if (account != null) {
                                 Column(Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(16.dp)).padding(16.dp)) {
                                     Text(account!!.displayName.ifBlank { "ADVERSE user" }, color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                                     Text(account!!.email, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
-                                    Text("Role: " + account!!.role, color = BlueSoft, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
+                                    Text("Role: " + account!!.role, color = AccentSoft, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
                                     Text("Your session cookie is stored encrypted on this device.", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
                                 }
                                 Button(onClick = { logout() }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
@@ -664,15 +664,15 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 }
                                 if (authError.isNotBlank()) Text(authError, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
                                 if (authMessage.isNotBlank()) Text(authMessage, color = Green, fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
-                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && (authMode == "forgot" || authPassword.length >= 12) && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && (authMode == "forgot" || authPassword.length >= 12) && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent)) {
                                     if (authBusy) CircularProgressIndicator(Modifier.size(17.dp), color = White, strokeWidth = 2.dp)
                                     else Text(if (authMode == "register") "Create account" else if (authMode == "forgot") "Send reset email" else "Sign in", color = White)
                                 }
                                 if (authMode == "login") {
-                                    TextButton(onClick = { authMode = "register"; authError = ""; authMessage = "" }) { Text("New to ADVERSE? Create an account", color = BlueSoft) }
-                                    TextButton(onClick = { authMode = "forgot"; authError = ""; authMessage = "" }) { Text("Forgot password?", color = BlueSoft) }
+                                    TextButton(onClick = { authMode = "register"; authError = ""; authMessage = "" }) { Text("New to ADVERSE? Create an account", color = AccentSoft) }
+                                    TextButton(onClick = { authMode = "forgot"; authError = ""; authMessage = "" }) { Text("Forgot password?", color = AccentSoft) }
                                 } else {
-                                    TextButton(onClick = { authMode = "login"; authError = ""; authMessage = "" }) { Text("Back to sign in", color = BlueSoft) }
+                                    TextButton(onClick = { authMode = "login"; authError = ""; authMessage = "" }) { Text("Back to sign in", color = AccentSoft) }
                                 }
                                 Text(if (authMode == "forgot") "If the email belongs to an account, ADVERSE will send reset instructions." else "Passwords must be at least 12 characters. Search, saved links and history remain available without signing in.", color = Muted, fontSize = 11.sp)
                             }
@@ -699,13 +699,13 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     Modifier.fillMaxWidth().clickable { tab = "Search"; search(term) }.padding(vertical = 13.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("◷", color = Cyan, fontSize = 18.sp)
+                                    Text("◷", color = Mint, fontSize = 18.sp)
                                     Spacer(Modifier.width(12.dp))
                                     Text(term, color = White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                                 HorizontalDivider(color = Stroke)
                             }
-                            TextButton(onClick = { history = emptyList(); saveHistory() }) { Text("Clear history", color = BlueSoft) }
+                            TextButton(onClick = { history = emptyList(); saveHistory() }) { Text("Clear history", color = AccentSoft) }
                         }
                     }
                 }
@@ -717,11 +717,10 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 @Composable
 private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit, onDismiss: (() -> Unit)? = null, onFindAlternatives: (() -> Unit)? = null) {
     Column(
-        Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp))
-            .clickable { onOpen() }.padding(15.dp)
+        Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp)).padding(15.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(item.publisher.ifBlank { "Public source" }, color = Cyan, fontSize = 10.sp,
+            Text(item.publisher.ifBlank { "Public source" }, color = Mint, fontSize = 10.sp,
                 modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             val status = when (item.status) {
                 "reachable" -> "REACHABLE" to Green
@@ -736,7 +735,7 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
         if (item.excerpt.isNotBlank()) Text(item.excerpt, color = Muted, fontSize = 12.sp,
             lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 4, overflow = TextOverflow.Ellipsis)
         if (item.why.isNotBlank()) Text("Why it appeared: " + item.why + ". Retrieval signals are not proof of accuracy.",
-            color = BlueSoft, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+            color = AccentSoft, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
         if (item.warnings.isNotBlank()) Text("Check before trusting: " + item.warnings,
             color = Color(0xFFFBBF24), fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
         if (item.corroboration.isNotBlank()) Text(item.corroboration,
@@ -744,11 +743,11 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
         if (item.note.isNotBlank()) Text(item.note, color = Muted, fontSize = 10.sp,
             modifier = Modifier.padding(top = 6.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Open source ↗", color = BlueSoft, fontSize = 11.sp, modifier = Modifier.weight(1f))
+            Text("Open source ↗", color = AccentSoft, fontSize = 11.sp, modifier = Modifier.weight(1f).clickable { onOpen() })
             if (item.status == "not_confirmed" && onFindAlternatives != null) {
-                TextButton(onClick = onFindAlternatives, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Alternatives", color = BlueSoft, fontSize = 10.sp) }
+                TextButton(onClick = onFindAlternatives, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Alternatives", color = AccentSoft, fontSize = 10.sp) }
             }
-            TextButton(onClick = { onSave(!isSaved) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 10.sp) }
+            TextButton(onClick = { onSave(!isSaved) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text(if (isSaved) "Saved ✓" else "Save", color = AccentSoft, fontSize = 10.sp) }
             if (onDismiss != null) TextButton(onClick = onDismiss, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Hide", color = Muted, fontSize = 10.sp) }
         }
     }
@@ -756,7 +755,7 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
 @Composable
 private fun EmptyState(title: String, body: String) {
     Column(Modifier.fillMaxWidth().padding(34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("◌", color = Cyan, fontSize = 34.sp)
+        Text("◌", color = Mint, fontSize = 34.sp)
         Text(title, color = White, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
         Text(body, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
     }

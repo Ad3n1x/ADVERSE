@@ -21,7 +21,7 @@ The app is designed to remain lightweight on entry-level Android devices. Search
 
 ## Website and API
 
-The website remains a separate React application. Both clients use the same public-search API and midnight / cobalt / cyan visual system. The Android app calls `https://adverse-api-7yim.onrender.com/api/v1`.
+The website remains a separate React application. Both clients use the same public-search API and dark teal / mint visual system, shared with the website. The Android app calls `https://adverse-api-7yim.onrender.com/api/v1`.
 
 Search coverage is limited to the configured public providers and is not a complete index of the web. Reachability, ranking signals, and similar results are not proof that a page or its claims are trustworthy.
 
