@@ -1,4 +1,5 @@
 name: Build ADVERSE Android APK
+# Native Compose build and public APK publishing.
 
 on:
   push:
