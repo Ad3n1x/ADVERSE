@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
 import android.graphics.Color
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.view.View
 import android.webkit.*
@@ -24,6 +25,8 @@ class BrowserActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var address: EditText
     private lateinit var status: TextView
+    private lateinit var progress: ProgressBar
+    private lateinit var forwardButton: Button
     private var saverMode = "Standard Saver"
     private var blocked = 0
     private var savedKb = 0L
@@ -37,11 +40,13 @@ class BrowserActivity : Activity() {
         window.statusBarColor = Color.rgb(16,29,34); window.navigationBarColor = Color.rgb(16,29,34)
         val root = LinearLayout(this).apply { orientation = 1; setBackgroundColor(Color.rgb(16,29,34)); setPadding(8,8,8,4) }
         val bar = LinearLayout(this).apply { orientation = 0 }
-        val back = Button(this).apply { text = "‹"; setOnClickListener { if (::web.isInitialized && web.canGoBack()) web.goBack() else finish() } }
-        address = EditText(this).apply { hint = "Website address"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(0xFFA9BBB5.toInt()) }
-        val go = Button(this).apply { text = "Go"; setOnClickListener { navigate(address.text.toString()) } }
+        val back = Button(this).apply { text = "‹"; textSize = 20f; isAllCaps = false; setTextColor(Color.WHITE); backgroundTintList = ColorStateList.valueOf(0xFF20383D.toInt()); setOnClickListener { if (::web.isInitialized && web.canGoBack()) web.goBack() else finish() } }
+        address = EditText(this).apply { hint = "Search or enter website"; setSingleLine(true); textSize = 14f; setPadding(12, 0, 8, 0); setTextColor(Color.WHITE); setHintTextColor(0xFFA9BBB5.toInt()); backgroundTintList = ColorStateList.valueOf(0xFF65E6C0.toInt()); imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO; setOnEditorActionListener { _, action, _ -> if (action == android.view.inputmethod.EditorInfo.IME_ACTION_GO) { navigate(text.toString()); true } else false } }
+        val go = Button(this).apply { text = "Go"; isAllCaps = false; textSize = 11f; setTextColor(Color.WHITE); backgroundTintList = ColorStateList.valueOf(0xFF287F6B.toInt()); setOnClickListener { navigate(address.text.toString()) } }
         bar.addView(back, LinearLayout.LayoutParams(42,48)); bar.addView(address, LinearLayout.LayoutParams(0,48,1f)); bar.addView(go, LinearLayout.LayoutParams(56,48))
         root.addView(bar)
+        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100; progressTintList = ColorStateList.valueOf(0xFF65E6C0.toInt()); visibility = View.GONE }
+        root.addView(progress, LinearLayout.LayoutParams(-1, 3))
         val spinner = Spinner(this)
         val modes = listOf("Standard Saver","Ultra Saver","Emergency Text Mode")
         spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, modes)
@@ -60,7 +65,9 @@ class BrowserActivity : Activity() {
                     if (request.isForMainFrame) { navigate(request.url.toString()); return true }
                     return request.url.scheme != "http" && request.url.scheme != "https"
                 }
+                override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) { progress.progress = 0; progress.visibility = View.VISIBLE; status.text = "Loading page…" }
                 override fun onPageFinished(view: WebView, url: String) {
+                    progress.visibility = View.GONE
                     address.setText(url)
                     if (saverMode != "Standard Saver") evaluateJavascript("document.querySelectorAll('video,audio').forEach(e=>{e.pause();e.preload='none';e.autoplay=false})",null)
                     if (saverMode == "Emergency Text Mode") evaluateJavascript("document.querySelectorAll('img,video,audio,iframe').forEach(e=>e.style.visibility='hidden')",null)
@@ -79,8 +86,15 @@ class BrowserActivity : Activity() {
                     return super.shouldInterceptRequest(view,request)
                 }
             }
+            webChromeClient = object: WebChromeClient() { override fun onProgressChanged(view: WebView, value: Int) { progress.progress = value; progress.visibility = if (value in 1..99) View.VISIBLE else View.GONE } }
         }
-        root.addView(web,LinearLayout.LayoutParams(-1,0,1f)); setContentView(root); updateStatus()
+        root.addView(web,LinearLayout.LayoutParams(-1,0,1f))
+        val bottom = LinearLayout(this).apply { orientation = 0; setPadding(2, 3, 2, 3) }
+        val previous = Button(this).apply { text = "Back"; isAllCaps = false; setOnClickListener { if (web.canGoBack()) web.goBack() } }
+        forwardButton = Button(this).apply { text = "Forward"; isAllCaps = false; setOnClickListener { if (web.canGoForward()) web.goForward() } }
+        val reload = Button(this).apply { text = "Reload"; isAllCaps = false; setOnClickListener { web.reload() } }
+        listOf(previous, forwardButton, reload).forEach { button -> button.setTextColor(Color.WHITE); button.backgroundTintList = ColorStateList.valueOf(0xFF20383D.toInt()); bottom.addView(button, LinearLayout.LayoutParams(0, 44, 1f)) }
+        root.addView(bottom, LinearLayout.LayoutParams(-1, 48)); setContentView(root); updateStatus()
         val initial = intent.getStringExtra(EXTRA_URL) ?: intent.dataString.orEmpty()
         if (initial.isNotBlank()) navigate(initial)
     }
@@ -95,7 +109,7 @@ class BrowserActivity : Activity() {
         if (uri == null || (uri.scheme != "http" && uri.scheme != "https") || uri.host.isNullOrBlank() || uri.userInfo != null) {
             Toast.makeText(this,"Enter a valid http or https address",Toast.LENGTH_LONG).show(); return
         }
-        address.setText(candidate); status.text = "Checking link before opening…"
+        address.setText(candidate); status.text = "Checking destination…"; progress.visibility = View.VISIBLE
         Thread {
             var warning = ""
             try {
@@ -117,9 +131,10 @@ class BrowserActivity : Activity() {
             if (listOf("bit.ly","tinyurl.com","t.co","is.gd","cutt.ly").contains(host)) flags.add("This is a shortened link; its final destination may differ.")
             if (flags.isNotEmpty()) warning = listOf(warning,flags.joinToString(" ")).filter { it.isNotBlank() }.joinToString(" ")
             runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
                 if (warning.isNotBlank()) AlertDialog.Builder(this).setTitle("Link safety warning")
                     .setMessage(warning + "\n\nChecks are advisory and cannot detect every threat. Continue only if you trust the source.")
-                    .setNegativeButton("Go back",null).setPositiveButton("Open anyway") { _,_ -> web.loadUrl(candidate,mapOf("Save-Data" to "on")) }.show()
+                    .setNegativeButton("Go back") { _, _ -> progress.visibility = View.GONE }.setPositiveButton("Open anyway") { _,_ -> web.loadUrl(candidate,mapOf("Save-Data" to "on")) }.show()
                 else web.loadUrl(candidate,mapOf("Save-Data" to "on"))
             }
         }.start()
