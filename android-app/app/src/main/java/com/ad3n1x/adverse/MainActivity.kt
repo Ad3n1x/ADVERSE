@@ -15,6 +15,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +32,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -457,6 +460,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     )
                                 }
                             }
+                            Text("Advanced: site:example.com · after:2026-01-01 · before:2026-12-01 · type:pdf",
+                                color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
                             if (suggestions.isNotEmpty()) {
                                 Column(Modifier.fillMaxWidth().padding(top = 5.dp).background(Raised, RoundedCornerShape(12.dp)).padding(6.dp)) {
                                     suggestions.forEach { suggestion ->
@@ -568,7 +573,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         }
                     }
                     "Account" -> {
-                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)) {
+                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp).verticalScroll(rememberScrollState())) {
                             Text("Your account", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                             Text("Sign in to use your ADVERSE account across supported features.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
                             if (!authChecked) {
@@ -589,7 +594,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 }
                                 OutlinedTextField(value = authEmail, onValueChange = { authEmail = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Email address") })
                                 if (authMode != "forgot") {
-                                    OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Password (12+ characters)") })
+                                    OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, visualTransformation = PasswordVisualTransformation(), label = { Text("Password (12+ characters)") })
                                 }
                                 if (authError.isNotBlank()) Text(authError, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
                                 if (authMessage.isNotBlank()) Text(authMessage, color = Green, fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
