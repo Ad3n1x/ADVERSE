@@ -103,6 +103,10 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     var emptyMessage by remember { mutableStateOf("") }
+    var urlToCheck by remember { mutableStateOf("") }
+    var checkingLink by remember { mutableStateOf(false) }
+    var linkCheck by remember { mutableStateOf<LinkCheckResult?>(null) }
+    var linkError by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Search") }
 
     fun saveLocal() {
