@@ -33,6 +33,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -140,8 +142,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AdverseApp(openUrl: (String) -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("adverse_native", 0) }
-    val client = remember { OkHttpClient() }
+    val prefs = remember {
+        val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+        EncryptedSharedPreferences.create(
+            context, "adverse_native_secure", masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+    val client = remember { OkHttpClient.Builder().cookieJar(PersistentCookieJar(prefs)).callTimeout(45, TimeUnit.SECONDS).build() }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var query by remember { mutableStateOf("") }
