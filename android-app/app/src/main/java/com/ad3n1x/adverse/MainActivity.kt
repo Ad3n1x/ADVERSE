@@ -128,10 +128,10 @@ private data class SearchResult(
             o.optString("publisher", o.optString("provider", "Public source")),
             o.optJSONObject("linkCheck")?.optString("status") ?: o.optString("status", "not_checked"),
             o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note"),
-            o.optJSONObject("linkCheck")?.optString("finalUrl").orEmpty(),
-            joined(o.optJSONObject("whyThisResult")?.optJSONArray("signals")),
-            joined(o.optJSONObject("linkSignals")?.optJSONArray("signals")),
-            o.optJSONObject("corroboration")?.optInt("independentMatches")?.let { if (it > 0) "$it similar results from other domains (not fact verification)" else "" }.orEmpty()
+            o.optJSONObject("linkCheck")?.optString("finalUrl")?.takeIf { it.isNotBlank() } ?: o.optString("finalUrl"),
+            joined(o.optJSONObject("whyThisResult")?.optJSONArray("signals")).ifBlank { o.optString("why") },
+            joined(o.optJSONObject("linkSignals")?.optJSONArray("signals")).ifBlank { o.optString("warnings") },
+            o.optJSONObject("corroboration")?.optInt("independentMatches")?.let { if (it > 0) "$it similar results from other domains (not fact verification)" else "" }?.takeIf { it.isNotBlank() } ?: o.optString("corroboration")
         )
     }
 }
