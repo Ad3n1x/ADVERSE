@@ -158,13 +158,13 @@ class BrowserActivity : Activity() {
                 navigate(request.url.toString()); return true
             }
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
-                if (view === web) { progress.progress = 0; progress.visibility = View.VISIBLE; status.text = "Loading page…" }
+                if (view === web) { this@BrowserActivity.progress.progress = 0; this@BrowserActivity.progress.visibility = View.VISIBLE; status.text = "Loading page…" }
             }
             override fun onPageFinished(view: WebView, url: String) {
                 tab.url = url
                 tab.title = view.title?.takeIf { it.isNotBlank() } ?: Uri.parse(url).host.orEmpty()
                 if (view === web) {
-                    address.setText(url); progress.visibility = View.GONE
+                    address.setText(url); this@BrowserActivity.progress.visibility = View.GONE
                     backButton.isEnabled = view.canGoBack(); forwardButton.isEnabled = view.canGoForward()
                     updateStatus()
                 }
@@ -188,7 +188,7 @@ class BrowserActivity : Activity() {
         }
         webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView, value: Int) {
-                if (view === web) { progress.progress = value; progress.visibility = if (value in 1..99) View.VISIBLE else View.GONE }
+                if (view === web) { this@BrowserActivity.progress.progress = value; this@BrowserActivity.progress.visibility = if (value in 1..99) View.VISIBLE else View.GONE }
             }
             override fun onReceivedTitle(view: WebView, title: String?) { if (!title.isNullOrBlank()) tab.title = title }
         }
@@ -318,7 +318,7 @@ class BrowserActivity : Activity() {
         if (uri == null || (uri.scheme != "http" && uri.scheme != "https") || uri.host.isNullOrBlank() || uri.userInfo != null) {
             Toast.makeText(this, "Enter a valid web address or search term", Toast.LENGTH_LONG).show(); return
         }
-        address.setText(candidate); status.text = "Checking destination…"; progress.visibility = View.VISIBLE
+        address.setText(candidate); status.text = "Checking destination…"; this@BrowserActivity.progress.visibility = View.VISIBLE
         Thread {
             var warning = ""
             try {
@@ -343,7 +343,7 @@ class BrowserActivity : Activity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (warning.isNotBlank()) AlertDialog.Builder(this).setTitle("Link safety notice")
                     .setMessage(warning + "\n\nChecks are advisory and cannot detect every threat. Continue only if you trust the source.")
-                    .setNegativeButton("Go back") { _, _ -> progress.visibility = View.GONE }
+                    .setNegativeButton("Go back") { _, _ -> this@BrowserActivity.progress.visibility = View.GONE }
                     .setPositiveButton("Open anyway") { _, _ -> openUrl(candidate) }.show()
                 else openUrl(candidate)
             }
