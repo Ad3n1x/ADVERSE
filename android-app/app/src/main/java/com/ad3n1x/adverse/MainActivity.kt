@@ -221,6 +221,9 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     var searchMode by remember { mutableStateOf("web") }
     var suggestions by remember { mutableStateOf(emptyList<String>()) }
     var statusFilter by remember { mutableStateOf("all") }
+    var providerFilter by remember { mutableStateOf("all") }
+    var providerMenuExpanded by remember { mutableStateOf(false) }
+    var dismissedResults by remember { mutableStateOf(emptySet<String>()) }
     var account by remember { mutableStateOf<Account?>(null) }
     var authMode by remember { mutableStateOf("login") }
     var authEmail by remember { mutableStateOf("") }
@@ -275,6 +278,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
         val clean = term.trim()
         if (clean.length < 2) { error = "Enter at least two characters."; return }
         query = clean
+        providerFilter = "all"
+        dismissedResults = emptySet()
         suggestions = emptyList()
         focus.clearFocus()
         loading = true; error = ""; emptyMessage = ""; statusFilter = "all"
@@ -571,10 +576,32 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             Text(visualDescription, color = Muted, fontSize = 12.sp,
                                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
                         }
+                            val providers = results.map { it.publisher.ifBlank { "Public source" } }.distinct().sorted()
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("${results.size} results", color = White, fontWeight = FontWeight.SemiBold)
+                                Text("${results.size - dismissedResults.size} results", color = White, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.weight(1f))
+                                Box {
+                                    TextButton(onClick = { providerMenuExpanded = true }, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                        Text(if (providerFilter == "all") "All sources ▾" else providerFilter + " ▾", color = BlueSoft, fontSize = 10.sp, maxLines = 1)
+                                    }
+                                    DropdownMenu(expanded = providerMenuExpanded, onDismissRequest = { providerMenuExpanded = false }) {
+                                        DropdownMenuItem(text = { Text("All sources") }, onClick = { providerFilter = "all"; providerMenuExpanded = false })
+                                        providers.forEach { provider ->
+                                            DropdownMenuItem(text = { Text(provider, maxLines = 1) }, onClick = { providerFilter = provider; providerMenuExpanded = false })
+                                        }
+                                    }
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("LINK STATUS IS NOT A TRUST SCORE", color = Muted, fontSize = 8.sp)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = {
+                                    val share = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, "https://adverse-web.onrender.com/?q=" + Uri.encode(query))
+                                    }
+                                    context.startActivity(Intent.createChooser(share, "Share ADVERSE search"))
+                                }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Share search", color = BlueSoft, fontSize = 10.sp) }
                             }
                             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf("all", "reachable", "not_confirmed", "not_checked").forEach { status ->
@@ -591,12 +618,14 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(results.filter { statusFilter == "all" || it.status == statusFilter }, key = { it.url }) { item ->
+                                items(results.filter { (statusFilter == "all" || it.status == statusFilter) && (providerFilter == "all" || it.publisher.ifBlank { "Public source" } == providerFilter) && it.url !in dismissedResults }, key = { it.url }) { item ->
                                     ResultCard(item, saved.any { it.url == item.url }, { toggle ->
                                         saved = if (toggle) (listOf(item) + saved.filterNot { it.url == item.url }).take(100)
                                         else saved.filterNot { it.url == item.url }
                                         saveLocal()
-                                    }, { openUrl(item.finalUrl.ifBlank { item.url }) })
+                                    }, { openUrl(item.finalUrl.ifBlank { item.url }) },
+                                        onDismiss = { dismissedResults = dismissedResults + item.url },
+                                        onFindAlternatives = { search((item.title + " official website").trim()) })
                                 }
                             }
                         } else if (!loading && history.isNotEmpty()) {
@@ -686,7 +715,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit) {
+private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit, onDismiss: (() -> Unit)? = null, onFindAlternatives: (() -> Unit)? = null) {
     Column(
         Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp))
             .clickable { onOpen() }.padding(15.dp)
@@ -716,7 +745,11 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
             modifier = Modifier.padding(top = 6.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Open source ↗", color = BlueSoft, fontSize = 11.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onSave(!isSaved) }) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 11.sp) }
+            if (item.status == "not_confirmed" && onFindAlternatives != null) {
+                TextButton(onClick = onFindAlternatives, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Alternatives", color = BlueSoft, fontSize = 10.sp) }
+            }
+            TextButton(onClick = { onSave(!isSaved) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 10.sp) }
+            if (onDismiss != null) TextButton(onClick = onDismiss, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Hide", color = Muted, fontSize = 10.sp) }
         }
     }
 }
