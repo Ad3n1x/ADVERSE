@@ -3,14 +3,23 @@ package com.ad3n1x.adverse
 // Native Compose client for the ADVERSE public-search API.
 
 import android.content.Intent
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.content.SharedPreferences
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,13 +35,20 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -40,6 +56,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 
 private val Ink = Color(0xFF0B1220)
 private val Surface = Color(0xFF111C2E)
@@ -53,23 +71,108 @@ private val Cyan = Color(0xFF22D3EE)
 private val Green = Color(0xFF34D399)
 private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
 
+private data class Account(val email: String, val displayName: String, val role: String)
+private class PersistentCookieJar(private val prefs: SharedPreferences) : CookieJar {
+    private var cookies: List<Cookie> = load()
+    @Synchronized override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        val next = (this.cookies.filter { old -> cookies.none { it.name == old.name && it.domain == old.domain && it.path == old.path } } + cookies)
+            .filter { !it.persistent || it.expiresAt > System.currentTimeMillis() }
+        this.cookies = next
+        val array = JSONArray()
+        next.forEach { cookie ->
+            array.put(JSONObject().apply {
+                put("name", cookie.name); put("value", cookie.value); put("domain", cookie.domain)
+                put("path", cookie.path); put("expiresAt", cookie.expiresAt); put("secure", cookie.secure)
+                put("httpOnly", cookie.httpOnly); put("hostOnly", cookie.hostOnly); put("persistent", cookie.persistent)
+            })
+        }
+        prefs.edit().putString("cookies", array.toString()).apply()
+    }
+    @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        cookies = cookies.filter { !it.persistent || it.expiresAt > System.currentTimeMillis() }
+        return cookies.filter { cookie ->
+            (if (cookie.hostOnly) url.host == cookie.domain else url.host == cookie.domain || url.host.endsWith("." + cookie.domain)) &&
+                url.encodedPath.startsWith(cookie.path) && (!cookie.secure || url.isHttps)
+        }
+    }
+    @Synchronized fun clear() { cookies = emptyList(); prefs.edit().remove("cookies").apply() }
+    private fun load(): List<Cookie> = runCatching {
+        val array = JSONArray(prefs.getString("cookies", "[]"))
+        (0 until array.length()).mapNotNull { i ->
+            val o = array.getJSONObject(i)
+            val b = Cookie.Builder().name(o.getString("name")).value(o.getString("value")).path(o.optString("path", "/"))
+            if (o.optBoolean("hostOnly", true)) b.hostOnlyDomain(o.getString("domain")) else b.domain(o.getString("domain"))
+            if (o.optBoolean("persistent")) b.expiresAt(o.optLong("expiresAt"))
+            if (o.optBoolean("secure")) b.secure()
+            if (o.optBoolean("httpOnly")) b.httpOnly()
+            b.build()
+        }
+    }.getOrDefault(emptyList())
+}
+
+private fun prepareVisualImage(context: Context, uri: Uri): String {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IOException("Could not read that image.")
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("That image could not be decoded.")
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.RGB_565 }
+    val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: throw IOException("Could not decode that image.")
+    val scale = minOf(1f, 1280f / maxOf(decoded.width, decoded.height))
+    var bitmap = if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt().coerceAtLeast(1), (decoded.height * scale).toInt().coerceAtLeast(1), true) else decoded
+    if (bitmap !== decoded) decoded.recycle()
+    var quality = 78
+    var bytes = ByteArray(0)
+    var attempts = 0
+    while (attempts < 10) {
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+        bytes = output.toByteArray()
+        if (bytes.size <= 350 * 1024) break
+        if (quality > 50) {
+            quality -= 8
+        } else {
+            if (maxOf(bitmap.width, bitmap.height) <= 320) break
+            val smaller = Bitmap.createScaledBitmap(bitmap, (bitmap.width * 0.82f).toInt().coerceAtLeast(1), (bitmap.height * 0.82f).toInt().coerceAtLeast(1), true)
+            if (smaller !== bitmap) bitmap.recycle()
+            bitmap = smaller
+            quality = 68
+        }
+        attempts++
+    }
+    bitmap.recycle()
+    if (bytes.size > 350 * 1024) throw IOException("That image is too detailed to upload. Try a smaller image.")
+    return "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+}
+
 private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)
 
 private data class SearchResult(
     val title: String, val url: String, val excerpt: String,
-    val publisher: String, val status: String, val note: String
+    val publisher: String, val status: String, val note: String,
+    val finalUrl: String = "", val why: String = "", val warnings: String = "",
+    val corroboration: String = ""
 ) {
     fun json() = JSONObject().apply {
         put("title", title); put("url", url); put("excerpt", excerpt)
         put("publisher", publisher); put("status", status); put("note", note)
+        put("finalUrl", finalUrl); put("why", why); put("warnings", warnings)
+        put("corroboration", corroboration)
     }
     companion object {
+        private fun joined(array: JSONArray?): String = array?.let { (0 until it.length()).map { i -> it.optString(i) }.filter { it.isNotBlank() }.joinToString(" · ") }.orEmpty()
         fun parse(o: JSONObject) = SearchResult(
             o.optString("title", o.optString("url")),
             o.optString("url"), o.optString("excerpt"),
             o.optString("publisher", o.optString("provider", "Public source")),
             o.optJSONObject("linkCheck")?.optString("status") ?: o.optString("status", "not_checked"),
-            o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note")
+            o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note"),
+            o.optJSONObject("linkCheck")?.optString("finalUrl")?.takeIf { it.isNotBlank() } ?: o.optString("finalUrl"),
+            joined(o.optJSONObject("whyThisResult")?.optJSONArray("signals")).ifBlank { o.optString("why") },
+            joined(o.optJSONObject("linkSignals")?.optJSONArray("signals")).ifBlank { o.optString("warnings") },
+            o.optJSONObject("corroboration")?.optInt("independentMatches")?.let { if (it > 0) "$it similar results from other domains (not fact verification)" else "" }?.takeIf { it.isNotBlank() } ?: o.optString("corroboration")
         )
     }
 }
@@ -92,8 +195,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun AdverseApp(openUrl: (String) -> Unit) {
     val context = LocalContext.current
-    val prefs = remember { context.getSharedPreferences("adverse_native", 0) }
-    val client = remember { OkHttpClient() }
+    val prefs = remember {
+        val masterKey = MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
+        EncryptedSharedPreferences.create(
+            context, "adverse_native_secure", masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+    val client = remember { OkHttpClient.Builder().cookieJar(PersistentCookieJar(prefs)).callTimeout(45, TimeUnit.SECONDS).build() }
     val scope = rememberCoroutineScope()
     val focus = LocalFocusManager.current
     var query by remember { mutableStateOf("") }
@@ -108,7 +218,56 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     var linkCheck by remember { mutableStateOf<LinkCheckResult?>(null) }
     var linkError by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf("Search") }
+    var searchMode by remember { mutableStateOf("web") }
+    var suggestions by remember { mutableStateOf(emptyList<String>()) }
+    var statusFilter by remember { mutableStateOf("all") }
+    var providerFilter by remember { mutableStateOf("all") }
+    var providerMenuExpanded by remember { mutableStateOf(false) }
+    var dismissedResults by remember { mutableStateOf(emptySet<String>()) }
+    var account by remember { mutableStateOf<Account?>(null) }
+    var authMode by remember { mutableStateOf("login") }
+    var authEmail by remember { mutableStateOf("") }
+    var authPassword by remember { mutableStateOf("") }
+    var authDisplayName by remember { mutableStateOf("") }
+    var authMessage by remember { mutableStateOf("") }
+    var authBusy by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf("") }
+    var authChecked by remember { mutableStateOf(false) }
+    var visualDescription by remember { mutableStateOf("") }
+    var visualBusy by remember { mutableStateOf(false) }
 
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            visualBusy = true; error = ""; emptyMessage = ""; visualDescription = ""
+            scope.launch {
+                try {
+                    val payload = withContext(Dispatchers.IO) {
+                        val dataUrl = prepareVisualImage(context, uri)
+                        val body = JSONObject().put("imageDataUrl", dataUrl).put("mediaType", "image")
+                            .put("userQuestion", "Find related public images and videos.")
+                            .toString().toRequestBody("application/json".toMediaType())
+                        val request = Request.Builder().url(API_BASE + "/public-search/visual-match").post(body)
+                            .header("Accept", "application/json").build()
+                        client.newCall(request).execute().use { response ->
+                            val raw = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                                throw IOException(message ?: "Visual search is unavailable.")
+                            }
+                            JSONObject(raw)
+                        }
+                    }
+                    val array = payload.optJSONArray("data") ?: JSONArray()
+                    results = (0 until array.length()).mapNotNull { i -> runCatching { SearchResult.parse(array.getJSONObject(i)) }.getOrNull() }
+                    visualDescription = payload.optJSONObject("meta")?.optString("description").orEmpty()
+                    searchMode = "web"
+                    query = "Visual matches"
+                    if (results.isEmpty()) emptyMessage = "No related public images or videos were found."
+                } catch (e: Exception) { error = e.message ?: "Visual search failed." }
+                finally { visualBusy = false }
+            }
+        }
+    }
     fun saveLocal() {
         prefs.edit().putString("saved", JSONArray().apply { saved.forEach { put(it.json()) } }.toString()).apply()
     }
@@ -119,14 +278,18 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
         val clean = term.trim()
         if (clean.length < 2) { error = "Enter at least two characters."; return }
         query = clean
+        providerFilter = "all"
+        dismissedResults = emptySet()
+        suggestions = emptyList()
         focus.clearFocus()
-        loading = true; error = ""; emptyMessage = ""
+        loading = true; error = ""; emptyMessage = ""; statusFilter = "all"
         scope.launch {
             try {
                 val data = withContext(Dispatchers.IO) {
-                    val url = (API_BASE + "/public-search").toHttpUrl().newBuilder()
-                        .addQueryParameter("q", clean).build()
-                    val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
+                    val route = if (searchMode == "web") "/public-search" else "/public-search/media"
+                    val builder = (API_BASE + route).toHttpUrl().newBuilder().addQueryParameter("q", clean)
+                    if (searchMode != "web") builder.addQueryParameter("type", searchMode)
+                    val request = Request.Builder().url(builder.build()).header("Accept", "application/json").get().build()
                     client.newCall(request).execute().use { response ->
                         val raw = response.body?.string().orEmpty()
                         if (!response.isSuccessful) {
@@ -148,6 +311,93 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                 error = e.message ?: "Could not search right now."
             } finally { loading = false }
         }
+    }
+    fun submitAuth() {
+        authBusy = true; authError = ""; authMessage = ""
+        scope.launch {
+            try {
+                if (authMode == "forgot") {
+                    val message = withContext(Dispatchers.IO) {
+                        val payload = JSONObject().put("email", authEmail.trim())
+                        val request = Request.Builder().url(API_BASE + "/auth/forgot-password")
+                            .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                            .header("Accept", "application/json").build()
+                        client.newCall(request).execute().use { response ->
+                            val raw = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) throw IOException("Could not request a password reset.")
+                            JSONObject(raw).optJSONObject("data")?.optString("message")
+                                ?: "If an account exists, reset instructions will be sent."
+                        }
+                    }
+                    authMessage = message
+                    return@launch
+                }
+                val signedIn = withContext(Dispatchers.IO) {
+                    val payload = JSONObject().put("email", authEmail.trim()).put("password", authPassword)
+                    if (authMode == "register") payload.put("displayName", authDisplayName.trim())
+                    val request = Request.Builder().url(API_BASE + "/auth/" + authMode)
+                        .post(payload.toString().toRequestBody("application/json".toMediaType()))
+                        .header("Accept", "application/json").build()
+                    client.newCall(request).execute().use { response ->
+                        val raw = response.body?.string().orEmpty()
+                        if (!response.isSuccessful) {
+                            val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                            throw IOException(message ?: "Account request failed.")
+                        }
+                        val data = JSONObject(raw).optJSONObject("data") ?: JSONObject()
+                        Account(data.optString("email"), data.optString("displayName"), data.optString("role", "user"))
+                    }
+                }
+                account = signedIn
+                authPassword = ""
+                authMessage = "Signed in successfully."
+                tab = "Search"
+            } catch (e: Exception) { authError = e.message ?: "Could not sign in." }
+            finally { authBusy = false }
+        }
+    }
+    fun logout() {
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                val request = Request.Builder().url(API_BASE + "/auth/logout")
+                    .post("{}".toRequestBody("application/json".toMediaType())).build()
+                runCatching { client.newCall(request).execute().close() }
+            }
+            (client.cookieJar as? PersistentCookieJar)?.clear()
+            account = null
+            authMessage = "You have been signed out."
+        }
+    }
+    LaunchedEffect(Unit) {
+        val current = withContext(Dispatchers.IO) {
+            val request = Request.Builder().url(API_BASE + "/auth/me").header("Accept", "application/json").get().build()
+            runCatching {
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) null else {
+                        val data = JSONObject(response.body?.string().orEmpty()).optJSONObject("data") ?: JSONObject()
+                        Account(data.optString("email"), data.optString("displayName"), data.optString("role", "user"))
+                    }
+                }
+            }.getOrNull()
+        }
+        account = current
+        authChecked = true
+    }
+    LaunchedEffect(query, tab) {
+        if (tab != "Search" || query.trim().length < 2) { suggestions = emptyList(); return@LaunchedEffect }
+        delay(280)
+        val found = withContext(Dispatchers.IO) {
+            val url = (API_BASE + "/public-search/suggestions").toHttpUrl().newBuilder()
+                .addQueryParameter("q", query.trim()).build()
+            val request = Request.Builder().url(url).header("Accept", "application/json").get().build()
+            runCatching {
+                client.newCall(request).execute().use { response ->
+                    val array = if (response.isSuccessful) JSONObject(response.body?.string().orEmpty()).optJSONArray("data") ?: JSONArray() else JSONArray()
+                    (0 until array.length()).mapNotNull { i -> array.optJSONObject(i)?.optString("query")?.takeIf { it.isNotBlank() } }
+                }
+            }.getOrDefault(emptyList())
+        }
+        suggestions = found
     }
 
     fun checkLink() {
@@ -187,11 +437,11 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
             containerColor = Ink,
             bottomBar = {
                 NavigationBar(containerColor = Surface, contentColor = White) {
-                    listOf("Search", "Saved", "History").forEach { item ->
+                    listOf("Search", "Saved", "History", "Account").forEach { item ->
                         NavigationBarItem(
                             selected = tab == item,
                             onClick = { tab = item; error = ""; emptyMessage = "" },
-                            icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; else -> "◷" }, fontSize = 22.sp) },
+                            icon = { Text(when (item) { "Search" -> "⌕"; "Saved" -> "☆"; "History" -> "◷"; else -> "●" }, fontSize = 22.sp) },
                             label = { Text(item) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = BlueSoft, selectedTextColor = BlueSoft,
@@ -238,6 +488,40 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = { search(query) })
                             )
+                            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("web", "images", "videos", "people").forEach { mode ->
+                                    FilterChip(
+                                        selected = searchMode == mode,
+                                        onClick = { searchMode = mode; results = emptyList(); suggestions = emptyList() },
+                                        label = { Text(mode.replaceFirstChar { it.uppercase() }, fontSize = 11.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = Blue.copy(alpha = .2f),
+                                            selectedLabelColor = BlueSoft,
+                                            labelColor = Muted
+                                        )
+                                    )
+                                }
+                            }
+                            Text("Advanced: site:example.com · after:2026-01-01 · before:2026-12-01 · type:pdf",
+                                color = Muted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+                            if (suggestions.isNotEmpty()) {
+                                Column(Modifier.fillMaxWidth().padding(top = 5.dp).background(Raised, RoundedCornerShape(12.dp)).padding(6.dp)) {
+                                    suggestions.forEach { suggestion ->
+                                        Text(suggestion, color = BlueSoft, fontSize = 12.sp,
+                                            modifier = Modifier.fillMaxWidth().clickable { search(suggestion) }.padding(10.dp))
+                                    }
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { imagePicker.launch("image/*") },
+                                enabled = !visualBusy,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Stroke)
+                            ) {
+                                if (visualBusy) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                else Text("Search using an image")
+                            }
                             Button(
                                 onClick = { search(query) }, enabled = !loading,
                                 modifier = Modifier.fillMaxWidth().padding(top = 11.dp).height(49.dp),
@@ -286,22 +570,62 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             if (emptyMessage.isNotBlank()) Text(emptyMessage, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
                         }
                         if (results.isNotEmpty()) {
+                        if (visualDescription.isNotBlank()) {
+                            Text("VISUAL DESCRIPTION", color = Cyan, fontSize = 9.sp, letterSpacing = 1.3.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                            Text(visualDescription, color = Muted, fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                        }
+                            val providers = results.map { it.publisher.ifBlank { "Public source" } }.distinct().sorted()
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text("${results.size} results", color = White, fontWeight = FontWeight.SemiBold)
+                                Text("${results.size - dismissedResults.size} results", color = White, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.weight(1f))
+                                Box {
+                                    TextButton(onClick = { providerMenuExpanded = true }, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                                        Text(if (providerFilter == "all") "All sources ▾" else providerFilter + " ▾", color = BlueSoft, fontSize = 10.sp, maxLines = 1)
+                                    }
+                                    DropdownMenu(expanded = providerMenuExpanded, onDismissRequest = { providerMenuExpanded = false }) {
+                                        DropdownMenuItem(text = { Text("All sources") }, onClick = { providerFilter = "all"; providerMenuExpanded = false })
+                                        providers.forEach { provider ->
+                                            DropdownMenuItem(text = { Text(provider, maxLines = 1) }, onClick = { providerFilter = provider; providerMenuExpanded = false })
+                                        }
+                                    }
+                                }
+                            }
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("LINK STATUS IS NOT A TRUST SCORE", color = Muted, fontSize = 8.sp)
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = {
+                                    val share = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, "https://adverse-web.onrender.com/?q=" + Uri.encode(query))
+                                    }
+                                    context.startActivity(Intent.createChooser(share, "Share ADVERSE search"))
+                                }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Share search", color = BlueSoft, fontSize = 10.sp) }
+                            }
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf("all", "reachable", "not_confirmed", "not_checked").forEach { status ->
+                                    FilterChip(
+                                        selected = statusFilter == status,
+                                        onClick = { statusFilter = status },
+                                        label = { Text(when(status) { "all" -> "All"; "reachable" -> "Reachable"; "not_confirmed" -> "Unconfirmed"; else -> "Unchecked" }, fontSize = 10.sp) },
+                                        colors = FilterChipDefaults.filterChipColors(selectedContainerColor = Blue.copy(alpha = .2f), selectedLabelColor = BlueSoft, labelColor = Muted)
+                                    )
+                                }
                             }
                             LazyColumn(
                                 modifier = Modifier.weight(1f),
                                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 14.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                items(results, key = { it.url }) { item ->
+                                items(results.filter { (statusFilter == "all" || it.status == statusFilter) && (providerFilter == "all" || it.publisher.ifBlank { "Public source" } == providerFilter) && it.url !in dismissedResults }, key = { it.url }) { item ->
                                     ResultCard(item, saved.any { it.url == item.url }, { toggle ->
                                         saved = if (toggle) (listOf(item) + saved.filterNot { it.url == item.url }).take(100)
                                         else saved.filterNot { it.url == item.url }
                                         saveLocal()
-                                    }, { openUrl(item.url) })
+                                    }, { openUrl(item.finalUrl.ifBlank { item.url }) },
+                                        onDismiss = { dismissedResults = dismissedResults + item.url },
+                                        onFindAlternatives = { search((item.title + " official website").trim()) })
                                 }
                             }
                         } else if (!loading && history.isNotEmpty()) {
@@ -314,6 +638,46 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             }
                         }
                     }
+                    "Account" -> {
+                        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp).verticalScroll(rememberScrollState())) {
+                            Text("Your account", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("Sign in to use your ADVERSE account across supported features.", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
+                            if (!authChecked) {
+                                CircularProgressIndicator(color = Cyan)
+                            } else if (account != null) {
+                                Column(Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(16.dp)).padding(16.dp)) {
+                                    Text(account!!.displayName.ifBlank { "ADVERSE user" }, color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(account!!.email, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+                                    Text("Role: " + account!!.role, color = BlueSoft, fontSize = 11.sp, modifier = Modifier.padding(top = 12.dp))
+                                    Text("Your session cookie is stored encrypted on this device.", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 8.dp))
+                                }
+                                Button(onClick = { logout() }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), colors = ButtonDefaults.buttonColors(containerColor = Raised)) {
+                                    Text("Sign out", color = White)
+                                }
+                            } else {
+                                if (authMode == "register") {
+                                    OutlinedTextField(value = authDisplayName, onValueChange = { authDisplayName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Display name") })
+                                }
+                                OutlinedTextField(value = authEmail, onValueChange = { authEmail = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("Email address") })
+                                if (authMode != "forgot") {
+                                    OutlinedTextField(value = authPassword, onValueChange = { authPassword = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, visualTransformation = PasswordVisualTransformation(), label = { Text("Password (12+ characters)") })
+                                }
+                                if (authError.isNotBlank()) Text(authError, color = Color(0xFFFCA5A5), fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
+                                if (authMessage.isNotBlank()) Text(authMessage, color = Green, fontSize = 12.sp, modifier = Modifier.padding(top = 9.dp))
+                                Button(onClick = { submitAuth() }, enabled = !authBusy && authEmail.contains("@") && (authMode == "forgot" || authPassword.length >= 12) && (authMode != "register" || authDisplayName.isNotBlank()), modifier = Modifier.fillMaxWidth().padding(top = 15.dp).height(48.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue)) {
+                                    if (authBusy) CircularProgressIndicator(Modifier.size(17.dp), color = White, strokeWidth = 2.dp)
+                                    else Text(if (authMode == "register") "Create account" else if (authMode == "forgot") "Send reset email" else "Sign in", color = White)
+                                }
+                                if (authMode == "login") {
+                                    TextButton(onClick = { authMode = "register"; authError = ""; authMessage = "" }) { Text("New to ADVERSE? Create an account", color = BlueSoft) }
+                                    TextButton(onClick = { authMode = "forgot"; authError = ""; authMessage = "" }) { Text("Forgot password?", color = BlueSoft) }
+                                } else {
+                                    TextButton(onClick = { authMode = "login"; authError = ""; authMessage = "" }) { Text("Back to sign in", color = BlueSoft) }
+                                }
+                                Text(if (authMode == "forgot") "If the email belongs to an account, ADVERSE will send reset instructions." else "Passwords must be at least 12 characters. Search, saved links and history remain available without signing in.", color = Muted, fontSize = 11.sp)
+                            }
+                        }
+                    }
                     "Saved" -> {
                         Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                             Text("Saved sources", color = White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
@@ -322,7 +686,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                         if (saved.isEmpty()) EmptyState("No saved sources yet", "Save a result from Search and it will appear here.")
                         else LazyColumn(contentPadding = PaddingValues(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             items(saved, key = { it.url }) { item ->
-                                ResultCard(item, true, { _ -> saved = saved.filterNot { it.url == item.url }; saveLocal() }, { openUrl(item.url) })
+                                ResultCard(item, true, { _ -> saved = saved.filterNot { it.url == item.url }; saveLocal() }, { openUrl(item.finalUrl.ifBlank { item.url }) })
                             }
                         }
                     }
@@ -351,7 +715,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
 }
 
 @Composable
-private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit) {
+private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -> Unit, onOpen: () -> Unit, onDismiss: (() -> Unit)? = null, onFindAlternatives: (() -> Unit)? = null) {
     Column(
         Modifier.fillMaxWidth().background(Surface, RoundedCornerShape(15.dp))
             .clickable { onOpen() }.padding(15.dp)
@@ -370,14 +734,25 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
             fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp),
             maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (item.excerpt.isNotBlank()) Text(item.excerpt, color = Muted, fontSize = 12.sp,
-            lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 4, overflow = TextOverflow.Ellipsis)
+        if (item.why.isNotBlank()) Text("Why it appeared: " + item.why + ". Retrieval signals are not proof of accuracy.",
+            color = BlueSoft, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+        if (item.warnings.isNotBlank()) Text("Check before trusting: " + item.warnings,
+            color = Color(0xFFFBBF24), fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+        if (item.corroboration.isNotBlank()) Text(item.corroboration,
+            color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+        if (item.note.isNotBlank()) Text(item.note, color = Muted, fontSize = 10.sp,
+            modifier = Modifier.padding(top = 6.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Open source ↗", color = BlueSoft, fontSize = 11.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onSave(!isSaved) }) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 11.sp) }
+            if (item.status == "not_confirmed" && onFindAlternatives != null) {
+                TextButton(onClick = onFindAlternatives, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Alternatives", color = BlueSoft, fontSize = 10.sp) }
+            }
+            TextButton(onClick = { onSave(!isSaved) }, contentPadding = PaddingValues(horizontal = 4.dp)) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 10.sp) }
+            if (onDismiss != null) TextButton(onClick = onDismiss, contentPadding = PaddingValues(horizontal = 4.dp)) { Text("Hide", color = Muted, fontSize = 10.sp) }
         }
     }
 }
-
 @Composable
 private fun EmptyState(title: String, body: String) {
     Column(Modifier.fillMaxWidth().padding(34.dp), horizontalAlignment = Alignment.CenterHorizontally) {

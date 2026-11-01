@@ -10,8 +10,8 @@ android {
         applicationId = "com.ad3n1x.adverse"
         minSdk = 23
         targetSdk = 35
-        versionCode = 4
-        versionName = "2.0.0"
+        versionCode = 5
+        versionName = "2.1.0"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -27,6 +27,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
