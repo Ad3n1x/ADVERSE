@@ -38,7 +38,7 @@ class BrowserActivity : Activity() {
         val root = LinearLayout(this).apply { orientation = 1; setBackgroundColor(Color.rgb(16,29,34)); setPadding(8,8,8,4) }
         val bar = LinearLayout(this).apply { orientation = 0 }
         val back = Button(this).apply { text = "‹"; setOnClickListener { if (::web.isInitialized && web.canGoBack()) web.goBack() else finish() } }
-        address = EditText(this).apply { hint = "Website address"; singleLine = true; setTextColor(Color.WHITE); setHintTextColor(0xFFA9BBB5.toInt()) }
+        address = EditText(this).apply { hint = "Website address"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(0xFFA9BBB5.toInt()) }
         val go = Button(this).apply { text = "Go"; setOnClickListener { navigate(address.text.toString()) } }
         bar.addView(back, LinearLayout.LayoutParams(42,48)); bar.addView(address, LinearLayout.LayoutParams(0,48,1f)); bar.addView(go, LinearLayout.LayoutParams(56,48))
         root.addView(bar)
@@ -109,7 +109,7 @@ class BrowserActivity : Activity() {
                     }
                 }
             } catch (_: Exception) { warning = "The safety check is unavailable right now." }
-            val host = uri.host.lowercase()
+            val host = uri.host?.lowercase().orEmpty()
             val flags = mutableListOf<String>()
             if (uri.scheme != "https") flags.add("The connection is not encrypted (HTTP).")
             if (host.startsWith("xn--") || host.split(".").any { it.startsWith("xn--") }) flags.add("The domain uses encoded international characters.")
