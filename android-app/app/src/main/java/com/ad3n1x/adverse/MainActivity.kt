@@ -177,7 +177,45 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
     var authBusy by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf("") }
     var authChecked by remember { mutableStateOf(false) }
+    var visualDescription by remember { mutableStateOf("") }
+    var visualBusy by remember { mutableStateOf(false) }
 
+    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            visualBusy = true; error = ""; emptyMessage = ""; visualDescription = ""
+            scope.launch {
+                try {
+                    val payload = withContext(Dispatchers.IO) {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                            ?: throw IOException("Could not read that image.")
+                        if (bytes.size > 5 * 1024 * 1024) throw IOException("Choose an image smaller than 5 MB.")
+                        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                        val dataUrl = "data:" + mime + ";base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        val body = JSONObject().put("imageDataUrl", dataUrl).put("mediaType", "image")
+                            .put("userQuestion", "Find related public images and videos.")
+                            .toString().toRequestBody("application/json".toMediaType())
+                        val request = Request.Builder().url(API_BASE + "/public-search/visual-match").post(body)
+                            .header("Accept", "application/json").build()
+                        client.newCall(request).execute().use { response ->
+                            val raw = response.body?.string().orEmpty()
+                            if (!response.isSuccessful) {
+                                val message = runCatching { JSONObject(raw).getJSONObject("error").optString("message") }.getOrNull()
+                                throw IOException(message ?: "Visual search is unavailable.")
+                            }
+                            JSONObject(raw)
+                        }
+                    }
+                    val array = payload.optJSONArray("data") ?: JSONArray()
+                    results = (0 until array.length()).mapNotNull { i -> runCatching { SearchResult.parse(array.getJSONObject(i)) }.getOrNull() }
+                    visualDescription = payload.optJSONObject("meta")?.optString("description").orEmpty()
+                    searchMode = "web"
+                    query = "Visual matches"
+                    if (results.isEmpty()) emptyMessage = "No related public images or videos were found."
+                } catch (e: Exception) { error = e.message ?: "Visual search failed." }
+                finally { visualBusy = false }
+            }
+        }
+    }
     fun saveLocal() {
         prefs.edit().putString("saved", JSONArray().apply { saved.forEach { put(it.json()) } }.toString()).apply()
     }
@@ -402,6 +440,16 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                     }
                                 }
                             }
+                            OutlinedButton(
+                                onClick = { imagePicker.launch("image/*") },
+                                enabled = !visualBusy,
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Cyan),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Stroke)
+                            ) {
+                                if (visualBusy) CircularProgressIndicator(Modifier.size(16.dp), color = Cyan, strokeWidth = 2.dp)
+                                else Text("Search using an image")
+                            }
                             Button(
                                 onClick = { search(query) }, enabled = !loading,
                                 modifier = Modifier.fillMaxWidth().padding(top = 11.dp).height(49.dp),
@@ -450,6 +498,12 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                             if (emptyMessage.isNotBlank()) Text(emptyMessage, color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
                         }
                         if (results.isNotEmpty()) {
+                        if (visualDescription.isNotBlank()) {
+                            Text("VISUAL DESCRIPTION", color = Cyan, fontSize = 9.sp, letterSpacing = 1.3.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
+                            Text(visualDescription, color = Muted, fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+                        }
                             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 15.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("${results.size} results", color = White, fontWeight = FontWeight.SemiBold)
                                 Spacer(Modifier.weight(1f))
