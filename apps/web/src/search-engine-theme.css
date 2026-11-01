@@ -256,3 +256,25 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
 .auth-card .auth-footer{border-top-color:#2b4549!important}
 .auth-card .notice.success-notice{border-color:#376d5c!important;background:#17382f!important;color:#b7f3dc!important}
 .auth-card .notice.error-notice{border-color:#75454a!important;background:#38242a!important;color:#ffc0b9!important}
+
+
+/* Native Android presentation: the APK is the app, so never advertise another install. */
+html.adverse-native-android .adverse-android-download,
+html.adverse-native-android .adverse-download-nudge,
+html.adverse-native-android .adverse-home-download,
+html.adverse-native-android .find-footer {
+  display: none !important;
+}
+html.adverse-native-android,
+html.adverse-native-android body,
+html.adverse-native-android #root {
+  min-height: 100%;
+  overscroll-behavior-y: contain;
+}
+html.adverse-native-android .find-anything-page {
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+html.adverse-native-android .find-topbar {
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+}

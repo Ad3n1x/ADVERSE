@@ -24,7 +24,7 @@ class MainActivity : Activity() {
     private lateinit var progress: ProgressBar
     private lateinit var splashOverlay: FrameLayout
     private val homeUrl = "https://adverse-web.onrender.com/"
-    private val nativeUserAgentMarker = " ADVERSENativeAndroid/1"
+    private val nativeUserAgentMarker = " ADVERSENativeAndroid/2"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,7 +33,7 @@ class MainActivity : Activity() {
         window.decorView.systemUiVisibility = 0
 
         val root = FrameLayout(this)
-        root.setBackgroundColor(Color.rgb(11, 13, 16))
+        root.setBackgroundColor(Color.rgb(16, 29, 34))
         webView = WebView(this)
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal)
         progress.max = 100
@@ -44,12 +44,9 @@ class MainActivity : Activity() {
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT
         ))
-        val progressParams = FrameLayout.LayoutParams(
+        root.addView(progress, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT, dp(3), Gravity.TOP
-        )
-        root.addView(progress, progressParams)
-
-        // Native welcome screen stays above the WebView until the first page is ready.
+        ))
         splashOverlay = createWelcomeScreen()
         root.addView(splashOverlay, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -66,9 +63,8 @@ class MainActivity : Activity() {
         webView.settings.allowContentAccess = false
         webView.settings.setGeolocationEnabled(false)
         webView.settings.safeBrowsingEnabled = true
-        // UI hint only, not an authentication or security mechanism.
         val defaultUserAgent = webView.settings.userAgentString.orEmpty()
-        if (!defaultUserAgent.contains("ADVERSENativeAndroid/1")) {
+        if (!defaultUserAgent.contains("ADVERSENativeAndroid/")) {
             webView.settings.userAgentString = defaultUserAgent + nativeUserAgentMarker
         }
         webView.isVerticalScrollBarEnabled = false
@@ -90,34 +86,32 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                // Enforce APK-only cleanup in the native wrapper as well as the web UI.
-                // This prevents a stale/cached website bundle from showing download/install promo content.
-                val hideAppPromotion = """
+                // Keep the web and APK experiences distinct even when an older cached
+                // web bundle is loaded before the latest native-aware CSS arrives.
+                val nativePresentation = """
                     (function() {
+                      document.documentElement.classList.add('adverse-native-android');
+                      document.documentElement.dataset.adverseApp = 'android';
                       var style = document.getElementById('adverse-native-app-cleanup');
                       if (!style) {
                         style = document.createElement('style');
                         style.id = 'adverse-native-app-cleanup';
-                        style.textContent = '.adverse-home-download, .find-footer { display: none !important; }';
+                        style.textContent = '.adverse-android-download, .adverse-download-nudge, .adverse-home-download, .find-footer { display: none !important; }';
                         (document.head || document.documentElement).appendChild(style);
                       }
-                      document.querySelectorAll('.adverse-home-download, .find-footer').forEach(function(el) {
+                      document.querySelectorAll('.adverse-android-download, .adverse-download-nudge, .adverse-home-download, .find-footer').forEach(function(el) {
                         el.style.setProperty('display', 'none', 'important');
                         el.setAttribute('aria-hidden', 'true');
                       });
                       return true;
                     })();
                 """.trimIndent()
-                view?.evaluateJavascript(hideAppPromotion) {
+                view?.evaluateJavascript(nativePresentation) {
                     progress.visibility = View.GONE
                     if (::splashOverlay.isInitialized) {
-                        splashOverlay.animate()
-                            .alpha(0f)
-                            .setDuration(220)
-                            .withEndAction {
-                                (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
-                            }
-                            .start()
+                        splashOverlay.animate().alpha(0f).setDuration(220).withEndAction {
+                            (splashOverlay.parent as? FrameLayout)?.removeView(splashOverlay)
+                        }.start()
                     }
                 }
             }
@@ -134,69 +128,56 @@ class MainActivity : Activity() {
                 }
             }
         }
-
         handleIntent(intent)
     }
 
     private fun createWelcomeScreen(): FrameLayout {
         val overlay = FrameLayout(this)
-        overlay.setBackgroundColor(Color.rgb(11, 13, 16))
-
-        val content = LinearLayout(this)
-        content.orientation = LinearLayout.VERTICAL
-        content.gravity = Gravity.CENTER
-        content.setPadding(dp(24), dp(24), dp(24), dp(24))
-
-        val logo = ImageView(this)
-        logo.setImageResource(R.drawable.adverse_fingerprint)
-        logo.contentDescription = "ADVERSE fingerprint logo"
-        logo.scaleType = ImageView.ScaleType.FIT_CENTER
-        content.addView(logo, LinearLayout.LayoutParams(dp(88), dp(88)).apply {
-            bottomMargin = dp(20)
-        })
-
-        val title = TextView(this)
-        title.text = "ADVERSE"
-        title.setTextColor(Color.rgb(244, 247, 251))
-        title.textSize = 25f
-        title.letterSpacing = 0.16f
-        title.gravity = Gravity.CENTER
-        content.addView(title, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        ))
-
-        val subtitle = TextView(this)
-        subtitle.text = "FIND ANYTHING"
-        subtitle.setTextColor(Color.rgb(185, 245, 107))
-        subtitle.textSize = 11f
-        subtitle.letterSpacing = 0.22f
-        subtitle.gravity = Gravity.CENTER
+        overlay.setBackgroundColor(Color.rgb(16, 29, 34))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+        }
+        val logo = ImageView(this).apply {
+            setImageResource(R.drawable.adverse_fingerprint)
+            contentDescription = "ADVERSE fingerprint logo"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+        }
+        content.addView(logo, LinearLayout.LayoutParams(dp(88), dp(88)).apply { bottomMargin = dp(20) })
+        val title = TextView(this).apply {
+            text = "ADVERSE"
+            setTextColor(Color.rgb(231, 240, 237))
+            textSize = 25f
+            letterSpacing = 0.16f
+            gravity = Gravity.CENTER
+        }
+        content.addView(title)
+        val subtitle = TextView(this).apply {
+            text = "FIND ANYTHING"
+            setTextColor(Color.rgb(101, 230, 192))
+            textSize = 11f
+            letterSpacing = 0.22f
+            gravity = Gravity.CENTER
+        }
         content.addView(subtitle, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(7) })
-
-        val spinner = ProgressBar(this)
-        spinner.indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(185, 245, 107))
-        content.addView(spinner, LinearLayout.LayoutParams(dp(28), dp(28)).apply {
-            topMargin = dp(30)
-        })
-
-        val loading = TextView(this)
-        loading.text = "Preparing your search…"
-        loading.setTextColor(Color.rgb(154, 163, 174))
-        loading.textSize = 12f
-        loading.gravity = Gravity.CENTER
+        val spinner = ProgressBar(this).apply {
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
+        }
+        content.addView(spinner, LinearLayout.LayoutParams(dp(28), dp(28)).apply { topMargin = dp(30) })
+        val loading = TextView(this).apply {
+            text = "Preparing your search…"
+            setTextColor(Color.rgb(154, 177, 169))
+            textSize = 12f
+            gravity = Gravity.CENTER
+        }
         content.addView(loading, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
+            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
         ).apply { topMargin = dp(12) })
-
         overlay.addView(content, FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            FrameLayout.LayoutParams.MATCH_PARENT,
-            Gravity.CENTER
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER
         ))
         return overlay
     }
@@ -213,8 +194,7 @@ class MainActivity : Activity() {
             Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)?.let(::extractUrl)
             else -> null
         }
-        val safeUrl = validateWebUrl(incoming)
-        webView.loadUrl(safeUrl ?: homeUrl)
+        webView.loadUrl(validateWebUrl(incoming) ?: homeUrl)
     }
 
     private fun extractUrl(text: String): String? {
@@ -232,6 +212,7 @@ class MainActivity : Activity() {
         }
     }
 
+    @Deprecated("Deprecated in Android API 33")
     override fun onBackPressed() {
         if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }

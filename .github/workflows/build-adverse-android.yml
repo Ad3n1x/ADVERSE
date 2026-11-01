@@ -2,7 +2,7 @@ name: Build ADVERSE Android APK
 
 on:
   push:
-    branches: [main, ui/smooth-fingerprint-polish]
+    branches: [main, ui/smooth-fingerprint-polish, fix/android-standalone-experience]
     paths:
       - "android-app/**"
       - "apps/web/src/features/public-search/**"
