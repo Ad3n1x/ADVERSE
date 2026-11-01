@@ -107,19 +107,28 @@ private data class LinkCheckResult(val title: String, val finalUrl: String, val 
 
 private data class SearchResult(
     val title: String, val url: String, val excerpt: String,
-    val publisher: String, val status: String, val note: String
+    val publisher: String, val status: String, val note: String,
+    val finalUrl: String = "", val why: String = "", val warnings: String = "",
+    val corroboration: String = ""
 ) {
     fun json() = JSONObject().apply {
         put("title", title); put("url", url); put("excerpt", excerpt)
         put("publisher", publisher); put("status", status); put("note", note)
+        put("finalUrl", finalUrl); put("why", why); put("warnings", warnings)
+        put("corroboration", corroboration)
     }
     companion object {
+        private fun joined(array: JSONArray?): String = array?.let { (0 until it.length()).map { i -> it.optString(i) }.filter { it.isNotBlank() }.joinToString(" · ") }.orEmpty()
         fun parse(o: JSONObject) = SearchResult(
             o.optString("title", o.optString("url")),
             o.optString("url"), o.optString("excerpt"),
             o.optString("publisher", o.optString("provider", "Public source")),
             o.optJSONObject("linkCheck")?.optString("status") ?: o.optString("status", "not_checked"),
-            o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note")
+            o.optJSONObject("linkCheck")?.optString("note") ?: o.optString("note"),
+            o.optJSONObject("linkCheck")?.optString("finalUrl").orEmpty(),
+            joined(o.optJSONObject("whyThisResult")?.optJSONArray("signals")),
+            joined(o.optJSONObject("linkSignals")?.optJSONArray("signals")),
+            o.optJSONObject("corroboration")?.optInt("independentMatches")?.let { if (it > 0) "$it similar results from other domains (not fact verification)" else "" }.orEmpty()
         )
     }
 }
@@ -545,7 +554,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                                         saved = if (toggle) (listOf(item) + saved.filterNot { it.url == item.url }).take(100)
                                         else saved.filterNot { it.url == item.url }
                                         saveLocal()
-                                    }, { openUrl(item.url) })
+                                    }, { openUrl(item.finalUrl.ifBlank { item.url }) })
                                 }
                             }
                         } else if (!loading && history.isNotEmpty()) {
@@ -654,14 +663,21 @@ private fun ResultCard(item: SearchResult, isSaved: Boolean, onSave: (Boolean) -
             fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp),
             maxLines = 2, overflow = TextOverflow.Ellipsis)
         if (item.excerpt.isNotBlank()) Text(item.excerpt, color = Muted, fontSize = 12.sp,
-            lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+            lineHeight = 18.sp, modifier = Modifier.padding(top = 7.dp), maxLines = 4, overflow = TextOverflow.Ellipsis)
+        if (item.why.isNotBlank()) Text("Why it appeared: " + item.why + ". Retrieval signals are not proof of accuracy.",
+            color = BlueSoft, fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+        if (item.warnings.isNotBlank()) Text("Check before trusting: " + item.warnings,
+            color = Color(0xFFFBBF24), fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+        if (item.corroboration.isNotBlank()) Text(item.corroboration,
+            color = Muted, fontSize = 10.sp, modifier = Modifier.padding(top = 6.dp))
+        if (item.note.isNotBlank()) Text(item.note, color = Muted, fontSize = 10.sp,
+            modifier = Modifier.padding(top = 6.dp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth().padding(top = 9.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Open source ↗", color = BlueSoft, fontSize = 11.sp, modifier = Modifier.weight(1f))
             TextButton(onClick = { onSave(!isSaved) }) { Text(if (isSaved) "Saved ✓" else "Save", color = BlueSoft, fontSize = 11.sp) }
         }
     }
 }
-
 @Composable
 private fun EmptyState(title: String, body: String) {
     Column(Modifier.fillMaxWidth().padding(34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
