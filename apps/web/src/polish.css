@@ -1,0 +1,188 @@
+/* ADVERSE — interaction polish layer
+   Adds consistent motion, focus feedback and a signature fingerprint mark
+   without changing application behavior or research workflows. */
+
+:root {
+  --motion-fast: 150ms;
+  --motion-base: 220ms;
+  --motion-slow: 360ms;
+  --ease-out: cubic-bezier(.2,.75,.25,1);
+  --ease-soft: cubic-bezier(.22,1,.36,1);
+  scroll-behavior: smooth;
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, input, textarea, select,
+.panel, .metric-card, .result-card, .evidence-card,
+.search-panel, .modal, .auth-card, .nav-item,
+.workspace-switch, .icon-button, .secondary-button,
+.primary-button, .search-submit, .notice, .capture-row {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-base) ease,
+    border-color var(--motion-base) ease,
+    box-shadow var(--motion-base) var(--ease-out),
+    opacity var(--motion-base) ease,
+    transform var(--motion-base) var(--ease-out),
+    filter var(--motion-base) ease;
+}
+
+button:not(:disabled):active,
+.primary-button:not(:disabled):active,
+.secondary-button:not(:disabled):active,
+.search-submit:not(:disabled):active {
+  transform: translateY(1px) scale(.985);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
+}
+
+.panel, .metric-card, .result-card, .evidence-card,
+.search-panel, .auth-card, .modal, .settings-card,
+.source-card, .result-item, .search-result {
+  transition:
+    border-color var(--motion-base) ease,
+    box-shadow var(--motion-slow) var(--ease-out),
+    background-color var(--motion-base) ease,
+    transform var(--motion-base) var(--ease-out);
+}
+
+.panel:hover, .metric-card:hover {
+  border-color: color-mix(in srgb, var(--mint) 24%, var(--line));
+}
+
+.nav-item {
+  will-change: background-color;
+}
+.nav-item:hover {
+  transform: translateX(2px);
+}
+.nav-item.active {
+  box-shadow: inset 2px 0 0 var(--mint), 0 8px 24px #00000016;
+}
+
+.brand-mark {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+  border-radius: 12px !important;
+  transition:
+    transform var(--motion-slow) var(--ease-soft),
+    box-shadow var(--motion-slow) var(--ease-out),
+    border-color var(--motion-base) ease !important;
+}
+.brand-mark::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  z-index: -1;
+  border: 1px solid color-mix(in srgb, var(--mint) 35%, transparent);
+  border-radius: 15px;
+  opacity: 0;
+  transform: scale(.88);
+  transition: opacity var(--motion-slow) ease, transform var(--motion-slow) var(--ease-soft);
+}
+.brand-mark svg {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--mint) 38%, transparent));
+  transition: transform var(--motion-slow) var(--ease-soft), filter var(--motion-base) ease;
+}
+.brand:hover .brand-mark,
+.brand-mark:focus-within {
+  transform: translateY(-1px);
+  border-color: var(--mint) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--mint) 7%, transparent),
+              0 10px 28px #0003,
+              inset 0 0 20px color-mix(in srgb, var(--mint) 9%, transparent) !important;
+}
+.brand:hover .brand-mark::before {
+  opacity: .7;
+  transform: scale(1);
+}
+.brand:hover .brand-mark svg {
+  transform: scale(1.07);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--mint) 58%, transparent));
+}
+.auth-card > .brand-mark {
+  margin-inline: auto;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  animation: adverse-mark-arrive 650ms var(--ease-soft) both;
+}
+
+.page-heading, .panel-heading, .section-row {
+  animation: adverse-content-in 420ms var(--ease-soft) both;
+}
+.content > .panel,
+.content > section,
+.content > .notice {
+  animation: adverse-content-in 460ms var(--ease-soft) both;
+}
+.content > :nth-child(2) { animation-delay: 25ms; }
+.content > :nth-child(3) { animation-delay: 45ms; }
+
+input, textarea, select {
+  transition: border-color var(--motion-base) ease,
+              box-shadow var(--motion-base) ease,
+              background-color var(--motion-base) ease !important;
+}
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mint) 12%, transparent);
+}
+
+:where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--mint) !important;
+  outline-offset: 3px;
+}
+
+.modal-backdrop {
+  animation: adverse-fade-in 180ms ease both;
+}
+.modal, .auth-card {
+  animation: adverse-modal-in 260ms var(--ease-soft) both;
+}
+
+.toast, [role="status"], .notice {
+  animation: adverse-content-in 260ms var(--ease-soft) both;
+}
+
+@keyframes adverse-content-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes adverse-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes adverse-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes adverse-mark-arrive {
+  from { opacity: 0; transform: scale(.88) rotate(-5deg); }
+  to { opacity: 1; transform: scale(1) rotate(0); }
+}
+
+@media (hover: none) {
+  .nav-item:hover { transform: none; }
+  .brand:hover .brand-mark { transform: none; }
+}
+@media (max-width: 760px) {
+  .content > .panel, .content > section { animation-duration: 320ms; }
+  .brand-mark { flex-shrink: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
