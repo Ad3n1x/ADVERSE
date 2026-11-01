@@ -53,7 +53,9 @@ private val Cyan = Color(0xFF22D3EE)
 private val Green = Color(0xFF34D399)
 private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
 
-private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)\n\nprivate data class SearchResult(
+private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)
+
+private data class SearchResult(
     val title: String, val url: String, val excerpt: String,
     val publisher: String, val status: String, val note: String
 ) {
