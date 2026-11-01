@@ -1,20 +1,28 @@
 # ADVERSE for Android
 
-This is the native Android companion for ADVERSE. It is designed to be selectable as a handler for ordinary `http://` and `https://` links, and for shared text containing a URL. Incoming web links open in the ADVERSE app's browser-style WebView, with Android back navigation.
+ADVERSE for Android is a **native Kotlin + Jetpack Compose app**. It does not embed the website in a WebView.
+
+## Native experience
+
+- Public federated search powered by the existing ADVERSE API.
+- Native result cards with source previews and clearly labelled link-access status.
+- Save and remove sources in a local reading list.
+- Recent search history stored locally on the device.
+- Open original source pages in the user's preferred browser.
+- Lightweight UI designed to remain responsive on entry-level Android devices.
+
+The website remains a separate React application. Both clients use the same public-search API and the shared midnight / cobalt / cyan visual system. Search is available without creating an account. Saved items and history are currently device-local and are not synced to the website.
 
 ## Build an APK
 
-The GitHub Actions workflow **Build ADVERSE Android APK** builds a debug APK on pushes affecting `android-app/**`. Download `ADVERSE-android-debug` from the workflow run's Artifacts section. A debug APK is for direct testing; it is not a Play Store release.
+The GitHub Actions workflow **Build ADVERSE Android APK** builds the debug APK. Download the `ADVERSE-android-debug` artifact from the workflow run, or use the public `android-latest` release asset when the workflow has completed.
 
-## Install and test
+The APK is a debug-signed testing build, not a Play Store release. Updating an existing installation may require uninstalling the older differently signed build; uninstalling clears that app's local saved items and search history.
 
-1. Install the APK on Android.
-2. Tap a web link in another app, or long-press a link and select **Open with** if that app offers the chooser.
-3. Choose **ADVERSE**. Depending on Android version and the source app, the first selection may be remembered or may need to be repeated.
-4. You can also use another app's **Share** action and select ADVERSE.
+## API
 
-## Important link-handling limitation
+The Android client calls the public API at `https://adverse-api-7yim.onrender.com/api/v1`. Public search does not require sign-in. Search coverage is limited to the configured public providers and is not a complete index of the web.
 
-Android's app-link verification is domain-specific. This app can appear as a user-selectable handler for general HTTP/HTTPS links, but making ADVERSE the verified default for `adverse-web.onrender.com` requires hosting `/.well-known/assetlinks.json` with the SHA-256 fingerprint of the final signing certificate. A debug build is signed with a debug certificate and is not suitable for establishing the production Play Store identity. Android and individual apps also control whether a chooser appears.
+## Privacy and permissions
 
-The app only accepts HTTP/HTTPS URLs from incoming intents. It does not request contacts, location, microphone, or camera access.
+The app requests internet access only. Search history and saved sources are stored locally with Android app preferences. The app does not request contacts, location, microphone, or camera access.
