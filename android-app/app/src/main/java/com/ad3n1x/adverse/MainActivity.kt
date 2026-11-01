@@ -3,6 +3,9 @@ package com.ad3n1x.adverse
 // Native Compose client for the ADVERSE public-search API.
 
 import android.content.Intent
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.content.SharedPreferences
@@ -53,6 +56,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.TimeUnit
 
 private val Ink = Color(0xFF0B1220)
@@ -104,6 +108,39 @@ private class PersistentCookieJar(private val prefs: SharedPreferences) : Cookie
             b.build()
         }
     }.getOrDefault(emptyList())
+}
+
+private fun prepareVisualImage(context: Context, uri: Uri): String {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        ?: throw IOException("Could not read that image.")
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("That image could not be decoded.")
+    var sample = 1
+    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
+    val options = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.RGB_565 }
+    val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: throw IOException("Could not decode that image.")
+    val scale = minOf(1f, 1280f / maxOf(decoded.width, decoded.height))
+    var bitmap = if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt().coerceAtLeast(1), (decoded.height * scale).toInt().coerceAtLeast(1), true) else decoded
+    if (bitmap !== decoded) decoded.recycle()
+    var quality = 78
+    var bytes: ByteArray
+    do {
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)
+        bytes = output.toByteArray()
+        if (bytes.size <= 350 * 1024) break
+        if (quality > 50) quality -= 8
+        else {
+            val smaller = Bitmap.createScaledBitmap(bitmap, (bitmap.width * 0.82f).toInt().coerceAtLeast(1), (bitmap.height * 0.82f).toInt().coerceAtLeast(1), true)
+            if (smaller !== bitmap) bitmap.recycle()
+            bitmap = smaller
+            quality = 68
+        }
+    } while (bitmap.width > 320 || bitmap.height > 320)
+    bitmap.recycle()
+    if (bytes.size > 350 * 1024) throw IOException("That image is too detailed to upload. Try a smaller image.")
+    return "data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
 }
 
 private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)
@@ -198,11 +235,7 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
             scope.launch {
                 try {
                     val payload = withContext(Dispatchers.IO) {
-                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                            ?: throw IOException("Could not read that image.")
-                        if (bytes.size > 5 * 1024 * 1024) throw IOException("Choose an image smaller than 5 MB.")
-                        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
-                        val dataUrl = "data:" + mime + ";base64," + Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        val dataUrl = prepareVisualImage(context, uri)
                         val body = JSONObject().put("imageDataUrl", dataUrl).put("mediaType", "image")
                             .put("userQuestion", "Find related public images and videos.")
                             .toString().toRequestBody("application/json".toMediaType())
