@@ -5,8 +5,12 @@ package com.ad3n1x.adverse
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.content.SharedPreferences
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,9 +34,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import okhttp3.Cookie
+import okhttp3.CookieJar
+import okhttp3.HttpUrl
 import okhttp3.Request
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -40,6 +48,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 private val Ink = Color(0xFF0B1220)
 private val Surface = Color(0xFF111C2E)
@@ -52,6 +61,45 @@ private val BlueSoft = Color(0xFF93C5FD)
 private val Cyan = Color(0xFF22D3EE)
 private val Green = Color(0xFF34D399)
 private const val API_BASE = "https://adverse-api-7yim.onrender.com/api/v1"
+
+private data class Account(val email: String, val displayName: String, val role: String)
+private class PersistentCookieJar(private val prefs: SharedPreferences) : CookieJar {
+    private var cookies: List<Cookie> = load()
+    @Synchronized override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
+        val next = (this.cookies.filter { old -> cookies.none { it.name == old.name && it.domain == old.domain && it.path == old.path } } + cookies)
+            .filter { !it.persistent || it.expiresAt > System.currentTimeMillis() }
+        this.cookies = next
+        val array = JSONArray()
+        next.forEach { cookie ->
+            array.put(JSONObject().apply {
+                put("name", cookie.name); put("value", cookie.value); put("domain", cookie.domain)
+                put("path", cookie.path); put("expiresAt", cookie.expiresAt); put("secure", cookie.secure)
+                put("httpOnly", cookie.httpOnly); put("hostOnly", cookie.hostOnly); put("persistent", cookie.persistent)
+            })
+        }
+        prefs.edit().putString("cookies", array.toString()).apply()
+    }
+    @Synchronized override fun loadForRequest(url: HttpUrl): List<Cookie> {
+        cookies = cookies.filter { !it.persistent || it.expiresAt > System.currentTimeMillis() }
+        return cookies.filter { cookie ->
+            (if (cookie.hostOnly) url.host == cookie.domain else url.host == cookie.domain || url.host.endsWith("." + cookie.domain)) &&
+                url.encodedPath.startsWith(cookie.path) && (!cookie.secure || url.isHttps)
+        }
+    }
+    @Synchronized fun clear() { cookies = emptyList(); prefs.edit().remove("cookies").apply() }
+    private fun load(): List<Cookie> = runCatching {
+        val array = JSONArray(prefs.getString("cookies", "[]"))
+        (0 until array.length()).mapNotNull { i ->
+            val o = array.getJSONObject(i)
+            val b = Cookie.Builder().name(o.getString("name")).value(o.getString("value")).path(o.optString("path", "/"))
+            if (o.optBoolean("hostOnly", true)) b.hostOnlyDomain(o.getString("domain")) else b.domain(o.getString("domain"))
+            if (o.optBoolean("persistent")) b.expiresAt(o.optLong("expiresAt"))
+            if (o.optBoolean("secure")) b.secure()
+            if (o.optBoolean("httpOnly")) b.httpOnly()
+            b.build()
+        }
+    }.getOrDefault(emptyList())
+}
 
 private data class LinkCheckResult(val title: String, val finalUrl: String, val status: String, val note: String)
 
