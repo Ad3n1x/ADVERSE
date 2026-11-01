@@ -278,26 +278,3 @@ html.adverse-native-android .find-anything-page {
 html.adverse-native-android .find-topbar {
   padding-top: max(16px, env(safe-area-inset-top, 0px));
 }
-
-/* ADVERSE shared midnight + cobalt + cyan palette */
-:root{color-scheme:dark;--bg:#0B1220;--surface:#111C2E;--surface-raised:#18263A;--surface-soft:#0F1929;--line:#2A3B52;--line-soft:#23344A;--text:#F8FAFC;--muted:#A8B5C7;--dim:#7F91A8;--mint:#3B82F6;--mint-strong:#93C5FD}
-html,body,#root{background-color:#0B1220!important;color:#F8FAFC}
-body{background:radial-gradient(ellipse at 50% -24%,rgba(59,130,246,.16),transparent 43%),radial-gradient(ellipse at 100% 18%,rgba(34,211,238,.08),transparent 34%),#0B1220!important}
-.find-anything-page{background:radial-gradient(ellipse at 50% -18%,rgba(59,130,246,.13),transparent 46%),transparent}
-.find-brand-mark{border-color:rgba(59,130,246,.42);background:linear-gradient(145deg,#1B3153,#14233A);color:#22D3EE}
-.find-status-dot{background:#22D3EE;box-shadow:0 0 12px rgba(34,211,238,.45)}
-.find-eyebrow,.find-result-source{color:#93C5FD}
-.find-hero>h1 span{color:#60A5FA}
-.find-search-form{border-color:#3B82F6;background:linear-gradient(120deg,#17263C,#111C2E 78%)}
-.find-search-form:focus-within{border-color:#60A5FA;box-shadow:0 0 0 4px rgba(59,130,246,.16),0 20px 58px rgba(0,0,0,.2)}
-.find-search-form button,.auth-card .primary-button,.auth-card .auth-submit{background:#3B82F6!important;border-color:#3B82F6!important;color:#FFFFFF!important}
-.find-search-form button:hover{background:#2563EB}
-.find-result-card:hover{border-color:#477CC2}
-.find-result-body h3 a:hover,.find-history-item:hover{color:#60A5FA}
-.find-link-status.reachable{color:#6EE7B7}.find-link-status.reachable>span{background:#34D399}
-.find-account-state{border-color:#31517A;color:#BFDBFE;background:rgba(37,99,235,.16)}
-button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #22D3EE!important}
-.auth-shell{background:radial-gradient(ellipse at 50% 0,rgba(59,130,246,.14),transparent 40%),#0B1220!important}
-.auth-card .brand-mark{color:#22D3EE!important;border-color:#477CC2!important}
-.auth-card .eyebrow,.auth-card .auth-toggle button,.auth-card .auth-link-button{color:#93C5FD!important}
-html.adverse-native-android .find-anything-page{background:#0B1220!important}
