@@ -224,3 +224,35 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{
   .find-result-card,.find-examples button,.find-personal-tools>button,.find-top-links button{transition:none}
   .find-result-card:hover,.find-examples button:hover,.find-top-links button:hover{transform:none}
 }
+
+/* Matching account and loading surfaces */
+.auth-shell{
+  background:radial-gradient(ellipse at 50% 0,rgba(101,230,192,.10),transparent 40%),#101d22!important;
+}
+.auth-card{
+  background:linear-gradient(145deg,#1a3035,#17272c)!important;
+  border-color:#355057!important;color:#e7f0ed!important;
+  box-shadow:0 28px 90px rgba(0,0,0,.38)!important;
+}
+.auth-card .brand-mark{
+  background:linear-gradient(145deg,#24464a,#172d32)!important;
+  border-color:#47756b!important;color:#65e6c0!important;
+  box-shadow:inset 0 0 20px rgba(101,230,192,.08),0 0 22px rgba(101,230,192,.08)!important;
+}
+.auth-brand>span{color:#91aaa2!important}
+.auth-card .eyebrow{color:#83e8c8!important}
+.auth-card h1{color:#f0f7f4!important}
+.auth-card>p{color:#a4b8af!important}
+.auth-card label{color:#bdd0c8!important}
+.auth-card label input{
+  background:#122328!important;border-color:#38545a!important;color:#eff9f3!important;
+}
+.auth-card label input:focus{border-color:#65e6c0!important;box-shadow:0 0 0 3px rgba(101,230,192,.1)}
+.auth-card .primary-button,.auth-card .auth-submit{
+  background:#65e6c0!important;border-color:#65e6c0!important;color:#10251f!important;
+}
+.auth-card .auth-toggle,.auth-card .auth-footer,.auth-card .auth-security{color:#91aaa2!important}
+.auth-card .auth-toggle button,.auth-card .auth-link-button{color:#8eeccf!important}
+.auth-card .auth-footer{border-top-color:#2b4549!important}
+.auth-card .notice.success-notice{border-color:#376d5c!important;background:#17382f!important;color:#b7f3dc!important}
+.auth-card .notice.error-notice{border-color:#75454a!important;background:#38242a!important;color:#ffc0b9!important}
