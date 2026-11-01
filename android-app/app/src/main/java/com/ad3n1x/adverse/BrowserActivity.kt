@@ -37,11 +37,11 @@ class BrowserActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(16,29,34); window.navigationBarColor = Color.rgb(16,29,34)
+        window.statusBarColor = Color.rgb(11,18,32); window.navigationBarColor = Color.rgb(16,29,34)
         val root = LinearLayout(this).apply { orientation = 1; setBackgroundColor(Color.rgb(16,29,34)); setPadding(8,8,8,4) }
         val bar = LinearLayout(this).apply { orientation = 0 }
-        val back = Button(this).apply { text = "‹"; textSize = 20f; isAllCaps = false; setTextColor(Color.WHITE); backgroundTintList = ColorStateList.valueOf(0xFF20383D.toInt()); setOnClickListener { if (::web.isInitialized && web.canGoBack()) web.goBack() else finish() } }
-        address = EditText(this).apply { hint = "Search or enter website"; setSingleLine(true); textSize = 14f; setPadding(12, 0, 8, 0); setTextColor(Color.WHITE); setHintTextColor(0xFFA9BBB5.toInt()); backgroundTintList = ColorStateList.valueOf(0xFF65E6C0.toInt()); imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO; setOnEditorActionListener { _, action, _ -> if (action == android.view.inputmethod.EditorInfo.IME_ACTION_GO) { navigate(text.toString()); true } else false } }
+        val back = Button(this).apply { text = "‹"; textSize = 20f; isAllCaps = false; setTextColor(Color.WHITE); backgroundTintList = ColorStateList.valueOf(0xFF18263A.toInt()); setOnClickListener { if (::web.isInitialized && web.canGoBack()) web.goBack() else finish() } }
+        address = EditText(this).apply { hint = "Search or enter website"; setSingleLine(true); textSize = 14f; setPadding(12, 0, 8, 0); setTextColor(Color.WHITE); setHintTextColor(0xFFA8B5C7.toInt()); backgroundTintList = ColorStateList.valueOf(0xFF65E6C0.toInt()); imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO; setOnEditorActionListener { _, action, _ -> if (action == android.view.inputmethod.EditorInfo.IME_ACTION_GO) { navigate(text.toString()); true } else false } }
         val go = Button(this).apply { text = "Go"; isAllCaps = false; textSize = 11f; setTextColor(Color.WHITE); backgroundTintList = ColorStateList.valueOf(0xFF287F6B.toInt()); setOnClickListener { navigate(address.text.toString()) } }
         bar.addView(back, LinearLayout.LayoutParams(42,48)); bar.addView(address, LinearLayout.LayoutParams(0,48,1f)); bar.addView(go, LinearLayout.LayoutParams(56,48))
         root.addView(bar)
