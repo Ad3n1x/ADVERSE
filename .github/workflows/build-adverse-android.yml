@@ -1,5 +1,6 @@
 name: Build ADVERSE Android APK
 # Native Compose build and public APK publishing.
+# Build includes the native public link-check screen.
 
 on:
   push:
