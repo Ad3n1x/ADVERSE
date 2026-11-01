@@ -469,8 +469,8 @@ private fun AdverseApp(openUrl: (String) -> Unit) {
                 val sidePadding = when { isWideLayout -> 32.dp; isCompactLayout -> 12.dp; else -> 18.dp }
                 val responsiveContentWidth = if (isWideLayout) 1040.dp else maxWidth
                 Column(
-                    Modifier.fillMaxSize()
-                        .widthIn(max = responsiveContentWidth)
+                    Modifier.widthIn(max = responsiveContentWidth)
+                        .fillMaxSize()
                         .align(Alignment.TopCenter)
                         .padding(inset)
                         .statusBarsPadding()
