@@ -2,7 +2,7 @@ name: Build ADVERSE Android APK
 
 on:
   push:
-    branches: [main, ui/smooth-fingerprint-polish, fix/android-standalone-experience]
+    branches: [main, ui/smooth-fingerprint-polish, fix/android-standalone-experience, feat/native-android-search-experience]
     paths:
       - "android-app/**"
       - "apps/web/src/features/public-search/**"
@@ -27,37 +27,30 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-
       - name: Verify web app build
         run: |
           npm install
           npm run build -w @adverse/web
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: platform-tools
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-
       - name: Build APK
         working-directory: android-app
         run: gradle --no-daemon assembleDebug
-
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -65,19 +58,17 @@ jobs:
           path: android-app/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
-
       - name: Prepare public download
         run: |
           cp android-app/app/build/outputs/apk/debug/app-debug.apk /tmp/ADVERSE.apk
           cp android-app/app/build/outputs/apk/debug/app-debug.apk "/tmp/ADVERSE-${GITHUB_SHA}.apk"
-
       - name: Publish public APK download
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
           name: ADVERSE Android Latest Build
           body: |
-            Download the latest ADVERSE Android app build.
+            Download the latest ADVERSE native Android app.
             This is a debug APK, not a Play Store release.
           prerelease: true
           make_latest: false
