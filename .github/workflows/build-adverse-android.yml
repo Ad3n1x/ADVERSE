@@ -2,10 +2,14 @@ name: Build ADVERSE Android APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, ui/smooth-fingerprint-polish]
     paths:
       - "android-app/**"
       - "apps/web/src/features/public-search/**"
+      - "apps/web/src/app/WorkspaceApp.tsx"
+      - "apps/web/src/features/auth/AuthScreen.tsx"
+      - "apps/web/src/search-engine-theme.css"
+      - "apps/web/src/main.tsx"
       - ".github/workflows/build-adverse-android.yml"
   workflow_dispatch:
 
@@ -23,6 +27,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify web app build
+        run: |
+          npm install
+          npm run build -w @adverse/web
 
       - name: Set up Java
         uses: actions/setup-java@v4

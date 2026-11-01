@@ -28,8 +28,8 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.rgb(11, 13, 16)
-        window.navigationBarColor = Color.rgb(11, 13, 16)
+        window.statusBarColor = Color.rgb(16, 29, 34)
+        window.navigationBarColor = Color.rgb(16, 29, 34)
         window.decorView.systemUiVisibility = 0
 
         val root = FrameLayout(this)
@@ -37,8 +37,8 @@ class MainActivity : Activity() {
         webView = WebView(this)
         progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal)
         progress.max = 100
-        progress.progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(185, 245, 107))
-        progress.indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(185, 245, 107))
+        progress.progressTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
+        progress.indeterminateTintList = android.content.res.ColorStateList.valueOf(Color.rgb(101, 230, 192))
 
         root.addView(webView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -184,7 +184,7 @@ class MainActivity : Activity() {
         })
 
         val loading = TextView(this)
-        loading.text = "Preparing your workspace…"
+        loading.text = "Preparing your search…"
         loading.setTextColor(Color.rgb(154, 163, 174))
         loading.textSize = 12f
         loading.gravity = Gravity.CENTER
