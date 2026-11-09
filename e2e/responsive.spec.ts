@@ -7,7 +7,7 @@ test.describe('ADVERSE public landing responsive experience', () => {
     await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
     await expect(page.locator('.landing-hero .landing-primary')).toBeVisible();
     await expect(page.locator('.landing-access-note')).toBeVisible();
-    await expect(page.locator('.landing-capability')).toHaveCount(5);
+    await expect(page.locator('.landing-capability')).toHaveCount(6);
 
     const dimensions = await page.evaluate(() => ({
       viewport: document.documentElement.clientWidth,
