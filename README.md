@@ -6,10 +6,10 @@ ADVERSE is an evidence-led investigative research workspace. It helps people dis
 
 ## Creator and official links
 
-**ADVERSE is an independent product created by [AD3N1X](https://engnradeniran.com/).**
+**ADVERSE is an independent product created by [AD3N1X](https://portfolio-sandy-seven-w0bgdmliak.vercel.app/).**
 
 - **Live website:** https://adverse-web.onrender.com/
-- **Creator portfolio:** https://engnradeniran.com/
+- **Creator portfolio:** https://portfolio-sandy-seven-w0bgdmliak.vercel.app/
 - **Source repository:** https://github.com/Ad3n1x/ADVERSE
 - **Developer profile:** https://github.com/Ad3n1x
 
