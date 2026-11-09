@@ -5,7 +5,7 @@ test('public landing explains ADVERSE and makes the sign-in boundary clear', asy
   await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/investigation tools are inside the secure workspace after you sign in/i)).toBeVisible();
   await expect(page.getByRole('heading', { name: /research tools, not just search results/i })).toBeVisible();
-  await expect(page.locator('.landing-access-tag')).toHaveCount(5);
+  await expect(page.locator('.landing-access-tag')).toHaveCount(6);
   await expect(page.locator('.landing-hero .landing-primary')).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Search anything online' })).toHaveCount(0);
 });
