@@ -1,8 +1,8 @@
 # ADVERSE
 
-**ADVERSE — Search the lead. Follow the evidence.**
+**ADVERSE — Investigate the question. Follow the evidence.**
 
-ADVERSE is an evidence-led investigative research workspace. It helps people discover information across available public sources, inspect original pages, preserve source context, and organise people, organisations, events, documents, and relationships into structured investigations. Public search is a starting point—not a complete index of the web. Link reachability is an access signal, not proof that a page is true, safe, current, or endorsed. ADVERSE is designed to help researchers keep a clear trail from a question to the sources behind their findings.
+ADVERSE is an evidence-led investigative research workspace built by AD3N1X. It helps researchers organise an investigation, gather and review public-source material, preserve provenance, and connect people, organisations, events, documents, and relationships into a structured evidence trail. The public landing page introduces the product; the investigation tools are available inside the secure workspace after sign-in. ADVERSE supports research and source organisation—it does not guarantee exhaustive coverage, establish truth automatically, or replace human judgement.
 
 ## Creator and official links
 
@@ -19,16 +19,16 @@ These links identify the product, its creator, and the canonical source reposito
 
 ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
 
-## Public search experience
+## Product access and workflow
 
-- Public search without an account through `/api/v1/public-search`.
-- Federated search across configured and keyless public providers; coverage is bounded and is not the entire web.
-- Duplicate URL removal and a limited live accessibility check for selected result links.
-- Clear status for reachable, unconfirmed, and unchecked links. Redirects, bot restrictions, and transient outages can prevent confirmation without proving a URL is fake.
-- No invented URLs or false claims of verification; the interface explains what each check does and does not establish.
-- Existing private research tools remain behind authentication.
+- The public landing page explains ADVERSE's purpose, core capabilities, and secure-workspace access boundary.
+- Users create an account or sign in before accessing investigation tools.
+- Research activity takes place in a private, authenticated workspace with owner-scoped investigation records.
+- Federated public-source discovery is performed from inside the workspace; provider coverage is bounded and depends on configured providers and their availability.
+- Original source URLs, source-attributed dates, evidence records, and provenance context are retained so researchers can review where information came from.
+- Link reachability is an access signal, not proof that a page is true, safe, current, or endorsed.
 
-## Existing private research workspace
+## Investigation workspace
 
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
