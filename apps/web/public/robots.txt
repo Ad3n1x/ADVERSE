@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /download
 
 Sitemap: https://adverse-web.onrender.com/sitemap.xml
