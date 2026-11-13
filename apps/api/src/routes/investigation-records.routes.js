@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
+import { rateLimit as expressRateLimit } from 'express-rate-limit';
 import { linkEvidenceAutomatically } from '../services/research/evidence-linking.js';
 import { buildEvidenceReview, createEvidenceReviewHistoryEntry } from '../services/research/evidence-review.js';
 
 export function registerInvestigationRecordRoutes(app, deps) {
   const {
-    requireAuth, rateLimit, wrap, sendError, isDb, Investigation, Evidence, Entity,
+    requireAuth, wrap, sendError, isDb, Investigation, Evidence, Entity,
     Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id,
     createInvestigationSchema, evidenceSchema, entitySchema, relationshipSchema,
     investigationGet, listFor, saveRecord, exists, analyzeEvidenceClaims,
@@ -15,6 +16,13 @@ export function registerInvestigationRecordRoutes(app, deps) {
     aiCredentialNames, getProviderCatalog, decryptProviderKeys, encryptProviderKeys,
     scryptSync, timingSafeEqual,
   } = deps;
+  const rateLimit = expressRateLimit({
+    windowMs: 60_000,
+    limit: 40,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    handler: (_req, res) => res.status(429).json({ error: { code: 'RATE_LIMITED', message: 'Too many investigation requests. Try again in one minute.' } }),
+  });
   app.get('/api/v1/investigations/:id/evidence',requireAuth,rateLimit,wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:await listFor(Evidence,'evidence',req.params.id)});}));
   app.post('/api/v1/investigations/:id/evidence',requireAuth,rateLimit,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=evidenceSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Evidence fields are invalid.',p.error.flatten());let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const record={id:id(),investigationId:iid,...p.data,url:u.href,originalUrl:p.data.url,canonicalUrl:normalizeResultUrl(u.href),publishedAt:p.data.publishedAt?new Date(p.data.publishedAt):null,retrievedAt:new Date(),contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',contentHashAlgorithm:'sha256',contentHashScope:'excerpt',createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Evidence,'evidence',record);await linkEvidenceAutomatically({investigationId:iid,savedSources:[data],Evidence,Entity,Relationship,isDb,memory,id,saveRecord,listFor});res.status(201).json({data});}));
   app.patch('/api/v1/evidence/:id/review',requireAuth,rateLimit,wrap(async(req,res)=>{
