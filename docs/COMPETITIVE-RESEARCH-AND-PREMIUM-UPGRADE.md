@@ -280,7 +280,7 @@ A human review workflow is available per saved evidence record:
 - Checked the material supporting the claim
 - Checked context and relevant limitations
 
-The analyst can record a rationale and set the record to unverified, supported, conflicting, or insufficient. Supported/conflicting states require all five checks and a rationale; insufficient requires an explanation. The API enforces these rules and scopes the update to an investigation owned by the authenticated user. This is an accountability workflow, not an automated truth verdict or proof of reviewer competence.
+The analyst can record a rationale and set the record to unverified, supported, conflicting, or insufficient. Supported/conflicting states require all five checks and a rationale; insufficient requires an explanation. The API retains the latest 30 review transitions per evidence record, including prior/new status, reviewer identifier, timestamp, checklist, and rationale. The API enforces these rules and scopes the update to an investigation owned by the authenticated user. This is an accountability workflow, not an automated truth verdict or proof of reviewer competence.
 
 PDF exports now include original/canonical URLs, review rationale/checks, review timestamp, and the hash algorithm/scope. New ingestion records preserve URL and hash-scope metadata.
 
@@ -292,3 +292,5 @@ PDF exports now include original/canonical URLs, review rationale/checks, review
 - Monitoring-to-alert-to-email delivery verification with retry/idempotency tests.
 - Browser-level review workflow tests on desktop and narrow mobile layouts.
 - Independent security review and manual evidence-export inspection.
+
+CSV exports also include original and canonical URLs, review rationale/time, and the content-hash algorithm and scope. JSON exports retain the complete stored evidence object, including bounded review history.
