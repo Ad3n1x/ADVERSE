@@ -40,3 +40,15 @@ export function buildEvidenceReview(input, reviewerId, now = new Date()) {
     },
   };
 }
+
+/** Keep a bounded, append-only record of human review transitions. */
+export function createEvidenceReviewHistoryEntry(previous, next, reviewerId, now = new Date()) {
+  return {
+    previousStatus: String(previous?.verificationStatus || 'unverified'),
+    verificationStatus: String(next?.verificationStatus || 'unverified'),
+    reviewRationale: String(next?.reviewRationale || '').slice(0, 1000),
+    reviewChecklist: { ...(next?.reviewChecklist || {}) },
+    changedAt: now,
+    changedBy: String(reviewerId || '').slice(0, 100),
+  };
+}
