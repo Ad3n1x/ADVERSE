@@ -9,7 +9,7 @@ function wrap(value, width=88) {
 }
 export function createReportPdf(report) {
   const lines=[];
-  lines.push('ADVERSE | EVIDENCE-FIRST INVESTIGATION REPORT','Generated: '+report.generatedAt,'Investigation: '+(report.investigation?.title||'Untitled investigation'));
+  lines.push('ADVERSE | EVIDENCE-FIRST INVESTIGATION REPORT','Generated: '+report.generatedAt,...(report.integrityManifest?['Report SHA-256: '+report.integrityManifest.sha256,'Hash scope: '+report.integrityManifest.scope]:[]),'Investigation: '+(report.investigation?.title||'Untitled investigation'));
   lines.push('Question: '+(report.investigation?.question||'Not supplied'),'Status: '+(report.investigation?.status||'unknown'),'');
   lines.push('SUMMARY','Evidence records: '+(report.summary?.evidenceCount||0),'Entities: '+(report.summary?.entityCount||0),'Relationships: '+(report.summary?.relationshipCount||0),'');
   lines.push('EVIDENCE RECORDS');
