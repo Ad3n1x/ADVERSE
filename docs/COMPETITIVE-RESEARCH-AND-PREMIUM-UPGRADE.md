@@ -296,3 +296,5 @@ PDF exports now include original/canonical URLs, review rationale/checks, review
 CSV exports also include original and canonical URLs, review rationale/time, and the content-hash algorithm and scope. JSON exports retain the complete stored evidence object, including bounded review history.
 
 The evidence vault displays the retained review transitions so a researcher can inspect how a source's assessment changed over time. The transition log is bounded to the latest 30 entries per evidence record; it is not an immutable legal audit ledger.
+
+JSON exports now include a deterministic SHA-256 integrity manifest over the serialized report object before the manifest is attached. The same digest is exposed in the `X-ADVERSE-Report-SHA256` response header for JSON, PDF, and CSV exports; PDF reports print the digest. This helps compare copies and detect accidental modification after export. It is not a digital signature, trusted timestamp, immutable storage guarantee, or proof that the underlying sources are authentic.
