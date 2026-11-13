@@ -34,3 +34,14 @@ test('unverified status remains available without a completed checklist', () => 
   assert.equal(result.ok, true);
   assert.equal(result.value.verificationStatus, 'unverified');
 });
+
+test('review history records the status transition and reviewer without mutating the prior record', async () => {
+  const { createEvidenceReviewHistoryEntry } = await import('./evidence-review.js');
+  const previous = { verificationStatus: 'unverified' };
+  const next = { verificationStatus: 'supported', reviewRationale: 'Reviewed original source.', reviewChecklist: allChecked };
+  const entry = createEvidenceReviewHistoryEntry(previous, next, 'reviewer-3', new Date('2026-11-13T10:00:00.000Z'));
+  assert.equal(entry.previousStatus, 'unverified');
+  assert.equal(entry.verificationStatus, 'supported');
+  assert.equal(entry.changedBy, 'reviewer-3');
+  assert.equal(previous.verificationStatus, 'unverified');
+});
