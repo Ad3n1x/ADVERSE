@@ -41,7 +41,7 @@ export function buildEvidenceReview(input, reviewerId, now = new Date()) {
   };
 }
 
-/** Keep a bounded, append-only record of human review transitions. */
+/** Create a bounded review-transition record for later inspection. */
 export function createEvidenceReviewHistoryEntry(previous, next, reviewerId, now = new Date()) {
   return {
     previousStatus: String(previous?.verificationStatus || 'unverified'),
