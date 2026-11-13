@@ -294,3 +294,5 @@ PDF exports now include original/canonical URLs, review rationale/checks, review
 - Independent security review and manual evidence-export inspection.
 
 CSV exports also include original and canonical URLs, review rationale/time, and the content-hash algorithm and scope. JSON exports retain the complete stored evidence object, including bounded review history.
+
+The evidence vault displays the retained review transitions so a researcher can inspect how a source's assessment changed over time. The transition log is bounded to the latest 30 entries per evidence record; it is not an immutable legal audit ledger.
