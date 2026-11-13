@@ -267,3 +267,28 @@ The search-results workspace now includes a compact **Coverage & source diversit
 This is deliberately a descriptive coverage aid, not a credibility score. Distinct domains do not prove independent ownership, multiple providers may index the same underlying report, and metadata overlap does not corroborate a claim. The panel is limited to web-search results and is responsive on narrow screens.
 
 Release checks should confirm that malformed URLs are excluded from hostname counts, missing dates remain visible as gaps, provider overlap is counted only when multiple providers are explicitly attached to a result, and no result-set metric is presented as a truth or trust verdict.
+
+
+## Implemented addition: evidence provenance and human review
+
+The evidence vault now preserves the submitted URL separately from the validated URL and a normalized canonical URL. SHA-256 hashes are explicitly labelled as hashes of the stored excerpt, not of the full webpage or a certified archival capture. Existing records remain readable and show a fallback when the new metadata is absent.
+
+A human review workflow is available per saved evidence record:
+- Opened the original source
+- Checked the author or issuing body
+- Checked the publication date
+- Checked the material supporting the claim
+- Checked context and relevant limitations
+
+The analyst can record a rationale and set the record to unverified, supported, conflicting, or insufficient. Supported/conflicting states require all five checks and a rationale; insufficient requires an explanation. The API enforces these rules and scopes the update to an investigation owned by the authenticated user. This is an accountability workflow, not an automated truth verdict or proof of reviewer competence.
+
+PDF exports now include original/canonical URLs, review rationale/checks, review timestamp, and the hash algorithm/scope. New ingestion records preserve URL and hash-scope metadata.
+
+## Remaining release gates (not represented as complete)
+
+- End-to-end cross-account authorization tests for all resource families and child-record mutations.
+- SSRF hardening verification across DNS rebinding, redirects, IPv4/IPv6, and private/reserved address ranges.
+- MongoDB disconnect/reconnect and isolated backup-restore drills.
+- Monitoring-to-alert-to-email delivery verification with retry/idempotency tests.
+- Browser-level review workflow tests on desktop and narrow mobile layouts.
+- Independent security review and manual evidence-export inspection.
