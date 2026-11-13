@@ -20,7 +20,7 @@ These links identify the product, its creator, and the canonical source reposito
 
 ## Engineering transparency
 
-ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
+ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. The [competitive research and premium hardening plan](docs/COMPETITIVE-RESEARCH-AND-PREMIUM-UPGRADE.md) documents product benchmarks, design principles, and the prioritized roadmap. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
 
 ## Product access and workflow
 
@@ -36,6 +36,8 @@ ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. T
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
 - MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
+- Search-result coverage snapshot showing hostname diversity, publisher labels, represented providers, publication-date coverage, and research gaps without presenting a credibility score.
+- Evidence provenance with original/canonical URLs, explicitly scoped SHA-256 excerpt hashes, a human review checklist, bounded review history, and integrity-aware JSON/CSV/PDF exports.
 - Federated public-source search across Wikipedia, Crossref scholarly works, OpenAlex research metadata, GDELT Global News, Google News RSS, Wikidata, plus optional adapters for Brave Search, Bing Web Search, Google Programmable Search, SerpAPI, Tavily, Exa, NewsAPI, Reddit Search, and YouTube Data API. Optional adapters activate when their server-side credentials are configured. Provider runs are isolated; coverage remains bounded and is not whole-web search or a universal web crawler.
 - Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
 - Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
@@ -52,7 +54,7 @@ ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. T
 - Manual cyber checks are available from the Cyber Intelligence workspace. A protected `/api/v1/internal/cyber-monitoring/run` endpoint and `apps/api/scripts/cyber-monitoring-cron.js` support scheduled checks when MongoDB is configured. The repository's GitHub Actions workflow `.github/workflows/monitoring-schedule.yml` is configured to call both archive and cyber-monitoring endpoints every 15 minutes, using `MONITORING_CRON_SECRET` and `CYBER_MONITORING_CRON_SECRET` respectively. Both scheduled jobs completed successfully in the verified run on 2026-10-21. Keep each GitHub Actions secret aligned with its corresponding secret on the Render API service. Manual owner-scoped checks remain available; recurring alerts still depend on provider availability and persistent MongoDB storage.
 - Brevo transactional alerts track delivery attempts and retain failed sends as pending with bounded exponential retry backoff. A Brevo API acceptance test passed; an end-to-end test that observes a genuinely newer archive capture and confirms delivery to the configured inbox is still required. The UI shows sent/pending/disabled status and the latest delivery error.
 - Monitoring checks compare Internet Archive capture timestamps and, when available, CDX content digests to avoid alerting on identical-content recaptures. When a newer capture is detected and both snapshots are available, the alert attempts a bounded (1 MB per snapshot, 12-second timeout) normalized-text comparison and includes a small added/removed-sentence summary. The comparison is heuristic, can contain extraction noise, and does not explain why content changed. Monitoring does not continuously inspect live pages. The in-process worker is only a fallback; the GitHub Actions schedule currently calls the protected Render endpoints every 15 minutes.
-- Input validation, URL safety checks, Helmet headers, bounded request bodies, timeouts, authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
+- Input validation, DNS-pinned public-page retrieval (per-hop DNS resolution, private/mixed-answer rejection, manual redirect revalidation, TLS hostname verification, 1 MB response cap), Helmet headers, bounded request bodies, timeouts, mutation/authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
 - API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
 ## Known limitations

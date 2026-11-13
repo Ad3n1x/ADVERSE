@@ -9,11 +9,11 @@ function wrap(value, width=88) {
 }
 export function createReportPdf(report) {
   const lines=[];
-  lines.push('ADVERSE | EVIDENCE-FIRST INVESTIGATION REPORT','Generated: '+report.generatedAt,'Investigation: '+(report.investigation?.title||'Untitled investigation'));
+  lines.push('ADVERSE | EVIDENCE-FIRST INVESTIGATION REPORT','Generated: '+report.generatedAt,...(report.integrityManifest?['Report SHA-256: '+report.integrityManifest.sha256,'Hash scope: '+report.integrityManifest.scope]:[]),'Investigation: '+(report.investigation?.title||'Untitled investigation'));
   lines.push('Question: '+(report.investigation?.question||'Not supplied'),'Status: '+(report.investigation?.status||'unknown'),'');
   lines.push('SUMMARY','Evidence records: '+(report.summary?.evidenceCount||0),'Entities: '+(report.summary?.entityCount||0),'Relationships: '+(report.summary?.relationshipCount||0),'');
   lines.push('EVIDENCE RECORDS');
-  for(const e of report.evidence||[]){lines.push(...wrap('Title: '+e.title),...wrap('Source: '+e.url),...wrap('Publisher: '+(e.publisher||'Not recorded')+' | Status: '+(e.verificationStatus||'unverified')), ...wrap('Published: '+(e.publishedAt||'unknown')+' | Retrieved: '+(e.retrievedAt||'unknown')+' | Capture: '+(e.captureTimestamp||'unknown')),...wrap('Excerpt: '+(e.excerpt||'No excerpt stored')), '');}
+  for(const e of report.evidence||[]){lines.push(...wrap('Title: '+e.title),...wrap('Source: '+e.url),...wrap('Original URL: '+(e.originalUrl||e.url)),...wrap('Canonical URL: '+(e.canonicalUrl||'not recorded')),...wrap('Publisher: '+(e.publisher||'Not recorded')+' | Status: '+(e.verificationStatus||'unverified')), ...wrap('Review rationale: '+(e.reviewRationale||'Not recorded')),...wrap('Review history: '+(e.reviewHistory||[]).map(item=>(item.previousStatus||'unknown')+' -> '+(item.verificationStatus||'unknown')+' at '+(item.changedAt||'unknown')+' by '+(item.changedBy||'unknown')).join(' | ')),...wrap('Review checks: '+Object.entries(e.reviewChecklist||{}).filter(([,value])=>value===true).map(([key])=>key).join(', ')),...wrap('Reviewed at: '+(e.reviewedAt||'not reviewed')+' | Content hash: '+(e.contentHash||'not recorded')+' ('+(e.contentHashAlgorithm||'sha256')+' of '+(e.contentHashScope||'excerpt')+')'), ...wrap('Published: '+(e.publishedAt||'unknown')+' | Retrieved: '+(e.retrievedAt||'unknown')+' | Capture: '+(e.captureTimestamp||'unknown')),...wrap('Excerpt: '+(e.excerpt||'No excerpt stored')), '');}
   lines.push('ENTITIES');
   for(const e of report.entities||[])lines.push(...wrap((e.name||'Unnamed')+' ['+(e.type||'entity')+'] — '+(e.description||'No description')), ...wrap('Canonical URL: '+(e.canonicalUrl||'not recorded')), '');
   lines.push('DOCUMENTED RELATIONSHIPS');

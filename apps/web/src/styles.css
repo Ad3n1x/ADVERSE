@@ -1702,3 +1702,45 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .graph-explorer{width:100%;max-width:100%;margin-inline:auto;}
 .force-graph-shell{width:100%;margin-inline:auto;}
 .force-graph-shell canvas{display:block;margin-inline:auto!important;}
+
+
+/* ADVERSE source-context metadata: concise, legible provenance cues. */
+.trust-hostname{display:block;margin-top:2px;padding-top:5px;border-top:1px solid color-mix(in srgb,var(--line) 72%,transparent);font:9px var(--mono);letter-spacing:.02em;color:var(--mint);overflow-wrap:anywhere}
+@media(max-width:760px){.trust-signal-grid{grid-template-columns:1fr}.trust-hostname{font-size:10px}}
+
+/* Research coverage snapshot — descriptive metadata, never a credibility score */
+.source-coverage-panel{margin:15px 0 18px;padding:17px;border:1px solid #2a3b38;border-radius:12px;background:linear-gradient(145deg,#14201e,#101719)}
+.source-coverage-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.source-coverage-heading>div>span{font:9px var(--mono);letter-spacing:1.2px;color:var(--mint)}
+.source-coverage-heading h3{margin:4px 0 0;font:600 15px var(--display);color:#e8f1ed}
+.source-coverage-heading>small{color:var(--muted);font-size:10px}
+.source-coverage-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.source-coverage-metrics>div{display:flex;flex-direction:column;gap:4px;min-width:0;padding:11px;border:1px solid #293734;border-radius:8px;background:#0d1414}
+.source-coverage-metrics strong{font:600 22px var(--display);color:var(--mint-strong);font-variant-numeric:tabular-nums}
+.source-coverage-metrics span,.source-coverage-foot{font-size:10px;color:#9aa9a3}
+.source-coverage-foot{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:11px}
+.source-coverage-notes{margin-top:13px;padding:11px 12px;border-left:2px solid var(--gold);background:#211e16;border-radius:0 7px 7px 0}
+.source-coverage-notes b{font-size:10px;color:#e4ce98}
+.source-coverage-notes p{margin:5px 0 0;color:#c6b98f;font-size:11px}
+.source-coverage-balanced,.source-coverage-disclaimer{margin:11px 0 0;color:#a4b4ad;font-size:10px;line-height:1.55}
+.source-coverage-disclaimer{color:#7f9089}
+@media(max-width:640px){.source-coverage-panel{padding:13px}.source-coverage-heading{align-items:flex-start;flex-direction:column}.source-coverage-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.source-coverage-foot{flex-direction:column;gap:4px}}
+
+/* Evidence provenance and human review workflow */
+.evidence-provenance{display:grid;gap:4px;margin:10px 0;padding:10px 12px;border:1px solid var(--line-soft);border-radius:8px;background:#0d1314;color:#91a39b;font:10px var(--mono);overflow-wrap:anywhere}
+.evidence-review{margin-top:10px;border:1px solid #30413c;border-radius:8px;background:#101817}
+.evidence-review>summary{padding:10px 12px;color:var(--mint);font-size:11px;font-weight:700;cursor:pointer}
+.evidence-review-form{display:grid;gap:11px;padding:12px;border-top:1px solid var(--line-soft)}
+.evidence-review-form>label{display:grid;gap:6px;color:#c7d4ce;font-size:11px;font-weight:600}
+.evidence-review-form select,.evidence-review-form textarea{width:100%;min-width:0;padding:9px 10px;border:1px solid #34443f;border-radius:7px;background:#0c1212;color:var(--text)}
+.evidence-review-form textarea{min-height:82px;resize:vertical}
+.evidence-review-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.evidence-review-checks label{display:flex;align-items:flex-start;gap:8px;color:#aab9b2;font-size:10px;font-weight:400}
+.evidence-review-checks input{margin:1px 0 0;accent-color:var(--mint)}
+.evidence-review-form>p{margin:0;color:#899991;font-size:10px;line-height:1.5}
+@media(max-width:640px){.evidence-review-checks{grid-template-columns:1fr}.evidence-provenance{font-size:9px}}
+
+.evidence-review-history{display:grid;gap:8px;margin:0;padding:0 0 0 20px}
+.evidence-review-history li{display:grid;gap:3px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:7px;color:#9aaba3;font-size:10px}
+.evidence-review-history strong{color:#d3e1da;font-size:10px}
+.evidence-review-history span{overflow-wrap:anywhere}

@@ -1,3 +1,4 @@
+import { createReportIntegrityManifest } from '../services/reporting/report-integrity.js';
 /**
  * HTTP handlers for public lookup utilities and collection exports.
  * Middleware, validation order, response envelopes and route registration live in utility.routes.js.
@@ -149,6 +150,9 @@ export function createUtilityController({
         'Source dates and retrieval dates are preserved separately.',
       ],
     };
+    const integrityManifest=createReportIntegrityManifest(report);
+    report.integrityManifest=integrityManifest;
+    res.setHeader('X-ADVERSE-Report-SHA256',integrityManifest.sha256);
     const format = String(req.query.format || 'json');
     if (format === 'pdf') {
       const pdf = createReportPdf(report);
@@ -158,8 +162,8 @@ export function createUtilityController({
     if (format === 'csv') {
       res.type('text/csv').attachment('adverse-evidence.csv');
       const rows = [
-        ['title', 'url', 'sourceType', 'publisher', 'publishedAt', 'retrievedAt', 'verificationStatus', 'excerpt'],
-        ...evidence.map((item) => [item.title, item.url, item.sourceType, item.publisher, item.publishedAt || '', item.retrievedAt || '', item.verificationStatus, item.excerpt]),
+        ['title', 'url', 'originalUrl', 'canonicalUrl', 'sourceType', 'publisher', 'publishedAt', 'retrievedAt', 'verificationStatus', 'reviewRationale', 'reviewChecklist', 'reviewHistory', 'reviewedAt', 'reviewedBy', 'contentHash', 'contentHashAlgorithm', 'contentHashScope', 'excerpt'],
+        ...evidence.map((item) => [item.title, item.url, item.originalUrl || item.url, item.canonicalUrl || '', item.sourceType, item.publisher, item.publishedAt || '', item.retrievedAt || '', item.verificationStatus, item.reviewRationale || '', JSON.stringify(item.reviewChecklist || {}), JSON.stringify(item.reviewHistory || []), item.reviewedAt || '', item.reviewedBy || '', item.contentHash || '', item.contentHashAlgorithm || 'sha256', item.contentHashScope || 'excerpt', item.excerpt]),
       ];
       return res.send(rows.map((row) => row.map(csvCell).join(',')).join('\r\n'));
     }
