@@ -1,12 +1,10 @@
 User-agent: *
 Allow: /
-Disallow: /admin
 Disallow: /api/
 Disallow: /download
 
 User-agent: OAI-SearchBot
 Allow: /
-Disallow: /admin
 Disallow: /api/
 Disallow: /download
 
