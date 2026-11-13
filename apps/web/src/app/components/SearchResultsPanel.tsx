@@ -12,7 +12,7 @@ export default function SearchResultsPanel() {
   let dated = 0;
   let multiProvider = 0;
   for (const result of searchResults) {
-   try { hosts.add(new URL(result.url).hostname.toLowerCase().replace(/^www\\./, '')); } catch { /* malformed URLs are excluded from host counts */ }
+   try { hosts.add(new URL(result.url).hostname.toLowerCase().replace(/^www\./, '')); } catch { /* malformed URLs are excluded from host counts */ }
    if (result.publisher) publishers.add(String(result.publisher).trim().toLowerCase());
    const foundBy = Array.isArray(result.providers) ? result.providers : (result.provider ? [result.provider] : []);
    foundBy.forEach((provider: string) => providers.add(String(provider).trim().toLowerCase()));
