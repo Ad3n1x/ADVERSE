@@ -14,6 +14,17 @@ export async function ingestEvidence({
   scrapePublicPage,
   logger = console,
 }) {
+  const canonicalize = value => {
+    try {
+      const url = new URL(value);
+      url.hash = '';
+      for (const key of [...url.searchParams.keys()]) {
+        if (/^(utm_.+|fbclid|gclid|mc_cid|mc_eid|ref|ref_src)$/i.test(key)) url.searchParams.delete(key);
+      }
+      url.searchParams.sort();
+      return url.toString();
+    } catch { return String(value || '').trim(); }
+  };
   const existing = await listFor(Evidence, 'evidence', investigationId);
   const existingUrls = new Set(existing.map(item => String(item.url || '').toLowerCase()));
   const pending = unique.filter(item => !existingUrls.has(item.url.toLowerCase()));
@@ -43,6 +54,8 @@ export async function ingestEvidence({
       investigationId,
       title,
       url: item.url,
+      originalUrl: item.url,
+      canonicalUrl: canonicalize(item.url),
       sourceType: item.sourceType === 'document' ? 'document' : 'web',
       publisher,
       retrievedAt: new Date(page?.retrievedAt || item.retrievedAt || Date.now()),
@@ -50,6 +63,8 @@ export async function ingestEvidence({
       excerpt,
       verificationStatus: 'unverified',
       contentHash: excerpt ? crypto.createHash('sha256').update(excerpt).digest('hex') : '',
+      contentHashAlgorithm: 'sha256',
+      contentHashScope: 'excerpt',
       entities: [],
       captureTimestamp: '',
       createdAt: new Date(),
