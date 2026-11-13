@@ -1702,3 +1702,8 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .graph-explorer{width:100%;max-width:100%;margin-inline:auto;}
 .force-graph-shell{width:100%;margin-inline:auto;}
 .force-graph-shell canvas{display:block;margin-inline:auto!important;}
+
+
+/* ADVERSE source-context metadata: concise, legible provenance cues. */
+.trust-hostname{display:block;margin-top:2px;padding-top:5px;border-top:1px solid color-mix(in srgb,var(--line) 72%,transparent);font:9px var(--mono);letter-spacing:.02em;color:var(--mint);overflow-wrap:anywhere}
+@media(max-width:760px){.trust-signal-grid{grid-template-columns:1fr}.trust-hostname{font-size:10px}}
