@@ -115,8 +115,7 @@ function applyRateLimit(limiter, req, res, next, maximum, label) {
 }
 function limitAuth(req,res,next){return applyRateLimit(authLimiter,req,res,next,12,'Too many authentication attempts. Try again in one minute.');}
 
-function rateLimit(req,res,next){return applyRateLimit(providerLimiter,req,res,next,Math.max(1,Math.min(300,Number(globalThis.__ADVERSE_SEARCH_LIMIT__||40))),'Too many requests. Try again in one minute.');}
-const limitProvider=rateLimit;
+function limitProvider(req,res,next){return applyRateLimit(providerLimiter,req,res,next,Math.max(1,Math.min(300,Number(globalThis.__ADVERSE_SEARCH_LIMIT__||40))),'Too many provider requests. Try again in one minute.');}
 
 const investigationGet=async(iid,uid)=>{if(isDb())return Investigation.findOne({_id:iid,ownerId:uid}).lean();const record=memory.investigations.get(iid);return record&&record.ownerId===uid?record:null;};
 const listFor=async(Model,collection,iid)=>isDb()?Model.find({investigationId:iid}).sort({createdAt:-1}).lean():[...memory[collection].values()].filter(x=>x.investigationId===iid);
@@ -180,7 +179,7 @@ registerAuthRoutes(app, {
 app.use('/api/v1/investigations',requireAuth);
 app.use('/api/v1/evidence',requireAuth);
 registerInvestigationRoutes(app, {
-  requireAuth, rateLimit, limitProvider, wrap, sendError, isDb, Investigation, Evidence, Entity,
+  requireAuth, limitProvider, wrap, sendError, isDb, Investigation, Evidence, Entity,
   Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id,
   createInvestigationSchema, evidenceSchema, entitySchema, relationshipSchema,
   investigationGet, listFor, saveRecord, exists, analyzeEvidenceClaims,
