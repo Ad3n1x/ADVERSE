@@ -6,7 +6,7 @@ import { buildEvidenceReview } from '../services/research/evidence-review.js';
 export function registerInvestigationRecordRoutes(app, deps) {
   const {
     requireAuth, wrap, sendError, isDb, Investigation, Evidence, Entity,
-    Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id, normalizeResultUrl,
+    Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id,
     createInvestigationSchema, evidenceSchema, entitySchema, relationshipSchema,
     investigationGet, listFor, saveRecord, exists, analyzeEvidenceClaims,
     analyzeResearchGaps, diversifyPublicResults, getUserProviderKeys,
