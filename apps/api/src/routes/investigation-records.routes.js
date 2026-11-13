@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { linkEvidenceAutomatically } from '../services/research/evidence-linking.js';
+import { buildEvidenceReview } from '../services/research/evidence-review.js';
 
 export function registerInvestigationRecordRoutes(app, deps) {
   const {
     requireAuth, wrap, sendError, isDb, Investigation, Evidence, Entity,
-    Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id,
+    Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id, normalizeResultUrl,
     createInvestigationSchema, evidenceSchema, entitySchema, relationshipSchema,
     investigationGet, listFor, saveRecord, exists, analyzeEvidenceClaims,
     analyzeResearchGaps, diversifyPublicResults, getUserProviderKeys,
@@ -15,7 +16,30 @@ export function registerInvestigationRecordRoutes(app, deps) {
     scryptSync, timingSafeEqual,
   } = deps;
   app.get('/api/v1/investigations/:id/evidence',requireAuth,wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:await listFor(Evidence,'evidence',req.params.id)});}));
-  app.post('/api/v1/investigations/:id/evidence',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=evidenceSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Evidence fields are invalid.',p.error.flatten());let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const record={id:id(),investigationId:iid,...p.data,url:u.href,publishedAt:p.data.publishedAt?new Date(p.data.publishedAt):null,retrievedAt:new Date(),contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Evidence,'evidence',record);await linkEvidenceAutomatically({investigationId:iid,savedSources:[data],Evidence,Entity,Relationship,isDb,memory,id,saveRecord,listFor});res.status(201).json({data});}));
+  app.post('/api/v1/investigations/:id/evidence',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=evidenceSchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Evidence fields are invalid.',p.error.flatten());let u;try{u=validatePublicUrl(p.data.url);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}const record={id:id(),investigationId:iid,...p.data,url:u.href,originalUrl:p.data.url,canonicalUrl:normalizeResultUrl(u.href),publishedAt:p.data.publishedAt?new Date(p.data.publishedAt):null,retrievedAt:new Date(),contentHash:p.data.excerpt?crypto.createHash('sha256').update(p.data.excerpt).digest('hex'):'',contentHashAlgorithm:'sha256',contentHashScope:'excerpt',createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Evidence,'evidence',record);await linkEvidenceAutomatically({investigationId:iid,savedSources:[data],Evidence,Entity,Relationship,isDb,memory,id,saveRecord,listFor});res.status(201).json({data});}));
+  app.patch('/api/v1/evidence/:id/review',requireAuth,wrap(async(req,res)=>{
+    const record=isDb()?await Evidence.findById(req.params.id).lean():memory.evidence.get(req.params.id);
+    if(!record||!await exists(record.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Evidence not found.');
+    const parsed=z.object({
+      verificationStatus:z.enum(['unverified','supported','conflicting','insufficient']),
+      reviewChecklist:z.object({
+        originalSourceOpened:z.boolean().default(false),
+        authorChecked:z.boolean().default(false),
+        publicationDateChecked:z.boolean().default(false),
+        supportingMaterialChecked:z.boolean().default(false),
+        contextChecked:z.boolean().default(false),
+      }).strict(),
+      reviewRationale:z.string().max(1000).default(''),
+    }).strict().safeParse(req.body);
+    if(!parsed.success)return sendError(res,400,'VALIDATION_ERROR','Evidence review fields are invalid.',parsed.error.flatten());
+    const review=buildEvidenceReview(parsed.data,req.user.id);
+    if(!review.ok)return sendError(res,400,'REVIEW_INCOMPLETE',review.error);
+    let data;
+    if(isDb())data=await Evidence.findOneAndUpdate({_id:req.params.id,investigationId:record.investigationId},{$set:review.value},{new:true,runValidators:true}).lean();
+    else{Object.assign(record,review.value,{updatedAt:new Date().toISOString()});memory.evidence.set(req.params.id,record);data=record;}
+    if(!data)return sendError(res,404,'NOT_FOUND','Evidence not found.');
+    res.json({data});
+  }));
   app.delete('/api/v1/evidence/:id',requireAuth,wrap(async(req,res)=>{const record=isDb()?await Evidence.findById(req.params.id).lean():memory.evidence.get(req.params.id);if(!record||!await exists(record.investigationId,req.user.id))return sendError(res,404,'NOT_FOUND','Evidence not found.');if(isDb()){await Promise.all([Evidence.deleteOne({_id:req.params.id}),Relationship.updateMany({investigationId:record.investigationId},{$pull:{evidenceIds:String(req.params.id)}}),Entity.updateMany({investigationId:record.investigationId},{$pull:{evidenceIds:String(req.params.id)}})]);}else{memory.evidence.delete(req.params.id);for(const item of memory.relationships.values())if(item.investigationId===record.investigationId)item.evidenceIds=(item.evidenceIds||[]).filter(x=>String(x)!==String(req.params.id));for(const item of memory.entities.values())if(item.investigationId===record.investigationId)item.evidenceIds=(item.evidenceIds||[]).filter(x=>String(x)!==String(req.params.id));}res.status(204).end();}));
   app.get('/api/v1/investigations/:id/entities',requireAuth,wrap(async(req,res)=>{if(!await exists(req.params.id,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');res.json({data:await listFor(Entity,'entities',req.params.id)});}));
   app.post('/api/v1/investigations/:id/entities',requireAuth,wrap(async(req,res)=>{const iid=req.params.id;if(!await exists(iid,req.user.id))return sendError(res,404,'NOT_FOUND','Investigation not found.');const p=entitySchema.safeParse(req.body);if(!p.success)return sendError(res,400,'VALIDATION_ERROR','Entity fields are invalid.',p.error.flatten());if(p.data.canonicalUrl){try{validatePublicUrl(p.data.canonicalUrl);}catch(e){return sendError(res,400,'UNSAFE_URL',e.message);}}if(p.data.evidenceIds.length){const evidence=await listFor(Evidence,'evidence',iid);const allowed=new Set(evidence.map(item=>String(item.id||item._id)));if(p.data.evidenceIds.some(evidenceId=>!allowed.has(evidenceId)))return sendError(res,400,'INVALID_EVIDENCE_REFERENCE','Every entity evidence reference must belong to this investigation.');}const record={id:id(),investigationId:iid,...p.data,createdAt:new Date(),updatedAt:new Date()};const data=await saveRecord(Entity,'entities',record);res.status(201).json({data});}));
