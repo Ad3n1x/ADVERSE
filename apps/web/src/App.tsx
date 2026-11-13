@@ -15,6 +15,16 @@ export default function App() {
     window.location.pathname === '/admin/' ||
     new URLSearchParams(window.location.search).get('admin') === '1';
 
+  if (isAdminRoute) {
+    let robots = document.head.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.setAttribute('name', 'robots');
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute('content', 'noindex, nofollow, noarchive');
+  }
+
   if (isDownloadRoute) return <DownloadPage />;
 
   return (
