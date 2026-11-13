@@ -258,3 +258,12 @@ ADVERSE should continue to be described as a deployed beta until those gates are
 **ADVERSE — Investigate the question. Follow the evidence.**
 
 A premium, privacy-conscious research workspace where every useful lead can be traced to its source, every relationship has supporting evidence, uncertainty remains visible, and a human investigator retains control over conclusions.
+
+
+## Implemented addition: search coverage snapshot
+
+The search-results workspace now includes a compact **Coverage & source diversity** snapshot for web searches. It reports distinct hostnames, publisher labels, represented search providers, publication-date coverage, and how many results were surfaced by multiple providers. It surfaces practical research gaps such as concentrated hostnames and missing publication dates.
+
+This is deliberately a descriptive coverage aid, not a credibility score. Distinct domains do not prove independent ownership, multiple providers may index the same underlying report, and metadata overlap does not corroborate a claim. The panel is limited to web-search results and is responsive on narrow screens.
+
+Release checks should confirm that malformed URLs are excluded from hostname counts, missing dates remain visible as gaps, provider overlap is counted only when multiple providers are explicitly attached to a result, and no result-set metric is presented as a truth or trust verdict.
