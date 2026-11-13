@@ -1,5 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import net from 'node:net';
+import http from 'node:http';
+import https from 'node:https';
 
 const timeoutFetch = async (url, options = {}) => {
   const response = await fetch(url, { ...options, signal: AbortSignal.timeout(options.timeout || 9000), headers: { 'user-agent': 'ADVERSE-Research/0.1 (public-source research)', accept: 'application/json,text/plain,text/html;q=0.8', ...(options.headers || {}) } });
@@ -151,72 +153,118 @@ export async function searchOrganizations(query) {
  * This is deliberately conservative: only public DNS destinations, no redirects,
  * no private network targets, no non-text payloads, and a 1 MB response ceiling.
  */
+function resolvePublicAddresses(hostname) {
+  return new Promise((resolve, reject) => {
+    const family = net.isIP(hostname);
+    if (family) {
+      const address = hostname.replace(/^\[|\]$/g, '');
+      const blocked = family === 4 ? isPrivateIPv4(address) : isPrivateIPv6(address);
+      if (blocked) return reject(new Error('Private network destinations are blocked.'));
+      return resolve([{ address, family }]);
+    }
+    lookup(hostname, { all: true, verbatim: true })
+      .then(records => {
+        if (!records.length || records.some(record =>
+          net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address)
+        )) return reject(new Error('The source or redirect resolves to a private or restricted network address.'));
+        resolve(records);
+      })
+      .catch(() => reject(new Error('The source domain could not be resolved.')));
+  });
+}
+
+/** Pin the socket to the exact address that was checked; TLS still verifies the hostname. */
+function requestPinnedPublicPage(url, addresses, maxBytes = 1000000) {
+  return new Promise((resolve, reject) => {
+    const transport = url.protocol === 'https:' ? https : http;
+    const selected = addresses[0];
+    const options = {
+      protocol: url.protocol,
+      hostname: url.hostname.replace(/^\[|\]$/g, ''),
+      port: url.port || (url.protocol === 'https:' ? 443 : 80),
+      path: url.pathname + url.search,
+      method: 'GET',
+      agent: false,
+      servername: net.isIP(url.hostname.replace(/^\[|\]$/g, '')) ? undefined : url.hostname,
+      maxHeaderSize: 16 * 1024,
+      headers: {
+        'user-agent': 'ADVERSE-Research/0.3 (+public-interest research; bounded text retrieval)',
+        accept: 'text/html, text/plain;q=0.9',
+        'accept-encoding': 'identity',
+        connection: 'close'
+      },
+      lookup: (_hostname, lookupOptions, callback) => {
+        if (lookupOptions?.all) return callback(null, addresses.map(item => ({ address: item.address, family: item.family })));
+        callback(null, selected.address, selected.family);
+      }
+    };
+    const request = transport.request(options, response => {
+      const chunks = [];
+      let total = 0;
+      response.on('data', chunk => {
+        total += chunk.length;
+        if (total > maxBytes) {
+          request.destroy(new Error('Source exceeds the 1 MB retrieval limit.'));
+          return;
+        }
+        chunks.push(Buffer.from(chunk));
+      });
+      response.on('end', () => resolve({
+        statusCode: Number(response.statusCode || 0),
+        headers: response.headers,
+        body: Buffer.concat(chunks)
+      }));
+      response.on('error', reject);
+    });
+    request.setTimeout(10000, () => request.destroy(new Error('Source request timed out.')));
+    request.on('error', reject);
+    request.end();
+  });
+}
+
+/**
+ * Resolve every address per redirect hop, reject mixed/private answers, and
+ * connect to a validated IP without a second DNS lookup. Redirects are manual
+ * and each new destination is independently validated before connecting.
+ */
 export async function scrapePublicPage(inputUrl) {
   const original = validatePublicUrl(inputUrl);
   let current = original;
   const redirects = [];
   let response;
-  // Follow a small, bounded redirect chain, validating every destination before fetching it.
   for (let hop = 0; hop <= 5; hop += 1) {
-    let addresses;
-    try { addresses = await lookup(current.hostname, { all: true, verbatim: true }); }
-    catch { throw new Error('The source domain could not be resolved.'); }
-    if (!addresses.length || addresses.some(record => net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address))) {
-      throw new Error('The source or redirect resolves to a private or restricted network address.');
+    const addresses = await resolvePublicAddresses(current.hostname.replace(/^\[|\]$/g, ''));
+    try {
+      response = await requestPinnedPublicPage(current, addresses);
+    } catch (error) {
+      if (String(error?.message || '').includes('1 MB')) throw error;
+      throw new Error('The public source could not be fetched safely.');
     }
-    response = await fetch(current.href, {
-      redirect: 'manual',
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        'user-agent': 'ADVERSE-Research/0.3 (+public-interest research; bounded text retrieval)',
-        accept: 'text/html, text/plain;q=0.9'
-      }
-    });
-    if (response.status < 300 || response.status >= 400) break;
-    const location = response.headers.get('location');
+    if (response.statusCode < 300 || response.statusCode >= 400) break;
+    const location = response.headers.location;
     if (!location) throw new Error('The source returned a redirect without a destination.');
     if (hop === 5) throw new Error('The source exceeded the five-redirect safety limit.');
     let next;
     try { next = validatePublicUrl(new URL(location, current).href); }
     catch { throw new Error('The source redirected to an invalid or restricted destination.'); }
-    redirects.push({ status: response.status, from: current.href, to: next.href });
+    redirects.push({ status: response.statusCode, from: current.href, to: next.href });
     current = next;
   }
-  if (!response || response.status >= 300 && response.status < 400) throw new Error('The redirect chain could not be confirmed.');
-  if (!response.ok) {
+  if (!response || response.statusCode >= 300 && response.statusCode < 400) throw new Error('The redirect chain could not be confirmed.');
+  const contentType = String(response.headers['content-type'] || '').toLowerCase();
+  if (response.statusCode < 200 || response.statusCode >= 300) {
     return {
-      url: original.href,
-      finalUrl: current.href,
-      redirects,
-      httpStatus: response.status,
-      title: current.hostname,
-      description: '',
-      excerpt: '',
-      retrievedAt: new Date().toISOString(),
-      contentType: String(response.headers.get('content-type') || ''),
-      readable: false,
-      note: 'The server responded with HTTP ' + response.status + ', but ADVERSE could not read a public page.'
+      url: original.href, finalUrl: current.href, redirects,
+      httpStatus: response.statusCode, title: current.hostname,
+      description: '', excerpt: '', retrievedAt: new Date().toISOString(),
+      contentType, readable: false,
+      note: 'The server responded with HTTP ' + response.statusCode + ', but ADVERSE could not read a public page.'
     };
   }
-  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml+xml')) {
     throw new Error('Source is not an HTML or plain-text page.');
   }
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('Source response had no readable body.');
-  const chunks = [];
-  let total = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > 1000000) {
-      await reader.cancel();
-      throw new Error('Source exceeds the 1 MB retrieval limit.');
-    }
-    chunks.push(Buffer.from(value));
-  }
-  const raw = Buffer.concat(chunks).toString('utf8');
+  const raw = response.body.toString('utf8');
   const decode = value => String(value || '')
     .replace(/&nbsp;|&#160;/gi, ' ')
     .replace(/&amp;/gi, '&')
@@ -238,19 +286,12 @@ export async function scrapePublicPage(inputUrl) {
     .replace(/\s+/g, ' ')
     .trim()).slice(0, 3500);
   return {
-    url: original.href,
-    finalUrl: current.href,
-    redirects,
-    httpStatus: response.status,
-    title: title || current.hostname,
-    description,
-    excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
-    retrievedAt: new Date().toISOString(),
-    contentType,
-    readable: true,
-    httpStatus: response.status,
+    url: original.href, finalUrl: current.href, redirects,
+    httpStatus: response.statusCode, title: title || current.hostname,
+    description, excerpt: [description, text].filter(Boolean).join('\n\n').slice(0, 4500),
+    retrievedAt: new Date().toISOString(), contentType, readable: true,
     contentHash: (await import('node:crypto')).createHash('sha256').update(raw).digest('hex'),
-    method: 'bounded public HTML/text retrieval',
+    method: 'bounded public HTML/text retrieval with DNS-pinned connection',
     note: 'Page text is a retrieval snapshot, not independent verification. Source terms, access restrictions, and robots policies still apply.'
   };
 }
