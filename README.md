@@ -20,7 +20,7 @@ These links identify the product, its creator, and the canonical source reposito
 
 ## Engineering transparency
 
-ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
+ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. This is not an OpenAI-issued certification or endorsement. See the [release-readiness record](docs/RELEASE-READINESS.md) for implementation notes, deployment evidence, outstanding verification gates, and reproducible checks. The [competitive research and premium hardening plan](docs/COMPETITIVE-RESEARCH-AND-PREMIUM-UPGRADE.md) documents product benchmarks, design principles, and the prioritized roadmap. Security reports and responsible-use boundaries are described in [SECURITY.md](SECURITY.md).
 
 ## Product access and workflow
 
