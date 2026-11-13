@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { z } from 'zod';
 import { linkEvidenceAutomatically } from '../services/research/evidence-linking.js';
-import { buildEvidenceReview } from '../services/research/evidence-review.js';
+import { buildEvidenceReview, createEvidenceReviewHistoryEntry } from '../services/research/evidence-review.js';
 
 export function registerInvestigationRecordRoutes(app, deps) {
   const {
@@ -34,9 +34,10 @@ export function registerInvestigationRecordRoutes(app, deps) {
     if(!parsed.success)return sendError(res,400,'VALIDATION_ERROR','Evidence review fields are invalid.',parsed.error.flatten());
     const review=buildEvidenceReview(parsed.data,req.user.id);
     if(!review.ok)return sendError(res,400,'REVIEW_INCOMPLETE',review.error);
+    const historyEntry=createEvidenceReviewHistoryEntry(record,review.value,req.user.id);
     let data;
-    if(isDb())data=await Evidence.findOneAndUpdate({_id:req.params.id,investigationId:record.investigationId},{$set:review.value},{new:true,runValidators:true}).lean();
-    else{Object.assign(record,review.value,{updatedAt:new Date().toISOString()});memory.evidence.set(req.params.id,record);data=record;}
+    if(isDb())data=await Evidence.findOneAndUpdate({_id:req.params.id,investigationId:record.investigationId},{$set:review.value,$push:{reviewHistory:{$each:[historyEntry],$slice:-30}}},{new:true,runValidators:true}).lean();
+    else{record.reviewHistory=[...(record.reviewHistory||[]),historyEntry].slice(-30);Object.assign(record,review.value,{updatedAt:new Date().toISOString()});memory.evidence.set(req.params.id,record);data=record;}
     if(!data)return sendError(res,404,'NOT_FOUND','Evidence not found.');
     res.json({data});
   }));
