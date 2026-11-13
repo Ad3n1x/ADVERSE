@@ -1,3 +1,4 @@
+import { createReportIntegrityManifest } from '../services/reporting/report-integrity.js';
 /**
  * HTTP handlers for public lookup utilities and collection exports.
  * Middleware, validation order, response envelopes and route registration live in utility.routes.js.
@@ -149,6 +150,9 @@ export function createUtilityController({
         'Source dates and retrieval dates are preserved separately.',
       ],
     };
+    const integrityManifest=createReportIntegrityManifest(report);
+    report.integrityManifest=integrityManifest;
+    res.setHeader('X-ADVERSE-Report-SHA256',integrityManifest.sha256);
     const format = String(req.query.format || 'json');
     if (format === 'pdf') {
       const pdf = createReportPdf(report);
