@@ -1739,3 +1739,8 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .evidence-review-checks input{margin:1px 0 0;accent-color:var(--mint)}
 .evidence-review-form>p{margin:0;color:#899991;font-size:10px;line-height:1.5}
 @media(max-width:640px){.evidence-review-checks{grid-template-columns:1fr}.evidence-provenance{font-size:9px}}
+
+.evidence-review-history{display:grid;gap:8px;margin:0;padding:0 0 0 20px}
+.evidence-review-history li{display:grid;gap:3px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:7px;color:#9aaba3;font-size:10px}
+.evidence-review-history strong{color:#d3e1da;font-size:10px}
+.evidence-review-history span{overflow-wrap:anywhere}
