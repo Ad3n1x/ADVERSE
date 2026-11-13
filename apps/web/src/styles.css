@@ -1725,3 +1725,17 @@ p,small,code,a,.user-copy,.case-copy,.evidence-info,.result-card,.engine-result-
 .source-coverage-balanced,.source-coverage-disclaimer{margin:11px 0 0;color:#a4b4ad;font-size:10px;line-height:1.55}
 .source-coverage-disclaimer{color:#7f9089}
 @media(max-width:640px){.source-coverage-panel{padding:13px}.source-coverage-heading{align-items:flex-start;flex-direction:column}.source-coverage-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.source-coverage-foot{flex-direction:column;gap:4px}}
+
+/* Evidence provenance and human review workflow */
+.evidence-provenance{display:grid;gap:4px;margin:10px 0;padding:10px 12px;border:1px solid var(--line-soft);border-radius:8px;background:#0d1314;color:#91a39b;font:10px var(--mono);overflow-wrap:anywhere}
+.evidence-review{margin-top:10px;border:1px solid #30413c;border-radius:8px;background:#101817}
+.evidence-review>summary{padding:10px 12px;color:var(--mint);font-size:11px;font-weight:700;cursor:pointer}
+.evidence-review-form{display:grid;gap:11px;padding:12px;border-top:1px solid var(--line-soft)}
+.evidence-review-form>label{display:grid;gap:6px;color:#c7d4ce;font-size:11px;font-weight:600}
+.evidence-review-form select,.evidence-review-form textarea{width:100%;min-width:0;padding:9px 10px;border:1px solid #34443f;border-radius:7px;background:#0c1212;color:var(--text)}
+.evidence-review-form textarea{min-height:82px;resize:vertical}
+.evidence-review-checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.evidence-review-checks label{display:flex;align-items:flex-start;gap:8px;color:#aab9b2;font-size:10px;font-weight:400}
+.evidence-review-checks input{margin:1px 0 0;accent-color:var(--mint)}
+.evidence-review-form>p{margin:0;color:#899991;font-size:10px;line-height:1.5}
+@media(max-width:640px){.evidence-review-checks{grid-template-columns:1fr}.evidence-provenance{font-size:9px}}
