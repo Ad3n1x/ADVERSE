@@ -196,7 +196,7 @@ Every substantive AI statement should point to the evidence records that support
 - Validate ownership for every investigation, evidence, entity, relationship, watch, alert and cyber-asset operation.
 - Test foreign IDs across every mutation route.
 - Test relationship evidence belongs to the same investigation.
-- Ensure URL checks revalidate every redirect target and resolved address.
+- Resolve every destination per redirect hop, reject mixed/private address answers, and pin the HTTP socket to a validated public IP while retaining TLS hostname verification.
 - Ensure provider failures are visible and partial results are not described as complete.
 - Verify backup and isolated restore.
 
@@ -287,7 +287,7 @@ PDF exports now include original/canonical URLs, review rationale/checks, review
 ## Remaining release gates (not represented as complete)
 
 - End-to-end cross-account authorization tests for all resource families and child-record mutations.
-- SSRF hardening verification across DNS rebinding, redirects, IPv4/IPv6, and private/reserved address ranges.
+- Independent SSRF verification against DNS rebinding, redirect chains, IPv4/IPv6 edge cases, and private/reserved address ranges. The fetch path now pins each connection to an address validated for that hop; external security review remains outstanding.
 - MongoDB disconnect/reconnect and isolated backup-restore drills.
 - Monitoring-to-alert-to-email delivery verification with retry/idempotency tests.
 - Browser-level review workflow tests on desktop and narrow mobile layouts.
@@ -298,3 +298,10 @@ CSV exports also include original and canonical URLs, review rationale/time, and
 The evidence vault displays the retained review transitions so a researcher can inspect how a source's assessment changed over time. The transition log is bounded to the latest 30 entries per evidence record; it is not an immutable legal audit ledger.
 
 JSON exports now include a deterministic SHA-256 integrity manifest over the serialized report object before the manifest is attached. The same digest is exposed in the `X-ADVERSE-Report-SHA256` response header for JSON, PDF, and CSV exports; PDF reports print the digest. This helps compare copies and detect accidental modification after export. It is not a digital signature, trusted timestamp, immutable storage guarantee, or proof that the underlying sources are authentic.
+
+
+## SSRF hardening implementation update
+
+The page-retrieval path no longer validates a DNS answer and then calls a generic fetch client that may resolve the hostname again. It now resolves all addresses for each hop, rejects empty or mixed public/private answers, and uses Node's HTTP(S) request API with a custom lookup callback that pins the socket to one of the validated public addresses. HTTPS continues to use the original hostname for SNI and certificate hostname verification. Redirects are handled manually, bounded to five hops, and independently resolved and pinned before the next connection. Responses remain limited to HTML/plain text, a 1 MB body, and a 10-second socket timeout.
+
+Regression tests cover private IPv4/IPv6 literals, credential-bearing and unsupported-scheme URLs, localhost resolution, and rejection before a private destination socket can be opened. These tests do not replace a controlled DNS-rebinding integration test or an independent penetration test; those remain release gates.
