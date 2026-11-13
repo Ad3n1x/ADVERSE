@@ -36,6 +36,7 @@ ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. T
 - Responsive React + TypeScript workspace with private researcher accounts.
 - Express API with investigation CRUD, source records, entities, relationships, and ownership-scoped access.
 - MongoDB persistence in production and explicit ephemeral in-memory storage for local evaluation.
+- Search-result coverage snapshot showing hostname diversity, publisher labels, represented providers, publication-date coverage, and research gaps without presenting a credibility score.
 - Federated public-source search across Wikipedia, Crossref scholarly works, OpenAlex research metadata, GDELT Global News, Google News RSS, Wikidata, plus optional adapters for Brave Search, Bing Web Search, Google Programmable Search, SerpAPI, Tavily, Exa, NewsAPI, Reddit Search, and YouTube Data API. Optional adapters activate when their server-side credentials are configured. Provider runs are isolated; coverage remains bounded and is not whole-web search or a universal web crawler.
 - Internet Archive Wayback CDX capture lookup, timestamped snapshots, and heuristic archived-text comparison.
 - Passive public DNS lookup through Google Public DNS-over-HTTPS plus Certificate Transparency history from crt.sh when available.
