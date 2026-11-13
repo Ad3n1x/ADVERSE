@@ -158,8 +158,8 @@ export function createUtilityController({
     if (format === 'csv') {
       res.type('text/csv').attachment('adverse-evidence.csv');
       const rows = [
-        ['title', 'url', 'sourceType', 'publisher', 'publishedAt', 'retrievedAt', 'verificationStatus', 'excerpt'],
-        ...evidence.map((item) => [item.title, item.url, item.sourceType, item.publisher, item.publishedAt || '', item.retrievedAt || '', item.verificationStatus, item.excerpt]),
+        ['title', 'url', 'originalUrl', 'canonicalUrl', 'sourceType', 'publisher', 'publishedAt', 'retrievedAt', 'verificationStatus', 'reviewRationale', 'reviewedAt', 'contentHash', 'contentHashAlgorithm', 'contentHashScope', 'excerpt'],
+        ...evidence.map((item) => [item.title, item.url, item.originalUrl || item.url, item.canonicalUrl || '', item.sourceType, item.publisher, item.publishedAt || '', item.retrievedAt || '', item.verificationStatus, item.reviewRationale || '', item.reviewedAt || '', item.contentHash || '', item.contentHashAlgorithm || 'sha256', item.contentHashScope || 'excerpt', item.excerpt]),
       ];
       return res.send(rows.map((row) => row.map(csvCell).join(',')).join('\r\n'));
     }
