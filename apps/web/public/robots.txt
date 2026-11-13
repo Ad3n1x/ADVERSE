@@ -1,11 +1,17 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /download
 
-# Allow OpenAI's search crawler to discover public product information.
 User-agent: OAI-SearchBot
 Allow: /
 Disallow: /admin
 Disallow: /api/
 Disallow: /download
+
+# Opt out of OpenAI model-training crawling while keeping search discovery enabled.
+User-agent: GPTBot
+Disallow: /
 
 Sitemap: https://adverse-web.onrender.com/sitemap.xml
