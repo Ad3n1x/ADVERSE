@@ -1,0 +1,116 @@
+/* ADVERSE admin control room — responsive refinement layer.
+   Kept separate from the workspace styles so the admin surface can evolve safely. */
+.adverse-admin-shell {
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+.adverse-admin-shell,
+.adverse-admin-shell * {
+  box-sizing: border-box;
+}
+.adverse-admin-shell > div {
+  width: 100%;
+  min-width: 0;
+}
+.adverse-admin-shell button,
+.adverse-admin-shell a {
+  min-height: 40px;
+  touch-action: manipulation;
+}
+.adverse-admin-shell input,
+.adverse-admin-shell textarea,
+.adverse-admin-shell select {
+  max-width: 100%;
+  min-width: 0;
+  font-size: 16px;
+}
+.adverse-admin-shell nav {
+  max-width: 100%;
+  scrollbar-width: thin;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.adverse-admin-shell nav button {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+.adverse-admin-shell table {
+  border-collapse: collapse;
+}
+.adverse-admin-shell th,
+.adverse-admin-shell td {
+  overflow-wrap: anywhere;
+}
+.adverse-admin-shell [role="alert"],
+.adverse-admin-shell [role="status"] {
+  overflow-wrap: anywhere;
+}
+.adverse-admin-shell :focus-visible {
+  outline: 2px solid #8ee7c4;
+  outline-offset: 3px;
+}
+@media (max-width: 760px) {
+  .adverse-admin-shell:not(.adverse-admin-login) {
+    padding: 16px 12px 28px !important;
+  }
+  .adverse-admin-shell > div > header {
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
+  .adverse-admin-shell > div > header > div:last-child {
+    width: 100%;
+  }
+  .adverse-admin-shell > div > header > div:last-child > * {
+    flex: 1 1 auto;
+  }
+  .adverse-admin-shell nav {
+    margin-inline: -2px;
+    padding: 0 2px 10px;
+    scroll-snap-type: x proximity;
+  }
+  .adverse-admin-shell nav button {
+    min-height: 42px;
+    padding: 9px 11px !important;
+  }
+  .adverse-admin-shell > div > section[style*="grid-template-columns"],
+  .adverse-admin-shell > div > div[style*="grid-template-columns"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+  .adverse-admin-shell section[style*="padding: 20px"] {
+    padding: 15px !important;
+  }
+  .adverse-admin-shell table {
+    min-width: 520px;
+  }
+}
+@media (max-width: 480px) {
+  .adverse-admin-shell:not(.adverse-admin-login) {
+    padding: 13px 10px 24px !important;
+  }
+  .adverse-admin-shell > div > header h1 {
+    font-size: clamp(26px, 8vw, 34px) !important;
+    overflow-wrap: anywhere;
+  }
+  .adverse-admin-shell > div > section[style*="grid-template-columns"],
+  .adverse-admin-shell > div > div[style*="grid-template-columns"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .adverse-admin-shell button {
+    min-height: 42px;
+  }
+  .adverse-admin-shell .adverse-admin-login {
+    padding: 14px !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adverse-admin-shell *,
+  .adverse-admin-shell *::before,
+  .adverse-admin-shell *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
