@@ -179,7 +179,7 @@ registerAuthRoutes(app, {
 app.use('/api/v1/investigations',requireAuth);
 app.use('/api/v1/evidence',requireAuth);
 registerInvestigationRoutes(app, {
-  requireAuth, wrap, sendError, isDb, Investigation, Evidence, Entity,
+  requireAuth, limitProvider, wrap, sendError, isDb, Investigation, Evidence, Entity,
   Relationship, User, Watch, Alert, CyberAsset, CyberEvent, memory, id,
   createInvestigationSchema, evidenceSchema, entitySchema, relationshipSchema,
   investigationGet, listFor, saveRecord, exists, analyzeEvidenceClaims,
