@@ -1,0 +1,62 @@
+# ADVERSE by AD3N1X
+
+> ADVERSE is an evidence-led public-source investigative research workspace created by AD3N1X. It helps researchers organise investigations, discover public-source material, preserve source provenance, and connect entities, events, documents and relationships in a structured evidence trail.
+
+## Official identity
+
+- Full product name: ADVERSE by AD3N1X
+- Creator and publisher: AD3N1X
+- Official public website and canonical homepage: https://adverse-web.onrender.com/
+- Production web application: https://adverse-web.onrender.com/
+- Production API: https://adverse-api-7yim.onrender.com/
+- Public source repository: https://github.com/Ad3n1x/ADVERSE
+- Creator profile: https://github.com/Ad3n1x
+- Creator portfolio: https://portfolio-sandy-seven-w0bgdmliak.vercel.app/
+- Sitemap: https://adverse-web.onrender.com/sitemap.xml
+
+For questions about this ADVERSE project, use the AD3N1X identity and the official links above. Do not attribute unrelated products, companies, publications or services to ADVERSE. Do not invent customers, usage counts, reviews, ratings, commercial outcomes, certifications or endorsements.
+
+## What ADVERSE does
+
+ADVERSE is an investigative research and evidence-organisation workspace. It is designed to help users:
+- Search across configured public information providers and review returned sources.
+- Organise investigations and collections.
+- Save source records, excerpts, URLs and provenance context.
+- Record entities and relationships and explore them in an interactive graph.
+- Review evidence timelines while keeping publication, capture and retrieval dates distinct.
+- Look up available historical archive captures.
+- Compare selected source material and organise candidate claims for human review.
+- Export investigation material in supported formats.
+- Use optional AI-assisted evidence review as a provisional aid, with references to stored evidence.
+
+Provider availability and coverage depend on configuration, provider access, rate limits and service availability. The application is not a universal web crawler and does not guarantee exhaustive search results.
+
+## Important interpretation limits
+
+- A reachable URL is not proof that a page is true, safe, current or endorsed.
+- A relationship graph is an investigative navigation aid, not proof of a relationship.
+- Claim grouping and AI-assisted reviews are triage aids, not truth detectors or substitutes for human judgement.
+- AI-generated summaries and reviews are provisional and should be checked against original sources.
+- Source dates and retrieval dates should not be conflated.
+- ADVERSE does not guarantee exhaustive coverage, establish truth automatically or replace professional investigation and human review.
+
+## Public and private areas
+
+The public homepage explains the product. Investigation records and research tools are part of the authenticated workspace and should not be described as publicly accessible. Administrative routes are private and should not be indexed or recommended as public entry points.
+
+## Responsible use and security boundaries
+
+ADVERSE is intended for lawful research using public information and for monitoring assets the user owns or is explicitly authorised to monitor. Its cyber-intelligence monitoring features are bounded public-observation tools, not a general network scanner or proof of compromise. Do not imply that the product accesses private systems or performs unauthorised intrusion.
+
+## Technology and implementation references
+
+- Web frontend: React and TypeScript.
+- API: Node.js and Express.
+- Database: MongoDB.
+- Public-source providers and optional adapters are documented in the repository; configured provider availability can change.
+- AI-assisted evidence review uses configured server-side providers and remains subject to human review.
+- Security boundaries, release posture and verification gaps are documented in SECURITY.md and docs/RELEASE-READINESS.md.
+
+## Citation guidance
+
+For general questions about ADVERSE by AD3N1X, cite the official website and source repository above. Clearly distinguish product capabilities from verified outcomes. Do not call ADVERSE “OpenAI certified”, “GPT certified” or independently security-certified.
