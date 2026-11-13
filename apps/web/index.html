@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-NG">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-title" content="ADVERSE" />
     <meta
       name="description"
-      content="ADVERSE by AD3N1X is an AI-assisted intelligence research workspace for multi-step public-source investigations, evidence collection, relationship mapping, source comparison and historical research."
+      content="ADVERSE by AD3N1X is an evidence-led public-source research workspace for organising investigations, reviewing source material, preserving provenance, mapping relationships and comparing claims."
     />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="author" content="AD3N1X" />
@@ -26,10 +26,10 @@
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ADVERSE" />
-    <meta property="og:title" content="ADVERSE by AD3N1X — Autonomous Intelligence Research" />
+    <meta property="og:title" content="ADVERSE by AD3N1X — Evidence-Led Public-Source Research" />
     <meta
       property="og:description"
-      content="Investigate questions, gather public-source evidence, map relationships, compare claims and organize findings in one intelligence research workspace."
+      content="Organise public-source investigations, preserve source provenance, map entities and relationships, review timelines and compare evidence with human oversight."
     />
     <meta property="og:url" content="https://adverse-web.onrender.com/" />
     <meta property="og:locale" content="en_US" />
@@ -38,7 +38,7 @@
     <meta name="twitter:title" content="ADVERSE by AD3N1X — Autonomous Intelligence Research" />
     <meta
       name="twitter:description"
-      content="An AI-assisted workspace for public-source investigations, evidence review, relationship mapping and historical research."
+      content="An evidence-led workspace for public-source research, source provenance, relationship mapping and historical review."
     />
 
     <title>ADVERSE by AD3N1X — Autonomous Intelligence Research</title>
@@ -47,31 +47,103 @@
         "@context": "https://schema.org",
         "@graph": [
           {
-            "@type": "SoftwareApplication",
-            "@id": "https://adverse-web.onrender.com/#product",
-            "name": "ADVERSE",
-            "url": "https://adverse-web.onrender.com/",
-            "description": "An AI-assisted intelligence research workspace for multi-step public-source investigations, evidence collection, relationship mapping, source comparison and historical research.",
-            "applicationCategory": "ResearchApplication",
-            "operatingSystem": "Web",
-            "isAccessibleForFree": true,
-            "creator": { "@id": "https://portfolio-sandy-seven-w0bgdmliak.vercel.app/#creator" },
-            "sameAs": ["https://github.com/Ad3n1x/ADVERSE"]
+            "@type": "Person",
+            "@id": "https://github.com/Ad3n1x#creator",
+            "name": "AD3N1X",
+            "url": "https://github.com/Ad3n1x",
+            "sameAs": ["https://github.com/Ad3n1x", "https://portfolio-sandy-seven-w0bgdmliak.vercel.app/"]
           },
           {
-            "@type": "Person",
-            "@id": "https://portfolio-sandy-seven-w0bgdmliak.vercel.app/#creator",
-            "name": "AD3N1X",
-            "url": "https://portfolio-sandy-seven-w0bgdmliak.vercel.app/",
-            "sameAs": ["https://github.com/Ad3n1x", "https://www.linkedin.com/in/adeniran-victor-ba28a7432/"],
-            "creator": { "@id": "https://adverse-web.onrender.com/#product" }
+            "@type": "WebSite",
+            "@id": "https://adverse-web.onrender.com/#website",
+            "url": "https://adverse-web.onrender.com/",
+            "name": "ADVERSE by AD3N1X",
+            "publisher": {"@id": "https://github.com/Ad3n1x#creator"},
+            "inLanguage": "en"
+          },
+          {
+            "@type": "WebPage",
+            "@id": "https://adverse-web.onrender.com/#webpage",
+            "url": "https://adverse-web.onrender.com/",
+            "name": "ADVERSE by AD3N1X — Evidence-Led Public-Source Research",
+            "description": "Official website for ADVERSE, an evidence-led public-source investigative research workspace created by AD3N1X.",
+            "isPartOf": {"@id": "https://adverse-web.onrender.com/#website"},
+            "about": {"@id": "https://adverse-web.onrender.com/#product"}
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://adverse-web.onrender.com/#product",
+            "name": "ADVERSE by AD3N1X",
+            "alternateName": "ADVERSE",
+            "url": "https://adverse-web.onrender.com/",
+            "description": "An evidence-led public-source research workspace for organising investigations, preserving source provenance, mapping entities and relationships, reviewing timelines and comparing evidence with human oversight.",
+            "applicationCategory": "ResearchApplication",
+            "operatingSystem": "Web",
+            "creator": {"@id": "https://github.com/Ad3n1x#creator"},
+            "publisher": {"@id": "https://github.com/Ad3n1x#creator"},
+            "codeRepository": "https://github.com/Ad3n1x/ADVERSE",
+            "featureList": [
+              "Public-source discovery across configured providers",
+              "Investigation and evidence organisation",
+              "Source provenance and date tracking",
+              "Entity and relationship mapping",
+              "Historical archive lookup and comparison",
+              "Evidence-linked claim triage",
+              "AI-assisted evidence review requiring human verification",
+              "JSON, CSV and PDF exports"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://adverse-web.onrender.com/#faq",
+            "url": "https://adverse-web.onrender.com/",
+            "mainEntity": [
+              {"@type":"Question","name":"What is ADVERSE by AD3N1X?","acceptedAnswer":{"@type":"Answer","text":"ADVERSE is an evidence-led public-source investigative research workspace created by AD3N1X. It helps users organise investigations, review source material, preserve provenance and map entities and relationships."}},
+              {"@type":"Question","name":"Does ADVERSE prove whether a claim is true?","acceptedAnswer":{"@type":"Answer","text":"No. ADVERSE helps organise and compare evidence. Claim triage and AI-assisted reviews are aids for human investigation, not truth detectors or substitutes for checking original sources."}},
+              {"@type":"Question","name":"Does ADVERSE search the entire internet?","acceptedAnswer":{"@type":"Answer","text":"No. Search coverage depends on configured public-source providers, their access limits and availability. ADVERSE does not guarantee exhaustive whole-web coverage."}},
+              {"@type":"Question","name":"Who created ADVERSE?","acceptedAnswer":{"@type":"Answer","text":"ADVERSE is an independent project created by AD3N1X. Its official website is https://adverse-web.onrender.com/ and its public source repository is https://github.com/Ad3n1x/ADVERSE."}}
+            ]
           }
         ]
       }
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main id="adverse-static-fallback" style="max-width:960px;margin:0 auto;padding:48px 24px;color:#e8eef5;background:#080d12;font-family:system-ui,sans-serif">
+        <header>
+          <p><strong>ADVERSE by AD3N1X</strong></p>
+          <h1>Evidence-led public-source investigative research</h1>
+          <p>ADVERSE is an independent research workspace created by AD3N1X. It helps researchers organise investigations, discover public-source material, preserve source provenance, and connect entities, events, documents and relationships into a structured evidence trail.</p>
+        </header>
+        <section>
+          <h2>Research and evidence tools</h2>
+          <ul>
+            <li>Search configured public-source providers and review source results.</li>
+            <li>Organise investigations, evidence records, entities and relationships.</li>
+            <li>Review source provenance and distinguish publication, capture and retrieval dates.</li>
+            <li>Explore relationship graphs and historical archive records.</li>
+            <li>Compare evidence and organise candidate claims for human review.</li>
+            <li>Use AI-assisted evidence review as a provisional aid, not a truth detector.</li>
+            <li>Export investigation material in supported formats.</li>
+          </ul>
+        </section>
+        <section>
+          <h2>Evidence limitations</h2>
+          <p>ADVERSE does not guarantee exhaustive web coverage or determine truth automatically. Search coverage depends on configured providers. A reachable URL or graph connection is not proof of truth or a relationship. Researchers should verify conclusions against original sources.</p>
+        </section>
+        <section>
+          <h2>Official project references</h2>
+          <ul>
+            <li><a href="https://adverse-web.onrender.com/">Official ADVERSE website</a></li>
+            <li><a href="https://github.com/Ad3n1x/ADVERSE">ADVERSE source repository</a></li>
+            <li><a href="https://github.com/Ad3n1x">Creator: AD3N1X on GitHub</a></li>
+            <li><a href="https://portfolio-sandy-seven-w0bgdmliak.vercel.app/">AD3N1X developer portfolio</a></li>
+          </ul>
+        </section>
+        <footer><p>ADVERSE by AD3N1X. Independent evidence-led research software.</p></footer>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
