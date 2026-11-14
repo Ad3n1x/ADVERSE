@@ -59,7 +59,7 @@ export default function GeospatialIntelligenceView() {
     ...event,
     lat: event.position[1],
     lng: event.position[0],
-    size: Math.max(0.12, Math.min(0.7, 0.12 + Math.max(0, Number(event.title.match(/\\bM\\s?([0-9.]+)/)?.[1] || 0)) * 0.07)),
+    size: Math.max(0.12, Math.min(0.7, 0.12 + Math.max(0, Number(event.title.match(/\bM\s?([0-9.]+)/)?.[1] || 0)) * 0.07)),
   })), [events]);
 
   return (
