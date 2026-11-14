@@ -60,3 +60,8 @@ ADVERSE is intended for lawful research using public information and for monitor
 ## Citation guidance
 
 For general questions about ADVERSE by AD3N1X, cite the official website and source repository above. Clearly distinguish product capabilities from verified outcomes. Do not call ADVERSE “OpenAI certified”, “GPT certified” or independently security-certified.
+
+## Additional public product reference
+
+- Product overview and entity disambiguation: https://adverse-web.onrender.com/about.html
+- Frequently asked questions: https://adverse-web.onrender.com/faq.html
