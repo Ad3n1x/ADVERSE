@@ -52,7 +52,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (/\\/node_modules\\/(react-globe\\.gl|globe\\.gl|three-globe|three-render-objects|three)\\//.test(id)) return 'geospatial-renderer';
+          if (id.includes('/node_modules/react-globe.gl/') || id.includes('/node_modules/globe.gl/') || id.includes('/node_modules/three-globe/') || id.includes('/node_modules/three-render-objects/') || id.includes('/node_modules/three/')) return 'geospatial-renderer';
         }
       }
     }
