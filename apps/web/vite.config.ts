@@ -37,6 +37,8 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // The optional 3D renderer is downloaded only when the geospatial tab is opened.
+        globIgnores: ['**/geospatial-renderer-*.js'],
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/download\/?$/],
@@ -46,5 +48,14 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/react-globe.gl/') || id.includes('/node_modules/globe.gl/') || id.includes('/node_modules/three-globe/') || id.includes('/node_modules/three-render-objects/') || id.includes('/node_modules/three/')) return 'geospatial-renderer';
+        }
+      }
+    }
+  },
   server: { proxy: { '/api': 'http://localhost:4000' } }
 });
