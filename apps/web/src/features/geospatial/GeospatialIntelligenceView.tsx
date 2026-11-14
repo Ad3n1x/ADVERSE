@@ -8,7 +8,8 @@ import './geospatial.css';
 const FEED_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
 const GLOBE_TEXTURE = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
 const BACKGROUND_TEXTURE = 'https://unpkg.com/three-globe/example/img/night-sky.png';
-const escapeHtml = (value: string) => value.replace(/[&<>\"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[char] || char));
+const htmlEscapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
 
 type FeedState = 'loading' | 'ready' | 'error';
 
@@ -18,6 +19,7 @@ export default function GeospatialIntelligenceView() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState<GeoEvent | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [globeWidth, setGlobeWidth] = useState(() => Math.max(320, Math.min(1200, window.innerWidth - 300)));
 
   const refresh = useCallback(async () => {
     setStatus('loading');
@@ -54,6 +56,11 @@ export default function GeospatialIntelligenceView() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    const resize = () => setGlobeWidth(Math.max(320, Math.min(1200, window.innerWidth - 300)));
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
 
   const points = useMemo(() => events.map((event) => ({
     ...event,
@@ -68,7 +75,7 @@ export default function GeospatialIntelligenceView() {
         <div className="geo-toolbar-copy">
           <span className="geo-kicker"><Globe2 size={13}/> PUBLIC GEOSPATIAL INTELLIGENCE</span>
           <h2>Earth observation</h2>
-          <p>Explore verified public geographic event feeds. Every marker links back to its originating source.</p>
+          <p>Explore publicly reported geographic events. Every marker links back to its originating source.</p>
         </div>
         <div className="geo-feed-status">
           <span className={'geo-status-dot ' + status}/>
@@ -81,7 +88,7 @@ export default function GeospatialIntelligenceView() {
         <div className="geo-globe-legend"><span><i className="geo-legend-earthquake"/> Earthquake event</span><span>USGS · Past 24 hours</span></div>
         <div className="geo-globe-canvas">
           <Globe
-            width={undefined}
+            width={globeWidth}
             height={520}
             globeImageUrl={GLOBE_TEXTURE}
             backgroundImageUrl={BACKGROUND_TEXTURE}
