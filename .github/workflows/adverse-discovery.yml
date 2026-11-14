@@ -32,9 +32,13 @@ jobs:
             echo "Configure DISCOVERY_CRON_SECRET in repository Settings > Secrets and variables > Actions."
             exit 1
           fi
-          echo "Triggering bounded discovery against the configured production API."
-          curl --fail-with-body --silent --show-error --max-time 60 \
+          echo "Submitting bounded discovery to the configured production API."
+          status="$(curl --fail-with-body --silent --show-error --max-time 30 \
             --request POST "${API_URL%/}/api/v1/internal/discovery/run" \
             --header "x-discovery-secret: ${DISCOVERY_CRON_SECRET}" \
             --header "accept: application/json" \
-            --write-out "\nHTTP status: %{http_code}\n"
+            --output /tmp/adverse-discovery.json \
+            --write-out "%{http_code}")"
+          cat /tmp/adverse-discovery.json
+          test "$status" = "202" || { echo "::error::Discovery scheduler did not return HTTP 202 (received $status)."; exit 1; }
+          node --input-type=module -e 'import fs from "node:fs"; const body=JSON.parse(fs.readFileSync("/tmp/adverse-discovery.json","utf8")); if (body.job?.status !== "accepted" || typeof body.job.id !== "string" || !body.job.id) { console.error("Discovery acknowledgement contract failed"); process.exit(1); } console.log("Discovery job accepted:", body.job.id);'
