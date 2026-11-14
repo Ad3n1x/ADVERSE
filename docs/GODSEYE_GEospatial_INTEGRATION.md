@@ -3,9 +3,10 @@
 ## Decision
 
 Integrate the geospatial interaction pattern, not a wholesale copy of God's Eye View.
-ADVERSE remains React + TypeScript + Vite, Express, and MongoDB. The initial contract
-is provider-neutral GeoJSON so a CesiumJS globe can be added without coupling the
-research model to one map renderer.
+ADVERSE remains React + TypeScript + Vite, Express, and MongoDB. The initial contract is provider-neutral GeoJSON, rendered in the first milestone
+with React Globe.gl and Three.js. This keeps the research model independent of the
+visualization library; CesiumJS can be evaluated later if terrain or imagery layers
+become a demonstrated requirement.
 
 ## First implementation boundary
 
@@ -21,7 +22,7 @@ research model to one map renderer.
 
 1. Add a Geospatial Intelligence workspace tab.
 2. Load the globe lazily so the existing IntelliDesk remains lightweight.
-3. Render GeoJSON through CesiumJS/Resium with attribution and source links visible.
+3. Render GeoJSON through React Globe.gl with attribution and source links visible.
 4. Selecting a map event opens its evidence/source context; selecting an evidence item
    can focus the corresponding map feature when coordinates exist.
 5. Add server-side provider adapters with caching, rate limits, timeouts, source
