@@ -9,9 +9,37 @@ export function registerInternalRoutes(app, {
     const a=Buffer.from(expected),b=Buffer.from(supplied);
     if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Discovery scheduler authentication failed.');
     if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled discovery requires MongoDB persistence.');
-    const started=Date.now();const job=await JobRun.create({name:'scheduled-discovery-cycle',status:'running',startedAt:new Date()});
-    const result=await runDiscoveryCycle();job.status='success';job.finishedAt=new Date();job.durationMs=Date.now()-started;job.message='Discovery cycle completed.';await job.save();
-    res.json({data:result,job:{id:String(job._id),status:job.status,durationMs:job.durationMs},generatedAt:new Date().toISOString()});
+    const started=Date.now();
+    const job=await JobRun.create({name:'scheduled-discovery-cycle',status:'running',startedAt:new Date()});
+    const jobId=String(job._id);
+
+    // Discovery fans out to multiple public providers and can outlive a scheduler's
+    // HTTP timeout. Accept the authenticated request immediately, then persist the
+    // eventual outcome on the JobRun record.
+    setImmediate(()=>{ void (async()=>{
+      try {
+        const result=await runDiscoveryCycle();
+        job.status=result?.skipped?'skipped':'success';
+        job.finishedAt=new Date();
+        job.durationMs=Date.now()-started;
+        job.message=result?.skipped?'Discovery cycle was skipped.':'Discovery cycle completed.';
+        job.metadata={processed:Number(result?.processed||0),saved:Number(result?.saved||0)};
+        await job.save();
+      } catch(error) {
+        job.status='failed';
+        job.finishedAt=new Date();
+        job.durationMs=Date.now()-started;
+        job.message='Discovery cycle failed. Check API logs for details.';
+        await job.save().catch(saveError=>console.error('ADVERSE discovery job status update failed:',String(saveError?.message||'unknown').slice(0,180)));
+        console.error('ADVERSE scheduled discovery failed:',String(error?.message||'unknown').slice(0,240));
+      }
+    })(); });
+
+    return res.status(202).json({
+      job:{id:jobId,status:'accepted'},
+      message:'Discovery cycle accepted and is processing in the background.',
+      acceptedAt:new Date().toISOString()
+    });
   }));
   app.post('/api/v1/internal/monitoring/run',wrap(async(req,res)=>{const expected=String(process.env.MONITORING_CRON_SECRET||'');const supplied=String(req.get('x-monitoring-secret')||'');if(!expected||!supplied)return sendError(res,401,'CRON_AUTH_REQUIRED','Monitoring scheduler authentication is required.');const a=Buffer.from(expected),b=Buffer.from(supplied);if(a.length!==b.length||!timingSafeEqual(a,b))return sendError(res,401,'CRON_AUTH_INVALID','Monitoring scheduler authentication failed.');if(!isDb())return sendError(res,503,'DATABASE_REQUIRED','Scheduled monitoring requires MongoDB persistence.');const started=Date.now();const job=await JobRun.create({name:'scheduled-monitoring-cycle',status:'running',startedAt:new Date()});const result=await runMonitoringCycle();job.status='success';job.finishedAt=new Date();job.durationMs=Date.now()-started;job.message='Monitoring cycle completed.';await job.save();res.json({data:result,job:{id:String(job._id),status:job.status,durationMs:job.durationMs},generatedAt:new Date().toISOString()});}));
   
