@@ -8,6 +8,7 @@ import './geospatial.css';
 const FEED_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
 const GLOBE_TEXTURE = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg';
 const BACKGROUND_TEXTURE = 'https://unpkg.com/three-globe/example/img/night-sky.png';
+const escapeHtml = (value: string) => value.replace(/[&<>\"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[char] || char));
 
 type FeedState = 'loading' | 'ready' | 'error';
 
@@ -29,7 +30,7 @@ export default function GeospatialIntelligenceView() {
         const properties = raw.properties as Record<string, unknown> | undefined;
         const geometry = raw.geometry as { coordinates?: unknown } | undefined;
         const coordinates = geometry?.coordinates;
-        if (!properties || !Array.isArray(coordinates)) return null;
+        if (!properties || !Array.isArray(coordinates) || !Number.isFinite(Number(properties.time))) return null;
         const event = normalizeGeoEvent({
           id: String(raw.id || properties.code || ''),
           title: String(properties.title || properties.place || 'Earthquake event'),
@@ -58,7 +59,7 @@ export default function GeospatialIntelligenceView() {
     ...event,
     lat: event.position[1],
     lng: event.position[0],
-    size: Math.max(0.12, Math.min(0.7, 0.12 + Math.max(0, Number(event.summary?.match(/M([0-9.]+)/)?.[1] || 0)) * 0.07)),
+    size: Math.max(0.12, Math.min(0.7, 0.12 + Math.max(0, Number(event.title.match(/\\bM\\s?([0-9.]+)/)?.[1] || 0)) * 0.07)),
   })), [events]);
 
   return (
@@ -97,7 +98,7 @@ export default function GeospatialIntelligenceView() {
             pointsMerge={false}
             pointLabel={(point: object) => {
               const event = point as GeoEvent & { summary?: string };
-              return '<div class="geo-point-tooltip"><strong>' + event.title.replace(/[<>]/g, '') + '</strong><br/>' + (event.summary || '') + '</div>';
+              return '<div class="geo-point-tooltip"><strong>' + escapeHtml(event.title) + '</strong><br/>' + escapeHtml(event.summary || '') + '</div>';
             }}
             onPointClick={(point: object) => setSelected(point as GeoEvent)}
             animateIn
