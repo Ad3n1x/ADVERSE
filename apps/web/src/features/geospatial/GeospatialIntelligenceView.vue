@@ -140,7 +140,7 @@ async function refreshNaturalEvents() {
         category: String(event.categories?.map((item: any) => item.title).filter(Boolean).join(' · ') || 'Natural event'),
         occurredAt: String(latestGeometry.date ?? ''),
         longitude: Number(longitude), latitude: Number(latitude), locationBasis: location.basis,
-        url: String(event.sources?.[0]?.url ?? 'https://eonet.gsfc.nasa.gov/'),
+        url: String(event.sources?.[0]?.url ?? event.link ?? ('https://eonet.gsfc.nasa.gov/events/' + encodeURIComponent(String(event.id ?? '')))),
       };
     }).filter((event: NaturalEvent | null): event is NaturalEvent => Boolean(event));
     const geoJson = {
