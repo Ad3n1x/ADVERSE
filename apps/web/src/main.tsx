@@ -11,7 +11,7 @@ import './connection-status.css';
 
 // The Android APK identifies itself with a dedicated user-agent marker.
 // Set this before React mounts so download prompts never flash inside the app.
-const isNativeAndroid = /ADVERSENativeAndroid\\//i.test(navigator.userAgent);
+const isNativeAndroid = /ADVERSENativeAndroid\/i.test(navigator.userAgent);
 if (isNativeAndroid) {
   document.documentElement.classList.add('adverse-native-android');
   document.documentElement.dataset.adverseApp = 'android';
