@@ -180,7 +180,9 @@ async function refreshStacCatalog() {
     const collections = Array.isArray(payload.collections) ? payload.collections : [];
     stacCollections.value = collections.slice(0, 5).map((collection: any) => {
       const id = String(collection.id ?? '');
-      const selfLink = Array.isArray(collection.links) ? collection.links.find((link: any) => link.rel === 'self')?.href : '';
+      const links = Array.isArray(collection.links) ? collection.links : [];
+      const selfLink = links.find((link: any) => link.rel === 'self')?.href;
+      const licenseLink = links.find((link: any) => link.rel === 'license');
       const safeHref = typeof selfLink === 'string' && selfLink.startsWith('https://earth-search.aws.element84.com/')
         ? selfLink
         : `https://earth-search.aws.element84.com/v1/collections/${encodeURIComponent(id)}`;
@@ -188,7 +190,7 @@ async function refreshStacCatalog() {
         id,
         title: String(collection.title ?? id),
         description: String(collection.description ?? 'Public STAC collection'),
-        license: String(collection.license ?? 'See publisher terms'),
+        license: String(licenseLink?.title ?? collection.license ?? 'See publisher terms'),
         href: safeHref,
       };
     }).filter((collection: StacCollection) => Boolean(collection.id));
