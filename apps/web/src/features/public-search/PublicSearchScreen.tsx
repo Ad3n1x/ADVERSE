@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, BrainCircuit, Clock3, FileSearch, Fingerprint, GitBranch, Network, Radar, ShieldCheck, Sparkles } from 'lucide-react';
 import './research-direction.css';
+import IntelligenceScene from '../../components/layout/IntelligenceScene';
 
 type Props = { onSignIn: () => void; onCreateAccount: () => void };
 
@@ -13,7 +14,7 @@ const capabilities = [
 ];
 
 export default function PublicSearchScreen({ onSignIn, onCreateAccount }: Props) {
- return <main className="adverse-landing">
+ return <main className="adverse-landing"><IntelligenceScene />
   <header className="landing-nav">
    <a className="landing-brand" href="/" aria-label="ADVERSE home"><span className="landing-mark"><Fingerprint size={21}/></span><span>ADVERSE<small>INTELLIGENCE WORKSPACE</small></span></a>
    <nav aria-label="Main navigation"><a href="#capabilities">Capabilities</a><a href="#workflow">How it works</a><button className="landing-nav-login" onClick={onSignIn}>Sign in <ArrowRight size={15}/></button></nav>
