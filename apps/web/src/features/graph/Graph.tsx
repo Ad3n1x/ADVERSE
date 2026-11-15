@@ -1,84 +1,253 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import ForceGraph2D from 'react-force-graph-2d';
-import { ExternalLink, Maximize2, Minimize2, Network, Search, ZoomIn, ZoomOut } from 'lucide-react';
+import ForceGraph3D from 'react-force-graph-3d';
+import { ExternalLink, Maximize2, Minimize2, Network, Search, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Entity, Evidence, Relationship } from '../../types/research';
 import { getRecordId as key } from '../../lib/ids';
-const ForceGraph2DComponent = ForceGraph2D as any;
-function verificationLabel(status:unknown){const value=String(status||'unverified').trim().toLowerCase().replace(/[_-]+/g,' ');if(['verified','confirmed','independently verified'].includes(value))return 'Verified';if(['disputed','conflicting','contradicted','rejected'].includes(value))return 'Disputed';if(['unverified','unknown','pending','not reviewed',''].includes(value))return 'Unverified';return 'Needs review';}
-function relationshipKey(r:Relationship){return String(key(r)||`${r.fromEntityId}-${r.type}-${r.toEntityId}`);}
-function verificationColor(status:unknown){const label=verificationLabel(status);return label==='Verified'?'#66d3a0':label==='Disputed'?'#ff7171':label==='Needs review'?'#e9b96e':'#829bbe';}
-function Graph({entities,evidence,relationships,onSelect,selectedId,query,layoutKey}:{entities:Entity[];evidence:Evidence[];relationships:Relationship[];onSelect:(entity:Entity)=>void;selectedId:string;query:string;layoutKey:string}){
- const [relationshipFilter,setRelationshipFilter]=useState('all');
- const [selectedRelationshipId,setSelectedRelationshipId]=useState('');
- const [activeGraphEntityId,setActiveGraphEntityId]=useState('');
- const [graphSize,setGraphSize]=useState({width:800,height:560});
- const [showRelationshipLabels,setShowRelationshipLabels]=useState(false);
- const [isFullscreen,setIsFullscreen]=useState(false);
- const [inAppLink,setInAppLink]=useState<{url:string;title:string}|null>(null);
- const graphRef=useRef<any>(null);
- const graphContainerRef=useRef<HTMLDivElement|null>(null);
- const graphExplorerRef=useRef<HTMLDivElement|null>(null);
- const preFullscreenHeightRef=useRef(560);
- const graphEntities:Entity[]=entities;
- const normalizedQuery=query.trim().toLowerCase();
- const visible=useMemo(()=>graphEntities.filter(e=>(e.name+' '+e.type+' '+e.description).toLowerCase().includes(normalizedQuery)),[graphEntities,normalizedQuery]);
- const visibleIds=useMemo(()=>new Set(visible.map(e=>String(key(e)||e.name))),[visible]);
- const sourceNodes=useMemo(()=>evidence.map((item,i)=>({id:'source-node-'+String(key(item)||i),name:item.title||item.publisher||item.url||'Saved source',type:'source',description:(item.publisher?item.publisher+' · ':'')+(item.excerpt||item.url||'Saved research source'),canonicalUrl:item.url||'',evidenceId:String(key(item)||i),url:item.url||''})),[evidence]);
- const visibleSources=useMemo(()=>sourceNodes.filter(s=>(s.name+' '+s.description+' '+s.url).toLowerCase().includes(normalizedQuery)),[sourceNodes,normalizedQuery]);
- const sourceNodeIds=useMemo(()=>new Set(visibleSources.map(s=>String(s.id))),[visibleSources]);
- const relationshipTypes=useMemo(()=>[...new Set(relationships.map(r=>r.type))].sort(),[relationships]);
- const visibleRelations=useMemo(()=>relationships.filter(r=>visibleIds.has(String(r.fromEntityId))&&visibleIds.has(String(r.toEntityId))&&(relationshipFilter==='all'||r.type===relationshipFilter)),[relationships,visibleIds,relationshipFilter]);
- const graphData=useMemo(()=>({
-  nodes:[...visible.map(e=>({id:key(e)||e.name,name:e.name,type:e.type,kind:'entity',description:e.description,evidenceIds:e.evidenceIds||[],canonicalUrl:e.canonicalUrl||''})),...visibleSources.map(s=>({id:s.id,name:s.name,type:'source',kind:'source',description:s.description,canonicalUrl:s.url,evidenceIds:[s.evidenceId],url:s.url}))],
-  links:[...visibleRelations.map(r=>({id:relationshipKey(r),source:r.fromEntityId,target:r.toEntityId,type:r.type,kind:'relationship',confidence:r.confidence,verificationStatus:r.verificationStatus,evidenceIds:r.evidenceIds||[],rationale:r.rationale})),...visible.flatMap(e=>(e.evidenceIds||[]).map(evidenceId=>{const source=sourceNodes.find(s=>s.evidenceId===String(evidenceId));return source&&sourceNodeIds.has(String(source.id))?{id:'evidence-link-'+String(key(e)||e.name)+'-'+source.id,source:key(e)||e.name,target:source.id,type:'supported by',kind:'evidence',verificationStatus:'source-linked',evidenceIds:[String(evidenceId)],rationale:'This entity is explicitly associated with this saved source in the collection.'}:null;}).filter(Boolean)),...visibleRelations.flatMap(r=>(r.evidenceIds||[]).map(evidenceId=>{const source=sourceNodes.find(s=>s.evidenceId===String(evidenceId));return source&&sourceNodeIds.has(String(source.id))?{id:'relationship-evidence-link-'+String(key(r)||r.fromEntityId+'-'+r.toEntityId)+'-'+source.id,relationshipId:relationshipKey(r),source:r.fromEntityId,target:source.id,type:'source attached to relationship: '+r.type,kind:'evidence',verificationStatus:'source-linked',evidenceIds:[String(evidenceId)],rationale:'This saved source is explicitly attached to the recorded '+r.type+' relationship between the linked entities.'}:null;}).filter(Boolean))]
- }),[visible,visibleSources,visibleRelations,sourceNodes,sourceNodeIds]);
- useEffect(()=>{const el=graphContainerRef.current;if(!el)return;const resize=()=>{const width=Math.max(1,Math.floor(el.clientWidth));setGraphSize(current=>current.width===width?current:{...current,width});};resize();const observer=new ResizeObserver(resize);observer.observe(el);window.addEventListener('resize',resize);return()=>{observer.disconnect();window.removeEventListener('resize',resize);};},[]);
- useEffect(()=>{const syncFullscreen=()=>{const active=document.fullscreenElement===graphExplorerRef.current;setIsFullscreen(active);if(active){setGraphSize(current=>({...current,height:Math.max(320,window.innerHeight-210)}));}else{setGraphSize(current=>({...current,height:preFullscreenHeightRef.current}));}};document.addEventListener('fullscreenchange',syncFullscreen);return()=>document.removeEventListener('fullscreenchange',syncFullscreen);},[]);
- useEffect(()=>{if(!graphData.nodes.length)return;const frame=requestAnimationFrame(()=>{const graph=graphRef.current;if(!graph)return;graph.centerAt?.(0,0,0);graph.zoomToFit?.(500,70);});return()=>cancelAnimationFrame(frame);},[graphData.nodes.length,graphData.links.length]);
- useEffect(()=>{if(!inAppLink)return;const previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';const onKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape')setInAppLink(null);};window.addEventListener('keydown',onKeyDown);return()=>{document.body.style.overflow=previousOverflow;window.removeEventListener('keydown',onKeyDown);};},[inAppLink]);
- const selectedRelationship=visibleRelations.find(r=>relationshipKey(r)===selectedRelationshipId);
- const activeGraphEntity=visible.find(e=>String(key(e)||e.name)===activeGraphEntityId);
- const activeEntitySources=activeGraphEntity?(activeGraphEntity.evidenceIds||[]).map(id=>evidence.find((item,index)=>String(key(item)||index)===String(id))).filter((item):item is Evidence=>Boolean(item?.url)):[];
- const activeEntityRelationships=activeGraphEntity?visibleRelations.filter(r=>String(r.fromEntityId)===activeGraphEntityId||String(r.toEntityId)===activeGraphEntityId):[];
- const openInAppLink=(url:string,title:string)=>{if(!url)return;try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))return;setInAppLink({url:parsed.href,title:title||parsed.hostname});}catch{/* Ignore malformed source URLs. */}};
- const selectGraphEntity=(entity:Entity)=>{const entityId=String(key(entity)||entity.name);setActiveGraphEntityId(entityId);setSelectedRelationshipId('');onSelect(entity);const entitySource=(entity.evidenceIds||[]).map(id=>evidence.find((item,index)=>String(key(item)||index)===String(id))).find((item):item is Evidence=>Boolean(item?.url));const relatedEvidence=relationships.filter(r=>String(r.fromEntityId)===entityId||String(r.toEntityId)===entityId).flatMap(r=>r.evidenceIds||[]).map(id=>evidence.find((item,index)=>String(key(item)||index)===String(id))).find((item):item is Evidence=>Boolean(item?.url));const linkedSource=entitySource||relatedEvidence;const targetUrl=linkedSource?.url||entity.canonicalUrl||'';if(targetUrl)openInAppLink(targetUrl,linkedSource?.title||entity.name||targetUrl);};
- if(!graphEntities.length&&!evidence.length)return <div className="graph-preview graph-empty"><Network size={24}/><b>No graph data yet</b><span>Run research or save sources in this collection. Source nodes and their documented links will appear here; entity relationships are shown when recorded.</span></div>;
- if(!visible.length&&!visibleSources.length)return <div className="graph-preview graph-empty"><Search size={22}/><b>No matching entities or sources</b><span>Try another name, source title, publisher, or description.</span></div>;
- const resetView=()=>graphRef.current?.zoomToFit?.(500,70);
- const saveLayout=()=>{const positions=Object.fromEntries(graphData.nodes.map(n=>[String(n.id),{x:(n as any).x,y:(n as any).y}]));try{localStorage.setItem('adverse-graph-layout:'+layoutKey,JSON.stringify(positions));}catch{}};
- const restoreLayout=()=>{try{const raw=localStorage.getItem('adverse-graph-layout:'+layoutKey);const saved=raw?JSON.parse(raw):{};graphData.nodes.forEach(n=>{const p=saved[String(n.id)];if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y)){(n as any).x=p.x;(n as any).y=p.y;}});graphRef.current?.d3ReheatSimulation?.();resetView();}catch{}};
- const clearLayout=()=>{try{localStorage.removeItem('adverse-graph-layout:'+layoutKey);}catch{}graphData.nodes.forEach(n=>{delete (n as any).x;delete (n as any).y;});graphRef.current?.d3ReheatSimulation?.();resetView();};
- const zoomBy=(factor:number)=>{const current=graphRef.current?.zoom?.();if(typeof current==='number')graphRef.current?.zoom?.(Math.max(0.15,Math.min(10,current*factor)),180);else graphRef.current?.zoom?.(factor>1?2:0.5,180);};
- const toggleFullscreen=async()=>{const target=graphExplorerRef.current;if(!target)return;try{if(document.fullscreenElement===target){await document.exitFullscreen();}else{preFullscreenHeightRef.current=graphSize.height;await target.requestFullscreen();}}catch{/* Fullscreen may be blocked by the browser; normal canvas controls remain available. */}};
- return <div className="graph-preview">
-  <div ref={graphExplorerRef} className="graph-explorer">
-   <div className="graph-explorer-header">
-    <div className="graph-overview"><div className="graph-overview-title"><Network size={16}/><strong>RELATIONSHIP MAP</strong><span>Interactive evidence network</span></div><div className="graph-metrics"><span><b>{graphData.nodes.filter((n:any)=>n.kind==='entity').length}</b> entities</span><span><b>{graphData.nodes.filter((n:any)=>n.kind==='source').length}</b> sources</span><span><b>{graphData.links.length}</b> links</span></div></div>
-    <div className="graph-toolbar">
-     <label className="field-label">Connection type <select value={relationshipFilter} onChange={e=>setRelationshipFilter(e.target.value)}><option value="all">All connection types</option>{relationshipTypes.map(type=><option key={type} value={type}>{type}</option>)}</select></label>
-     <div className="graph-view-tools"><label className="graph-label-toggle"><input type="checkbox" checked={showRelationshipLabels} onChange={e=>setShowRelationshipLabels(e.target.checked)}/> Link labels</label><button type="button" aria-label="Zoom out" title="Zoom out" onClick={()=>zoomBy(0.8)}><ZoomOut size={14}/></button><button type="button" aria-label="Zoom in" title="Zoom in" onClick={()=>zoomBy(1.25)}><ZoomIn size={14}/></button><button type="button" onClick={resetView} title="Fit all nodes in view"><Network size={14}/> Fit view</button><button type="button" onClick={saveLayout}>Save layout</button><button type="button" onClick={restoreLayout}>Restore</button><button type="button" onClick={clearLayout}>Reset layout</button><button type="button" onClick={toggleFullscreen} title={isFullscreen?'Exit full screen':'Expand graph'}>{isFullscreen?<Minimize2 size={14}/>:<Maximize2 size={14}/>} {isFullscreen?'Exit full screen':'Full screen'}</button></div>
-    </div>
-    <label className="graph-size-control"><span>CANVAS HEIGHT</span><input type="range" min="320" max="900" step="20" value={graphSize.height} onChange={e=>setGraphSize(current=>({...current,height:Number(e.target.value)}))} aria-label="Graph canvas height"/><output>{graphSize.height}px</output></label>
-   </div>
-  <div ref={graphContainerRef} className="force-graph-shell" style={{width:'100%',height:graphSize.height,overflow:'hidden',borderRadius:12,touchAction:'pan-y'}} role="region" aria-label="Interactive connections map">
-   <ForceGraph2DComponent ref={graphRef} width={graphSize.width} height={graphSize.height} graphData={graphData} backgroundColor="rgba(0,0,0,0)" nodeId="id" nodeLabel={(node:any)=>node.name+' · '+node.type} nodeColor={(node:any)=>String(node.id)===selectedId?'#f5c76b':node.kind==='source'?'#62d6b3':'#86a8ff'} nodeRelSize={6} nodeVal={(node:any)=>String(node.id)===selectedId?8:node.kind==='source'?3:Math.max(3,Math.min(9,2+(node.evidenceIds||[]).length))} nodeCanvasObject={(node:any,ctx:any,globalScale:number)=>{const raw=String(node.name||'');const maxChars=globalScale<0.75?18:globalScale>1.8?36:28;const label=raw.length>maxChars?raw.slice(0,maxChars-1)+'…':raw;const fontSize=Math.max(8,11/Math.max(0.7,globalScale));const baseRadius=String(node.id)===selectedId?7.5:node.kind==='source'?4.5:Math.min(7,4.8+Math.min(2,(node.evidenceIds||[]).length*0.5));const radius=Math.max(3.5,baseRadius/Math.max(0.75,globalScale));const textY=node.y+radius+11/Math.max(0.7,globalScale);ctx.save();ctx.beginPath();ctx.arc(node.x,node.y,radius,0,Math.PI*2);ctx.fillStyle=String(node.id)===selectedId?'#f5c76b':node.kind==='source'?'#62d6b3':'#86a8ff';ctx.fill();ctx.lineWidth=1.4/Math.max(0.7,globalScale);ctx.strokeStyle='rgba(235,248,255,0.92)';ctx.stroke();ctx.font=`600 ${fontSize}px Inter, sans-serif`;const textWidth=ctx.measureText(label).width;const padX=6/Math.max(0.7,globalScale);const padY=3/Math.max(0.7,globalScale);ctx.fillStyle='rgba(8,15,29,0.92)';ctx.strokeStyle=node.kind==='source'?'rgba(98,214,179,0.8)':'rgba(134,168,255,0.75)';ctx.lineWidth=1/Math.max(0.7,globalScale);ctx.beginPath();ctx.roundRect(node.x-textWidth/2-padX,textY-fontSize/2-padY,textWidth+padX*2,fontSize+padY*2,4/Math.max(0.7,globalScale));ctx.fill();ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle=String(node.id)===selectedId?'#f5c76b':node.kind==='source'?'#8ce8d0':'#e1eaff';ctx.fillText(label,node.x,textY);ctx.restore();}} linkColor={(link:any)=>link.kind==='evidence'?'rgba(98,214,179,0.75)':verificationLabel(link.verificationStatus)==='Verified'?'rgba(102,211,160,0.8)':verificationLabel(link.verificationStatus)==='Disputed'?'rgba(255,113,113,0.8)':verificationLabel(link.verificationStatus)==='Needs review'?'rgba(233,185,110,0.8)':'rgba(130,155,190,0.65)'} linkWidth={(link:any)=>{const id=String(link.id||'');return id===selectedRelationshipId?2.5:1;}} linkDirectionalArrowLength={3} linkDirectionalArrowRelPos={1} linkCanvasObjectMode="after" linkCanvasObject={(link:any,ctx:any,globalScale:number)=>{if(!showRelationshipLabels)return;const source=link.source;const target=link.target;if(!source||!target||typeof source.x!=='number'||typeof target.x!=='number')return;const label=String(link.type||'related');const fontSize=Math.max(7,10/Math.max(0.7,globalScale));ctx.save();ctx.font=`600 ${fontSize}px Inter, sans-serif`;const width=ctx.measureText(label).width;const x=(source.x+target.x)/2;const y=(source.y+target.y)/2;const pad=4/Math.max(0.7,globalScale);ctx.fillStyle='rgba(7,13,25,0.94)';ctx.strokeStyle=link.kind==='evidence'?'rgba(98,214,179,0.9)':verificationColor(link.verificationStatus);ctx.lineWidth=1/Math.max(0.7,globalScale);ctx.beginPath();ctx.roundRect(x-width/2-pad,y-fontSize/2-pad,width+pad*2,fontSize+pad*2,3/Math.max(0.7,globalScale));ctx.fill();ctx.stroke();ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#f0f5ff';ctx.fillText(label,x,y);ctx.restore();}} linkLabel={(link:any)=>String(link.type||'relationship')+' · '+String(link.kind==='evidence'?'saved source association':link.verificationStatus||'unverified')} nodePointerAreaPaint={(node:any,color:string,ctx:any,globalScale:number)=>{const raw=String(node.name||'');const maxChars=globalScale<0.75?18:globalScale>1.8?36:28;const label=raw.length>maxChars?raw.slice(0,maxChars-1)+'…':raw;const fontSize=Math.max(8,11/Math.max(0.7,globalScale));const radius=Math.max(8,(String(node.id)===selectedId?10:node.kind==='source'?7:8)/Math.max(0.7,globalScale));const textY=node.y+radius+11/Math.max(0.7,globalScale);ctx.save();ctx.fillStyle=color;ctx.beginPath();ctx.arc(node.x,node.y,radius,0,Math.PI*2);ctx.fill();ctx.font=`600 ${fontSize}px Inter, sans-serif`;const textWidth=ctx.measureText(label).width;const padX=9/Math.max(0.7,globalScale);const padY=5/Math.max(0.7,globalScale);ctx.fillRect(node.x-textWidth/2-padX,textY-fontSize/2-padY,textWidth+padX*2,fontSize+padY*2);ctx.restore();}} onNodeClick={(node:any)=>{const nodeId=String(node.id??'');const found=visible.find(e=>(nodeId!==''&&String(key(e))===nodeId)||String(e.name).trim()===String(node.name||'').trim());if(found){selectGraphEntity(found);return;}const source=sourceNodes.find(s=>String(s.id)===nodeId||s.name===String(node.name||''));if(source&&source.url)openInAppLink(source.url,source.name);}} onLinkClick={(link:any)=>{if(link.kind==='relationship')setSelectedRelationshipId(String(link.id||''));else if(link.relationshipId)setSelectedRelationshipId(String(link.relationshipId));}} enableNodeDrag enableZoomInteraction enablePanInteraction cooldownTicks={120} d3AlphaDecay={0.035} d3VelocityDecay={0.3}/>
-  </div>
-  </div>
-  <div className="graph-verification-legend" aria-label="Relationship verification status legend" style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,padding:'10px 12px',marginTop:10,border:'1px solid rgba(130,155,190,0.22)',borderRadius:10,fontSize:12}}><strong>Saved status:</strong>{[{label:'Verified',color:'#66d3a0'},{label:'Unverified',color:'#829bbe'},{label:'Needs review',color:'#e9b96e'},{label:'Disputed',color:'#ff7171'}].map(item=><span key={item.label} style={{display:'inline-flex',alignItems:'center',gap:6}}><span aria-hidden="true" style={{display:'inline-block',width:8,height:8,borderRadius:'50%',background:item.color}}/>{item.label}</span>)}<span style={{opacity:.8}}>Colours reflect saved labels, not ADVERSE's independent judgment of truth.</span></div>
-  <div className="graph-entity-picker" aria-label="Select an entity">
-   <div className="section-kicker">SELECT ENTITY · TAP A NAME TO OPEN DETAILS</div>
-   <div className="graph-entity-picker-list">{visible.map((entity,i)=><button type="button" key={String(key(entity)||entity.name||i)} className={activeGraphEntityId===String(key(entity)||entity.name)?'active':''} aria-pressed={activeGraphEntityId===String(key(entity)||entity.name)} onClick={()=>selectGraphEntity(entity)}><span className="graph-entity-picker-dot"/><span>{entity.name||'Unnamed entity'}</span><small>{entity.type||'entity'}</small></button>)}</div>
-  </div>
-  <p className="muted-copy">Blue nodes are entities; teal nodes are saved sources. Teal edges show saved evidence associations from either an entity or a recorded relationship; other edges are recorded entity relationships. Click a source node to open its URL. These links show recorded associations, not proof of a claim.</p>
-  {selectedRelationship&&<div className="graph-inspector"><div className="section-kicker">SELECTED CONNECTION</div><b>{visible.find(e=>String(key(e)||e.name)===String(selectedRelationship.fromEntityId))?.name||'Unknown entity'} — {selectedRelationship.type} — {visible.find(e=>String(key(e)||e.name)===String(selectedRelationship.toEntityId))?.name||'Unknown entity'}</b><p>{selectedRelationship.rationale||'No relationship rationale recorded.'}</p><small>{verificationLabel(selectedRelationship.verificationStatus)} · status from saved record · {selectedRelationship.evidenceIds?.length||0} saved source link(s)</small>{(selectedRelationship.evidenceIds||[]).map(id=>evidence.find((item,index)=>String(key(item)||index)===String(id))).filter((item):item is Evidence=>Boolean(item)).map((item,index)=><div className="graph-source-evidence" key={key(item)||index}><a className="graph-source-link" href={item.url||undefined} onClick={event=>{if(item.url){event.preventDefault();openInAppLink(item.url,item.title||item.url);}}}>{item.title||item.url||'Saved source'} {item.url&&<ExternalLink size={12}/>}</a><small>Source review status: {item.verificationStatus||'unverified'} · association recorded, not independently confirmed</small></div>)}</div>}
-  {activeGraphEntity&&<section className="graph-node-detail" aria-live="polite">
-   <div className="graph-node-detail-head"><div><div className="section-kicker">SELECTED ENTITY</div><h3>{activeGraphEntity.name}</h3><p>{activeGraphEntity.type}{activeGraphEntity.description?' · '+activeGraphEntity.description:''}</p></div><button type="button" className="graph-node-detail-close" onClick={()=>{setActiveGraphEntityId('');setSelectedRelationshipId('');}} aria-label="Close selected entity details">Close ×</button></div>
-   <div className="graph-node-detail-stats"><span><b>{activeEntityRelationships.length}</b> connected relationships</span><span><b>{activeEntitySources.length}</b> linked sources</span></div>
-   {activeEntitySources.length>0?<div className="graph-node-detail-links"><div className="section-kicker">SOURCES FOR THIS ENTITY</div>{activeEntitySources.map(item=><a className="graph-source-link" key={key(item)} href={item.url} onClick={event=>{event.preventDefault();openInAppLink(item.url,item.title||item.url);}}><span>{item.title||item.url}</span><ExternalLink size={13}/></a>)}</div>:<p className="muted-copy">No direct source links are saved for this entity yet.</p>}
-   {activeEntityRelationships.length>0&&<div className="graph-node-detail-links"><div className="section-kicker">CONNECTED RELATIONSHIPS</div>{activeEntityRelationships.map(r=>{const from=visible.find(e=>String(key(e))===String(r.fromEntityId));const to=visible.find(e=>String(key(e))===String(r.toEntityId));const edgeKey=relationshipKey(r);const linked=(r.evidenceIds||[]).map(id=>evidence.find((item,index)=>String(key(item)||index)===String(id))).filter((item):item is Evidence=>Boolean(item?.url));return <div className={'graph-relationship-option'+(selectedRelationshipId===edgeKey?' selected':'')} key={edgeKey}><button type="button" className="graph-relationship-select" aria-pressed={selectedRelationshipId===edgeKey} onClick={()=>setSelectedRelationshipId(edgeKey)}><span>{from?.name||'Unknown entity'} <b>{r.type}</b> {to?.name||'Unknown entity'}</span><small>{r.verificationStatus||'unverified'} · {linked.length} linked source(s)</small></button>{selectedRelationshipId===edgeKey&&<div className="graph-node-detail-links">{linked.length?linked.map(item=><a className="graph-source-link" key={key(item)} href={item.url} onClick={event=>{event.preventDefault();openInAppLink(item.url,item.title||item.url);}}><span>{item.title||item.url}</span><ExternalLink size={13}/></a>):<p className="muted-copy">No source URLs are linked to this relationship.</p>}</div>}</div>})}</div>}
-  </section>}
-  {inAppLink&&createPortal(<div className="graph-inapp-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setInAppLink(null);}}><section className="graph-inapp-viewer" role="dialog" aria-modal="true" aria-label={"Open source: "+inAppLink.title}><header className="graph-inapp-header"><div className="graph-inapp-heading"><span className="section-kicker">ADVERSE SOURCE VIEWER</span><strong>{inAppLink.title}</strong><small>{inAppLink.url}</small></div><div className="graph-inapp-actions"><a href={inAppLink.url} target="_blank" rel="noopener noreferrer">Open externally <ExternalLink size={13}/></a><button type="button" onClick={()=>setInAppLink(null)} aria-label="Close source viewer">Close ×</button></div></header><div className="graph-inapp-frame-wrap"><iframe key={inAppLink.url} src={inAppLink.url} title={inAppLink.title} referrerPolicy="no-referrer" sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" loading="lazy"/><div className="graph-inapp-fallback">If this website blocks embedded viewing, use <a href={inAppLink.url} target="_blank" rel="noopener noreferrer">Open externally</a> above.</div></div></section></div>,document.body)}
- </div>
+
+const Graph3D = ForceGraph3D as any;
+type Props = {
+  entities: Entity[];
+  evidence: Evidence[];
+  relationships: Relationship[];
+  onSelect: (entity: Entity) => void;
+  selectedId: string;
+  query: string;
+  layoutKey: string;
+};
+
+function verificationLabel(status: unknown) {
+  const value = String(status || 'unverified').trim().toLowerCase().replace(/[_-]+/g, ' ');
+  if (['verified', 'confirmed', 'independently verified'].includes(value)) return 'Verified';
+  if (['disputed', 'conflicting', 'contradicted', 'rejected'].includes(value)) return 'Disputed';
+  if (['unverified', 'unknown', 'pending', 'not reviewed', ''].includes(value)) return 'Unverified';
+  return 'Needs review';
 }
-export default Graph;
+function verificationColor(status: unknown) {
+  const label = verificationLabel(status);
+  return label === 'Verified' ? '#5ee0a0' : label === 'Disputed' ? '#fb7185' : label === 'Needs review' ? '#fbbf24' : '#91a8c7';
+}
+function relationshipKey(r: Relationship) {
+  return String(key(r) || `${r.fromEntityId}-${r.type}-${r.toEntityId}`);
+}
+
+export default function Graph({ entities, evidence, relationships, onSelect, selectedId, query, layoutKey }: Props) {
+  const [relationshipFilter, setRelationshipFilter] = useState('all');
+  const [activeEntityId, setActiveEntityId] = useState('');
+  const [selectedRelationshipId, setSelectedRelationshipId] = useState('');
+  const [size, setSize] = useState({ width: 800, height: 560 });
+  const [fullscreen, setFullscreen] = useState(false);
+  const [search, setSearch] = useState(query);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const graphRef = useRef<any>(null);
+  const shellRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => setSearch(query), [query]);
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    const observer = new ResizeObserver(() => setSize(current => ({
+      ...current, width: Math.max(280, Math.floor(host.clientWidth))
+    })));
+    observer.observe(host);
+    setSize(current => ({ ...current, width: Math.max(280, Math.floor(host.clientWidth)) }));
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const sync = () => {
+      const active = document.fullscreenElement === shellRef.current;
+      setFullscreen(active);
+      setSize(current => ({ ...current, height: active ? Math.max(360, window.innerHeight - 30) : 560 }));
+    };
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
+
+  const needle = search.trim().toLowerCase();
+  const visibleEntities = useMemo(() => entities.filter(e =>
+    `${e.name} ${e.type} ${e.description || ''}`.toLowerCase().includes(needle)
+  ), [entities, needle]);
+  const visibleIds = useMemo(() => new Set(visibleEntities.map(e => String(key(e) || e.name))), [visibleEntities]);
+  const visibleEvidence = useMemo(() => evidence.filter(item =>
+    `${item.title || ''} ${item.publisher || ''} ${item.excerpt || ''} ${item.url || ''}`.toLowerCase().includes(needle)
+  ), [evidence, needle]);
+  const sourceNodes = useMemo(() => visibleEvidence.map((item, index) => ({
+    id: 'source-node-' + String(key(item) || index),
+    name: item.title || item.publisher || item.url || 'Saved source',
+    kind: 'source',
+    type: 'Saved evidence',
+    url: item.url || '',
+    evidenceId: String(key(item) || index),
+    description: item.publisher || item.excerpt || item.url || ''
+  })), [visibleEvidence]);
+  const visibleRelations = useMemo(() => relationships.filter(r =>
+    visibleIds.has(String(r.fromEntityId)) && visibleIds.has(String(r.toEntityId)) &&
+    (relationshipFilter === 'all' || r.type === relationshipFilter)
+  ), [relationships, visibleIds, relationshipFilter]);
+  const graphData = useMemo(() => {
+    const nodes = [
+      ...visibleEntities.map(entity => ({
+        id: String(key(entity) || entity.name), name: entity.name || 'Unnamed entity',
+        kind: 'entity', type: entity.type || 'Entity', description: entity.description || '',
+        evidenceIds: entity.evidenceIds || [], canonicalUrl: entity.canonicalUrl || ''
+      })),
+      ...sourceNodes
+    ];
+    const sourceByEvidence = new Map(sourceNodes.map(source => [source.evidenceId, source]));
+    const links: any[] = visibleRelations.map(r => ({
+      id: relationshipKey(r), source: String(r.fromEntityId), target: String(r.toEntityId),
+      kind: 'relationship', type: r.type, verificationStatus: r.verificationStatus,
+      rationale: r.rationale, evidenceIds: r.evidenceIds || []
+    }));
+    visibleEntities.forEach(entity => (entity.evidenceIds || []).forEach(id => {
+      const source = sourceByEvidence.get(String(id));
+      if (source) links.push({
+        id: 'evidence-' + String(key(entity) || entity.name) + '-' + source.id,
+        source: String(key(entity) || entity.name), target: source.id,
+        kind: 'evidence', type: 'supported by', verificationStatus: 'source-linked'
+      });
+    }));
+    visibleRelations.forEach(r => (r.evidenceIds || []).forEach(id => {
+      const source = sourceByEvidence.get(String(id));
+      if (source) links.push({
+        id: 'relationship-evidence-' + relationshipKey(r) + '-' + source.id,
+        source: String(r.fromEntityId), target: source.id,
+        kind: 'evidence', type: 'source for ' + r.type, verificationStatus: 'source-linked',
+        relationshipId: relationshipKey(r)
+      });
+    }));
+    return { nodes, links };
+  }, [visibleEntities, sourceNodes, visibleRelations]);
+
+  const activeEntity = visibleEntities.find(e => String(key(e) || e.name) === activeEntityId);
+  const activeRelations = activeEntity ? visibleRelations.filter(r =>
+    String(r.fromEntityId) === activeEntityId || String(r.toEntityId) === activeEntityId
+  ) : [];
+  const relationTypes = [...new Set(relationships.map(r => r.type))].sort();
+  const resetCamera = () => graphRef.current?.zoomToFit?.(700, 90);
+  const zoom = (factor: number) => {
+    const current = graphRef.current?.cameraPosition?.();
+    if (current) graphRef.current?.cameraPosition?.(
+      { x: current.x * factor, y: current.y * factor, z: current.z * factor },
+      undefined, 350
+    );
+  };
+  const toggleFullscreen = async () => {
+    const target = shellRef.current;
+    if (!target) return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await target.requestFullscreen();
+    } catch { /* Browser may deny fullscreen; graph controls remain available. */ }
+  };
+  const saveLayout = () => {
+    const positions = Object.fromEntries(graphData.nodes.map((node: any) => [
+      String(node.id), { x: node.x, y: node.y, z: node.z }
+    ]));
+    try { localStorage.setItem('adverse-3d-layout:' + layoutKey, JSON.stringify(positions)); } catch { /* Storage may be unavailable. */ }
+  };
+  const restoreLayout = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('adverse-3d-layout:' + layoutKey) || '{}');
+      graphData.nodes.forEach((node: any) => {
+        const position = saved[String(node.id)];
+        if (position && [position.x, position.y, position.z].every(Number.isFinite)) {
+          Object.assign(node, position, { fx: position.x, fy: position.y, fz: position.z });
+        }
+      });
+      graphRef.current?.d3ReheatSimulation?.();
+      resetCamera();
+    } catch { /* Ignore invalid saved layouts. */ }
+  };
+
+  if (!entities.length && !evidence.length) return (
+    <div className="graph-preview graph-empty"><Network size={24} /><b>No graph data yet</b>
+      <span>Run research or save sources in this collection. The 3D evidence network will appear here.</span>
+    </div>
+  );
+  if (!graphData.nodes.length) return (
+    <div className="graph-preview graph-empty"><Search size={22} /><b>No matching records</b>
+      <span>Try another entity name, source title, publisher or description.</span>
+    </div>
+  );
+
+  return <section className="adverse-3d-workspace">
+    <header className="adverse-3d-header">
+      <div>
+        <div className="adverse-3d-kicker"><span className="adverse-3d-live" /> WEBGL / THREE.JS ENGINE</div>
+        <h3>Spatial intelligence network</h3>
+        <p>Drag to orbit · Scroll to zoom · Drag nodes to reposition · Select a node to inspect</p>
+      </div>
+      <div className="adverse-3d-counts">
+        <span><b>{visibleEntities.length}</b> entities</span>
+        <span><b>{sourceNodes.length}</b> sources</span>
+        <span><b>{graphData.links.length}</b> connections</span>
+      </div>
+    </header>
+    <div className="adverse-3d-toolbar">
+      <label className="adverse-3d-search"><Search size={15} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter entities and sources…" /></label>
+      <select aria-label="Filter relationship type" value={relationshipFilter} onChange={e => setRelationshipFilter(e.target.value)}>
+        <option value="all">All connections</option>
+        {relationTypes.map(type => <option key={type} value={type}>{type}</option>)}
+      </select>
+      <button type="button" onClick={zoom.bind(null, 0.78)} aria-label="Zoom out"><ZoomOut size={15} /></button>
+      <button type="button" onClick={zoom.bind(null, 1.28)} aria-label="Zoom in"><ZoomIn size={15} /></button>
+      <button type="button" onClick={resetCamera}><RotateCcw size={15} /> Recenter</button>
+      <button type="button" onClick={saveLayout}>Save layout</button>
+      <button type="button" onClick={restoreLayout}>Restore</button>
+      <button type="button" onClick={toggleFullscreen}>{fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />} {fullscreen ? 'Exit' : 'Expand'}</button>
+    </div>
+    <div ref={shellRef} className="adverse-3d-canvas" style={{ height: size.height }}>
+      <div ref={hostRef} className="adverse-3d-canvas-host">
+        <Graph3D
+          ref={graphRef}
+          width={size.width}
+          height={size.height}
+          graphData={graphData}
+          backgroundColor="#050914"
+          showNavInfo={false}
+          controlType="orbit"
+          nodeLabel={(node: any) => `${node.name} · ${node.type}${node.description ? '\\n' + node.description : ''}`}
+          nodeColor={(node: any) => node.kind === 'source' ? '#55e0bd' : String(node.id) === selectedId ? '#f8d477' : '#7ba7ff'}
+          nodeVal={(node: any) => node.kind === 'source' ? 3.5 : Math.max(4, Math.min(12, 4 + (node.evidenceIds || []).length))}
+          nodeResolution={16}
+          linkColor={(link: any) => link.kind === 'evidence' ? '#42d6b5' : verificationColor(link.verificationStatus)}
+          linkWidth={(link: any) => link.kind === 'evidence' ? 0.8 : 1.4}
+          linkOpacity={0.72}
+          linkDirectionalParticles={(link: any) => link.kind === 'evidence' ? 2 : 1}
+          linkDirectionalParticleWidth={1.8}
+          linkDirectionalParticleSpeed={0.003}
+          linkDirectionalParticleColor={(link: any) => link.kind === 'evidence' ? '#68f0d0' : verificationColor(link.verificationStatus)}
+          onNodeClick={(node: any) => {
+            const entity = visibleEntities.find(e => String(key(e) || e.name) === String(node.id));
+            if (entity) { setActiveEntityId(String(key(entity) || entity.name)); setSelectedRelationshipId(''); onSelect(entity); }
+            else if (node.url) window.open(node.url, '_blank', 'noopener,noreferrer');
+          }}
+          onLinkClick={(link: any) => setSelectedRelationshipId(String(link.relationshipId || link.id || ''))}
+          onEngineStop={() => graphRef.current?.zoomToFit?.(500, 100)}
+          enableNodeDrag
+          enableNavigationControls
+          enablePointerInteraction
+          cooldownTicks={100}
+          d3AlphaDecay={0.035}
+          d3VelocityDecay={0.28}
+        />
+        <div className="adverse-3d-hud"><span>3D SCENE ACTIVE</span><span>ENTITY / SOURCE FIELD</span><span>ORBIT CAMERA</span></div>
+      </div>
+    </div>
+    <div className="adverse-3d-legend">
+      <span><i className="entity" /> Entities</span><span><i className="source" /> Saved sources</span>
+      <span><i className="verified" /> Verified label</span><span><i className="disputed" /> Disputed label</span>
+      <small>Colours represent saved review labels, not independent verification.</small>
+    </div>
+    {activeEntity && <section className="adverse-3d-inspector">
+      <div><div className="adverse-3d-kicker">SELECTED ENTITY</div><h4>{activeEntity.name}</h4>
+        <p>{activeEntity.type}{activeEntity.description ? ' · ' + activeEntity.description : ''}</p></div>
+      <div className="adverse-3d-inspector-stats"><b>{activeRelations.length}</b> connected relationships</div>
+      {activeRelations.map(r => <button type="button" key={relationshipKey(r)} className={selectedRelationshipId === relationshipKey(r) ? 'active' : ''} onClick={() => setSelectedRelationshipId(relationshipKey(r))}>
+        {visibleEntities.find(e => String(key(e) || e.name) === String(r.fromEntityId))?.name || 'Unknown'} <strong>{r.type}</strong> {visibleEntities.find(e => String(key(e) || e.name) === String(r.toEntityId))?.name || 'Unknown'}
+        <small>{verificationLabel(r.verificationStatus)} · {(r.evidenceIds || []).length} source links</small>
+      </button>)}
+      {selectedRelationshipId && <p className="adverse-3d-rationale">{activeRelations.find(r => relationshipKey(r) === selectedRelationshipId)?.rationale || 'No additional relationship rationale recorded.'}</p>}
+    </section>}
+  </section>;
+}
