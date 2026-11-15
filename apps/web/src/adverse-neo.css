@@ -196,3 +196,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .graph3d-empty b{color:#d9f4ff;font:600 15px var(--display)}
 .graph3d-empty span{max-width:440px;font-size:11px;line-height:1.6}
 @media(max-width:640px){.graph3d-toolbar{align-items:flex-start;flex-direction:column}.graph3d-controls{width:100%}.graph3d-controls button{flex:1}.graph3d-legend small{width:100%;margin-left:0}.graph3d-canvas{min-height:350px!important}}
+
+.graph3d-inspector{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;padding:14px;border-top:1px solid rgba(103,157,211,.16);background:linear-gradient(110deg,rgba(12,24,40,.96),rgba(8,17,30,.98))}
+.graph3d-inspector-main,.graph3d-inspector-source{min-width:0;padding:14px;border:1px solid rgba(103,157,211,.18);border-radius:11px;background:rgba(15,29,47,.78)}
+.graph3d-inspector-heading{display:flex;flex-direction:column;gap:5px}
+.graph3d-inspector-heading>span,.graph3d-inspector-section>strong,.graph3d-inspector-columns small{font:9px var(--mono);letter-spacing:1.1px;color:#73dff3}
+.graph3d-inspector-heading>b{font:600 16px var(--display);color:#e8f7ff;overflow-wrap:anywhere}
+.graph3d-inspector-heading>small,.graph3d-inspector-section small{font-size:10px;color:#819bb6}
+.graph3d-inspector-main>p,.graph3d-inspector-source>p{font-size:11px;line-height:1.6;color:#a0b5ca}
+.graph3d-inspector-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:12px 0}
+.graph3d-inspector-columns>div{display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid rgba(103,157,211,.15);border-radius:8px;background:rgba(6,15,27,.48)}
+.graph3d-inspector-columns b{font:500 20px var(--display);color:#eaf8ff}
+.graph3d-inspector-section{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.graph3d-relation-row,.graph3d-source-row{display:flex;flex-direction:column;gap:5px;width:100%;padding:9px 10px;border:1px solid rgba(103,157,211,.14);border-radius:8px;background:rgba(8,19,32,.7);text-align:left;color:#c3d9ed}
+.graph3d-relation-row:hover,.graph3d-source-row:hover{border-color:rgba(93,228,255,.45);background:rgba(30,76,100,.24)}
+.graph3d-relation-row span,.graph3d-source-row span{font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.graph3d-relation-row span b{color:#8cecff}
+.graph3d-source-meta{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;color:#83ddeb;font-size:10px}
+.graph3d-inspector-source>a{color:#8deaff;font-size:11px}
+@media(max-width:640px){.graph3d-inspector{padding:9px}.graph3d-inspector-main,.graph3d-inspector-source{padding:11px}}
