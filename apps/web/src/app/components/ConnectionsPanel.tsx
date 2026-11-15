@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { useWorkspaceContext } from '../WorkspaceContext';
-const Graph = lazy(() => import('../../features/graph/Graph'));
+const Graph = lazy(() => import('../../features/graph/GraphExplorer'));
 import Empty from '../../components/ui/Empty';
 import { getRecordId as key } from '../../lib/ids';
 import { Layers3, Plus, Search, X, Link2, Trash2 } from 'lucide-react';
