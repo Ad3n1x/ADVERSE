@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import type { Entity, Evidence, Relationship } from '../../types/research';
 import { getRecordId as key } from '../../lib/ids';
@@ -28,7 +29,7 @@ type Link = {
   kind: 'relationship' | 'evidence';
   verificationStatus?: string;
 };
-const ForceGraph3DComponent = ForceGraph3D as React.ComponentType<any>;
+const ForceGraph3DComponent = ForceGraph3D as ComponentType<any>;
 
 function Graph3D({ entities, evidence, relationships, onSelect, selectedId, query, layoutKey }: Props) {
   const graphRef = useRef<any>(null);
