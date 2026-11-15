@@ -79,6 +79,16 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
         if (sourceIds.has(sourceId)) links.push({ source: entityId, target: sourceId, type: 'supported by saved source', kind: 'evidence' });
       }
     }
+    for (const relationship of relationships) {
+      if (!entityIds.has(String(relationship.fromEntityId)) || !entityIds.has(String(relationship.toEntityId))) continue;
+      for (const evidenceId of relationship.evidenceIds || []) {
+        const sourceId = 'source-' + String(evidenceId);
+        if (sourceIds.has(sourceId)) {
+          links.push({ source: String(relationship.fromEntityId), target: sourceId, type: 'source attached to ' + (relationship.type || 'relationship'), kind: 'evidence' });
+          links.push({ source: String(relationship.toEntityId), target: sourceId, type: 'source attached to ' + (relationship.type || 'relationship'), kind: 'evidence' });
+        }
+      }
+    }
     return { nodes: [...entityNodes, ...sourceNodes], links };
   }, [entities, evidence, relationships, normalizedQuery]);
 
@@ -104,7 +114,7 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
   const fit = () => graphRef.current?.zoomToFit?.(550, 90);
   const zoom = (factor: number) => {
     const current = graphRef.current?.cameraPosition?.();
-    if (current) graphRef.current?.cameraPosition?.({ x: current.x * factor, y: current.y * factor, z: current.z * factor }, undefined, 250);
+    if (current) graphRef.current?.cameraPosition?.({ x: current.x / factor, y: current.y / factor, z: current.z / factor }, undefined, 250);
   };
 
   if (!graphData.nodes.length) {
@@ -134,9 +144,9 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
           nodeColor={(node: Node) => node.id === selectedId ? '#ffe08a' : node.kind === 'source' ? '#52d6b0' : '#62cfff'}
           nodeVal={(node: Node) => node.kind === 'source' ? 3 : 5 + Math.min(5, node.evidenceIds.length)}
           nodeResolution={10}
-          linkColor={(link: Link) => link.kind === 'evidence' ? '#52d6b0' : '#6c8db8'}
+          linkColor={(link: Link) => link.kind === 'evidence' ? '#52d6b0' : ['verified', 'confirmed', 'independently verified'].includes(String(link.verificationStatus || '').toLowerCase()) ? '#66d3a0' : ['disputed', 'conflicting', 'contradicted', 'rejected'].includes(String(link.verificationStatus || '').toLowerCase()) ? '#ff7171' : '#6c8db8'}
           linkWidth={(link: Link) => link.kind === 'evidence' ? 0.8 : 1.25}
-          linkOpacity={0.62}
+          linkOpacity={0.72}\n          linkLabel={(link: Link) => link.type + ' · ' + (link.kind === 'evidence' ? 'saved source association' : link.verificationStatus || 'unverified')}
           linkDirectionalParticles={(link: Link) => link.kind === 'evidence' ? 2 : 1}
           linkDirectionalParticleWidth={1.8}
           linkDirectionalParticleSpeed={0.003}
