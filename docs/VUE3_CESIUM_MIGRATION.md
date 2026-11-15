@@ -25,7 +25,9 @@ The current branch deliberately keeps the existing React shell running while a V
 - Added Vue 3, CesiumJS, the Vue Vite plugin, the Cesium Vite plugin and a pinned Git dependency on GEV.
 - Uses GEV's exported `gods-eye-view/application/viewer` helper to create the Cesium viewer and inherit its viewer setup/lifecycle behavior.
 - Added a Vue single-file geospatial workspace, mounted through a small React compatibility wrapper while the wider application remains React.
-- Added a USGS past-24-hour earthquake GeoJSON layer with selectable event markers, a recent-events list, refresh, timestamp and source attribution.
+- Added a USGS past-24-hour earthquake GeoJSON layer and a NASA EONET open natural-events layer, with selectable markers, separate feed tabs, refresh states, timestamps and source attribution.
+- Added a public STAC collection catalogue backed by Element 84 Earth Search, with publisher links, collection identifiers, licence metadata and a retryable loading/error state.
+- Redesigned the geospatial workspace with a responsive intelligence layout, source cards, feed metrics, map legend, reduced-motion support and mobile breakpoints.
 - Uses OpenStreetMap tiles with visible attribution.
 - Added a Geospatial navigation item. The feature is lazy-loaded so the Cesium bundle is not part of the initial workspace route.
 - Excludes Cesium's large static asset folders from PWA precaching to avoid making the service worker cache the full globe runtime.
@@ -38,7 +40,7 @@ This integration uses the GEV viewer export, not the complete GEV standalone app
 
 - **GeoLibre (MIT):** use as an architectural reference for cloud-native formats and browser-side spatial analysis. Do not transplant its complete React/Tauri application.
 - **GeoLens (Apache-2.0):** use as a benchmark for dataset catalogue, source freshness and version history. Preserve ADVERSE's existing Express/MongoDB architecture and evidence model.
-- **STAC Browser (ISC):** shortlist for a future Vue-based public catalogue route after an allowlisted STAC source registry exists.
+- **STAC Browser (ISC):** its STAC discovery model informed the current lightweight catalogue panel. The panel currently reads collection metadata from the allowlisted Earth Search endpoint; a full STAC item-search/map-preview route remains future work.
 - **Sigma.js (MIT):** benchmark against the current force graph before considering a graph-renderer replacement.
 - **deck.gl (MIT) and Turf.js (MIT):** defer until dense map rendering or concrete spatial-analysis features justify the added runtime/dependency cost.
 - **MapLibre GL JS:** shortlist for a future 2D map mode; verify exact license metadata and provider terms before code reuse.
@@ -68,4 +70,4 @@ GEV currently declares Node `>=24.14.0 <25 || >=26 <27`. The quality-gate workfl
 
 ## Status
 
-The first GEV/Cesium feature slice is committed to the migration branch and its code commit passed the configured GitHub checks. A Vercel deployment completed for that code commit. The branch remains a staged React/Vue hybrid, not a completed React-to-Vue conversion. Production remains unchanged pending browser verification, route parity, and an explicit production cutover.
+The GEV/Cesium foundation was merged into `main` through PR #19 (merge commit `4fab90ed9fad3ce0d1e185ebb10a9aee03ff61d1`). The geospatial workspace now combines the GEV viewer, USGS earthquakes, NASA EONET public natural events, an Element 84 Earth Search STAC collection catalogue, and a redesigned responsive interface. GitHub checks passed for the merged foundation. The later data-layer and UI commits are undergoing fresh CI checks. A fresh Vercel deployment and real-browser verification are still required; a prior Vercel deployment attempt was blocked by the daily deployment rate limit. The wider workspace remains a staged React/Vue hybrid, not a completed React-to-Vue conversion.
