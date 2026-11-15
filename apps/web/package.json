@@ -8,6 +8,7 @@
     "dev": "vite --host 0.0.0.0",
     "prebuild": "node ./scripts/prepare-cesium-assets.mjs",
     "build": "tsc -b && vite build",
+    "postbuild": "node ./scripts/verify-cesium-assets.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json"
   },
   "dependencies": {
