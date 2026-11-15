@@ -7,7 +7,7 @@ type GeospatialSaveHandler = (
   url: string,
   excerpt: string,
   publisher: string,
-  sourceType: string,
+  entityType: 'organization' | 'domain' | 'document',
 ) => void | Promise<void>;
 
 type Props = {
