@@ -1,87 +1,54 @@
 # ADVERSE Vue 3 + CesiumJS migration
 
-## Decision
+## Decision and boundary
 
-ADVERSE will move its browser application from React/TypeScript to Vue 3, using the
-God's Eye View (GEV) geospatial client and CesiumJS as the geospatial foundation.
-This is a staged migration, not a wholesale replacement of ADVERSE's product or
-backend.
+ADVERSE is being migrated in stages from its existing React/TypeScript workspace toward Vue 3. The geospatial foundation is the actual God's Eye View (GEV) Cesium viewer, not a separately recreated globe.
 
 Upstream project: https://github.com/bilawalsidhu/gods-eye-view
-Upstream license: MIT (retain required copyright and license notices for reused
-upstream code; review bundled data and provider terms separately).
+Pinned upstream commit: `44d9e573bd8762ece5a6b29ea3d9911a13f76e41`
+Upstream license: MIT. Retain required copyright and license notices for reused upstream code; review bundled data and provider terms separately.
 
-## Non-negotiable product boundaries
+The current branch deliberately keeps the existing React shell running while a Vue geospatial feature is introduced as an isolated island. This avoids replacing authentication, research, evidence, admin and PWA behavior before equivalent Vue routes exist. It is an integration milestone, not a completed framework migration.
+
+## Product and safety boundaries
 
 - ADVERSE remains a public-source research and evidence workspace.
-- Preserve the existing Express API, MongoDB data model, authentication,
-  authorization, user workspaces, investigations, evidence records, and
-  provenance unless a separately tested compatibility change is required.
-- Geospatial layers in this migration are limited to public, attributable,
-  non-personal datasets and aggregate environmental/event/infrastructure data.
-- Do not port or expose named-person search, face recognition, private camera
-  feeds, individual/device/vehicle tracking, or other features intended to
-  monitor a private person. Do not proxy provider credentials to browsers.
-- Every displayed dataset must show source, retrieval/update time, limitations,
-  and a link to the authoritative source where available.
-- Treat geospatial observations as informational, potentially delayed or
-  incomplete, never as safety-critical navigation or emergency-response data.
+- Preserve the existing Express API, MongoDB data model, authentication, authorization, user workspaces, investigations, evidence records and provenance.
+- Only integrate public, attributable, non-personal geospatial layers and aggregate environmental/event/infrastructure data.
+- Do not port or expose named-person search, face recognition, private camera feeds, individual/device/vehicle tracking, or other features intended to monitor a private person.
+- Do not proxy provider credentials to browsers.
+- Every displayed dataset must show its source, update time, limitations and an authoritative link where available.
+- Geospatial observations are informational and may be delayed or incomplete; they are not a safety-critical navigation or emergency-response service.
 
-## Target architecture
+## Implemented in this branch
 
-- Frontend: Vue 3, Vite, TypeScript, Vue Router/Pinia only where needed.
-- Globe: CesiumJS using the GEV-compatible Cesium setup and viewer lifecycle.
-- API: existing ADVERSE Express service and MongoDB remain authoritative.
-- Data boundary: a small typed ADVERSE adapter maps approved API/public GeoJSON
-  feeds into GEV-compatible layer inputs. Upstream modules must not bypass
-  ADVERSE authorization, rate limits, attribution, or provider policy.
-- Deployment: retain existing Vercel frontend / Render API topology after
-  validating Node runtime, build output, SPA routing, PWA, and environment
-  configuration.
+- Added Vue 3, CesiumJS, the Vue Vite plugin, the Cesium Vite plugin and a pinned Git dependency on GEV.
+- Uses GEV's exported `gods-eye-view/application/viewer` helper to create the Cesium viewer and inherit its viewer setup/lifecycle behavior.
+- Added a Vue single-file geospatial workspace, mounted through a small React compatibility wrapper while the wider application remains React.
+- Added a USGS past-24-hour earthquake GeoJSON layer with selectable event markers, a recent-events list, refresh, timestamp and source attribution.
+- Uses OpenStreetMap tiles with visible attribution.
+- Added a Geospatial navigation item. The feature is lazy-loaded so the Cesium bundle is not part of the initial workspace route.
+- Excludes Cesium's large static asset folders from PWA precaching to avoid making the service worker cache the full globe runtime.
+- Updated the quality-gate runtime to Node 24.22.2, which satisfies the pinned GEV package's declared Node engine range.
 
-## Migration sequence
+This integration uses the GEV viewer export, not the complete GEV standalone application. GEV's application lifecycle API requires the consumer to supply its own scene, controls, data and tools constructors; ADVERSE does not import the full standalone catalog or its unrelated provider features.
 
-1. Inventory and contract capture
-   - Record existing routes, auth/session behavior, API calls, deep links,
-     admin route, PWA install/share behavior, graph/research flows, and tests.
-   - Capture API request/response contracts before replacing React components.
-2. Vue shell and compatibility adapters
-   - Add Vue 3/Vite app entry, routing, state, design tokens, and API client.
-   - Recreate auth guards and route handling against the existing API.
-   - Keep React production entry intact until the Vue shell passes smoke tests.
-3. GEV/Cesium integration
-   - Integrate the upstream viewer/layer architecture selectively.
-   - Start with approved public layers such as USGS earthquakes and public
-     environmental observations. Add more only after source/terms review.
-   - Keep Cesium viewer lifecycle isolated and lazy-load heavy rendering assets.
-4. ADVERSE feature migration
-   - Port workspace navigation, search, investigation records, evidence,
-     source provenance, graph/timeline views, admin and download routes.
-   - Preserve existing stored data and API contracts.
-5. Quality and deployment
-   - Run frontend type checks, unit tests, API regression tests, production
-     build, accessibility/responsive checks, auth/tenant isolation checks,
-     and production-like smoke tests.
-   - Confirm the configured Node runtime satisfies upstream requirements
-     (GEV currently declares Node >=24.14.0 <25 or >=26 <27).
-   - Verify Cesium asset paths, ion/provider configuration, CSP, PWA caching,
-     service-worker update behavior, and Vercel/Render routing.
-6. Cutover
-   - Keep React available as rollback until the Vue build is verified.
-   - Switch production only after CI and preview smoke tests pass.
-   - Do not merge or deploy this migration automatically.
+## Remaining migration work
 
-## Initial upstream integration review
+1. Port the remaining workspace UI and routes to Vue 3: authentication, settings, investigations, search, evidence vault, entities/relationships, graph, monitoring, admin and download flows.
+2. Define and test the Vue-side API client and route guards against the existing Express API. Preserve the existing API contracts and owner/tenant isolation.
+3. Expand the geospatial layer adapter only for public, attributable, non-personal datasets after source and provider-term review.
+4. Verify mobile interaction, accessibility, Cesium asset paths, CSP, service-worker behavior, memory use and performance.
+5. Run type checks, frontend production build, API regression tests and browser smoke tests.
+6. Keep the React implementation available as rollback until the Vue route set has parity.
+7. Do not merge or deploy the migration automatically. Production cutover requires successful CI and a production-like preview check.
 
-The GEV package declares Vue 3, Pinia, CesiumJS, Vite, and a Cesium Vite plugin.
-It is a broad application with many data providers and operational features;
-ADVERSE should reuse the viewer/layer foundations, not import the entire
-standalone application or all of its providers.
+## Runtime
+
+GEV currently declares Node `>=24.14.0 <25 || >=26 <27`. The quality-gate workflow uses Node 24.22.2. The Render API service is separate under `apps/api` and remains on its own runtime; this frontend dependency does not require changing the API service's runtime.
 
 ## Status
 
-This branch begins the migration plan and architecture boundary. It does not
-yet contain the Vue frontend, Cesium viewer, or a production deployment.
-The earlier React Globe.gl work in PR #18 is not the target implementation and
-must not be merged as the final geospatial engine.
+The first real GEV/Cesium feature slice is now committed to this migration branch. The branch is still a staged hybrid, not a completed React-to-Vue conversion. Production remains unchanged pending CI, preview verification and completion of the remaining routes.
 
+The earlier React Globe.gl prototype in PR #18 is not the final geospatial engine and should not be merged as the replacement for this implementation.
