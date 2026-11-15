@@ -248,7 +248,7 @@ onBeforeUnmount(() => {
         <h2>Geospatial Intelligence</h2>
         <p class="geo-subtitle">A live geographic picture built from attributed public event feeds.</p>
       </div>
-      <button class="geo-refresh" type="button" :disabled="loadingQuakes && loadingNatural" @click="refreshAll">
+      <button class="geo-refresh" type="button" :disabled="loadingQuakes || loadingNatural" @click="refreshAll">
         <span class="geo-refresh-icon">↻</span>
         {{ loadingQuakes || loadingNatural ? 'Refreshing feeds…' : 'Refresh data' }}
       </button>
