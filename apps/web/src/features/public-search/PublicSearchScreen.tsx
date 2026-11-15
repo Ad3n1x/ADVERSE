@@ -1,4 +1,5 @@
 import { ArrowRight, BookOpen, BrainCircuit, Clock3, FileSearch, Fingerprint, GitBranch, Network, Radar, ShieldCheck, Sparkles } from 'lucide-react';
+import ResearchScene3D from './ResearchScene3D';
 import './research-direction.css';
 
 type Props = { onSignIn: () => void; onCreateAccount: () => void };
@@ -26,14 +27,11 @@ export default function PublicSearchScreen({ onSignIn, onCreateAccount }: Props)
     <div className="landing-actions"><button className="landing-primary" onClick={onCreateAccount}>Create your workspace <ArrowRight size={17}/></button><button className="landing-secondary" onClick={onSignIn}>Sign in</button></div>
     <p className="landing-access-note"><ShieldCheck size={14}/> The investigation tools are inside the secure workspace after you sign in.</p>
    </div>
-   <div className="landing-preview" aria-label="Illustrative preview of an intelligence investigation workspace">
-    <div className="preview-top"><span><span className="preview-dot"/> ADVERSE / INTELLIGENCE DESK</span><span>WORKSPACE PREVIEW</span></div>
-    <div className="preview-question"><small>INVESTIGATION BRIEF</small><b>Map the public evidence around a research question</b><span>Multi-step research · Source review · Relationship discovery</span></div>
-    <div className="preview-flow">
-     <div className="preview-node preview-root"><Radar size={17}/><span>Research question</span></div>
-     <div className="preview-branches"><div className="preview-node"><FileSearch size={16}/><span>Source collection</span><small>Public records & pages</small></div><div className="preview-node"><Network size={16}/><span>Entity mapping</span><small>People, orgs & links</small></div><div className="preview-node"><GitBranch size={16}/><span>Evidence review</span><small>Compare & find gaps</small></div></div>
-    </div>
-    <div className="preview-footer"><span><span className="preview-dot"/> INVESTIGATION WORKFLOW</span><span>Illustrative interface preview</span></div>
+   <div className="landing-preview landing-preview-immersive" aria-label="Interactive 3D intelligence network preview">
+    <div className="preview-top"><span><span className="preview-dot"/> ADVERSE / SPATIAL INTELLIGENCE DESK</span><span>3D RESEARCH MODEL</span></div>
+    <div className="landing-scene-caption"><b>One question.</b><span>Multiple sources. Connected evidence. Human review.</span></div>
+    <ResearchScene3D/>
+    <div className="preview-footer"><span><span className="preview-dot"/> INTERACTIVE 3D ENVIRONMENT</span><span>Illustrative relationships · Not factual findings</span></div>
    </div>
   </section>
   <section className="landing-proof-strip" aria-label="Product principles"><div><Sparkles size={17}/><span><b>Agent-assisted</b><small>Multi-step research workflows</small></span></div><div><BookOpen size={17}/><span><b>Source-backed</b><small>Keep evidence attached to findings</small></span></div><div><ShieldCheck size={17}/><span><b>Human-reviewed</b><small>Inspect sources and limitations</small></span></div></section>
