@@ -8,7 +8,7 @@ import EvidenceVaultPanel from './EvidenceVaultPanel';
 import ConnectionsPanel from './ConnectionsPanel';
 import SourceReviewPanel from './SourceReviewPanel';
 import PublicDataProvidersPanel from './PublicDataProvidersPanel';
-const Graph = lazy(() => import('../../features/graph/Graph'));
+const Graph = lazy(() => import('../../features/graph/GraphExplorer'));
 const GeospatialIntelligencePanel = lazy(() => import('../../features/geospatial/GeospatialIntelligencePanel'));
 import MonitoringView from '../../features/monitoring/MonitoringView';
 import CyberIntelligenceView from '../../features/cyber/CyberIntelligenceView';
