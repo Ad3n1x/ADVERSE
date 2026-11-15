@@ -14,6 +14,10 @@ type NaturalEvent = {
 };
 type FeedTab = 'earthquakes' | 'natural';
 type StacCollection = { id: string; title: string; description: string; license: string; href: string };
+const props = defineProps<{
+  onSave?: (title: string, url: string, excerpt: string, publisher: string, sourceType: string) => void | Promise<void>;
+  canSave?: boolean;
+}>();
 
 const mapHost = ref<HTMLDivElement | null>(null);
 const creditHost = ref<HTMLDivElement | null>(null);
@@ -33,6 +37,9 @@ const stacLoading = ref(true);
 const stacError = ref('');
 const stacUpdatedAt = ref('');
 const stacEndpoint = 'https://earth-search.aws.element84.com/v1/collections';
+const savingEventId = ref('');
+const savedEventIds = ref<string[]>([]);
+const saveError = ref('');
 const activeEvents = computed(() => activeFeed.value === 'earthquakes' ? earthquakes.value : naturalEvents.value);
 const activeLoading = computed(() => activeFeed.value === 'earthquakes' ? loadingQuakes.value : loadingNatural.value);
 const activeError = computed(() => activeFeed.value === 'earthquakes' ? quakeError.value : naturalError.value);
@@ -205,6 +212,38 @@ function focusEvent(event: Quake | NaturalEvent) {
   });
 }
 
+async function saveEvent(event: Quake | NaturalEvent) {
+  if (!props.canSave || !props.onSave) {
+    saveError.value = 'Choose an active collection in the workspace header before saving evidence.';
+    return;
+  }
+  if (savedEventIds.value.includes(event.id)) return;
+  savingEventId.value = event.id;
+  saveError.value = '';
+  const isQuake = 'magnitude' in event;
+  const publisher = isQuake ? 'United States Geological Survey (USGS)' : 'NASA Earth Observatory Natural Event Tracker (EONET)';
+  const title = (isQuake ? 'Earthquake: ' + event.place : 'Natural event: ' + event.title).slice(0, 240);
+  const eventTime = isQuake ? formatTime(event.occurredAt) : formatTime(event.occurredAt);
+  const detail = [
+    'Public geospatial observation saved from an attributed source feed.',
+    'Publisher: ' + publisher,
+    'Event time: ' + eventTime,
+    'Coordinates: ' + event.latitude.toFixed(5) + ', ' + event.longitude.toFixed(5),
+    isQuake ? 'Magnitude: ' + (event.magnitude === null ? 'not supplied' : event.magnitude.toFixed(1)) : 'Category: ' + event.category,
+    !isQuake ? 'Location basis: ' + event.locationBasis : 'Depth (km): ' + (event.depthKm === null ? 'not supplied' : event.depthKm.toFixed(1)),
+    'Retrieved at: ' + new Date().toISOString(),
+    'This record preserves the source observation; it is not independent verification.',
+  ].join('\\n');
+  try {
+    await props.onSave(title, event.url, detail, publisher, 'web');
+    savedEventIds.value = [...savedEventIds.value, event.id];
+  } catch (cause) {
+    saveError.value = cause instanceof Error ? cause.message : 'Unable to save this event to the active collection.';
+  } finally {
+    savingEventId.value = '';
+  }
+}
+
 onMounted(async () => {
   try {
     if (!mapHost.value || !creditHost.value) throw new Error('The globe container is unavailable.');
@@ -306,17 +345,24 @@ onBeforeUnmount(() => {
             <div v-if="activeLoading && !activeEvents.length" class="geo-state"><span class="geo-loader"></span> Loading attributed public data…</div>
             <div v-else-if="activeError" class="geo-state geo-state-error">{{ activeError }} <button type="button" @click="activeFeed === 'earthquakes' ? refreshEarthquakes() : refreshNaturalEvents()">Retry</button></div>
             <div v-else-if="!activeEvents.length" class="geo-state">No events are currently available from this feed.</div>
-            <button v-for="event in activeEvents" :key="event.id" class="geo-event" type="button" @click="focusEvent(event)">
-              <span v-if="'magnitude' in event" class="geo-event-mark geo-event-mark-quake">{{ event.magnitude === null ? '—' : event.magnitude.toFixed(1) }}</span>
-              <span v-else class="geo-event-mark geo-event-mark-natural">✳</span>
-              <span class="geo-event-copy">
-                <strong>{{ 'place' in event ? event.place : event.title }}</strong>
-                <small>{{ 'magnitude' in event ? formatTime(event.occurredAt) : event.category + ' · ' + formatTime(event.occurredAt) }}</small>
-                <small>{{ event.latitude.toFixed(2) }}, {{ event.longitude.toFixed(2) }}<template v-if="'locationBasis' in event"> · {{ event.locationBasis }}</template></small>
-              </span>
-              <span class="geo-event-arrow">↗</span>
-            </button>
+            <div v-for="event in activeEvents" :key="event.id" class="geo-event">
+              <button class="geo-event-focus" type="button" @click="focusEvent(event)" :aria-label="'Focus globe on ' + ('place' in event ? event.place : event.title)">
+                <span v-if="'magnitude' in event" class="geo-event-mark geo-event-mark-quake">{{ event.magnitude === null ? '—' : event.magnitude.toFixed(1) }}</span>
+                <span v-else class="geo-event-mark geo-event-mark-natural">✳</span>
+                <span class="geo-event-copy">
+                  <strong>{{ 'place' in event ? event.place : event.title }}</strong>
+                  <small>{{ 'magnitude' in event ? formatTime(event.occurredAt) : event.category + ' · ' + formatTime(event.occurredAt) }}</small>
+                  <small>{{ event.latitude.toFixed(2) }}, {{ event.longitude.toFixed(2) }}<template v-if="'locationBasis' in event"> · {{ event.locationBasis }}</template></small>
+                </span>
+                <span class="geo-event-arrow">↗</span>
+              </button>
+              <button class="geo-save-event" type="button" :disabled="!props.canSave || savingEventId === event.id || savedEventIds.includes(event.id)" @click="saveEvent(event)">
+                {{ savedEventIds.includes(event.id) ? 'Saved' : savingEventId === event.id ? 'Saving…' : 'Save evidence' }}
+              </button>
+            </div>
           </div>
+          <p v-if="saveError" class="geo-save-note geo-state-error">{{ saveError }}</p>
+          <p v-else-if="!props.canSave" class="geo-save-note">Select a collection in the workspace header to save event records into Evidence Vault.</p>
           <div class="geo-feed-updated"><span class="geo-feed-status"></span> Updated {{ activeUpdatedAt || 'when source responds' }}</div>
         </div>
 
@@ -400,8 +446,9 @@ onBeforeUnmount(() => {
 .geo-events-head strong{font-size:11px;color:#dce8f4}
 .geo-events-head span{font-size:9px;color:#8195aa}
 .geo-event-list{flex:1;min-height:150px;overflow:auto;scrollbar-width:thin;scrollbar-color:#334b62 transparent}
-.geo-event{display:flex;align-items:center;gap:10px;width:100%;padding:11px 3px;border:0;border-top:1px solid #ffffff0c;background:transparent;color:inherit;text-align:left;cursor:pointer;transition:background .15s}
-.geo-event:hover{background:#ffffff08}
+.geo-event{display:flex;align-items:center;gap:6px;width:100%;padding:8px 2px;border-top:1px solid #ffffff0c}
+.geo-event-focus{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:3px;border:0;border-radius:8px;background:transparent;color:inherit;text-align:left;cursor:pointer;transition:background .15s}
+.geo-event-focus:hover{background:#ffffff08}
 .geo-event-mark{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:10px;font-size:11px;font-weight:800}
 .geo-event-mark-quake{background:#f3ad5518;color:#f6c17d}
 .geo-event-mark-natural{background:#69c8d718;color:#8ee1e8;font-size:16px}
@@ -409,7 +456,11 @@ onBeforeUnmount(() => {
 .geo-event-copy strong{overflow:hidden;color:#e5eef7;font-size:10px;line-height:1.4;text-overflow:ellipsis;white-space:nowrap}
 .geo-event-copy small{overflow:hidden;color:#8da1b5;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
 .geo-event-arrow{color:#708aa2;font-size:14px;opacity:0;transition:opacity .15s}
-.geo-event:hover .geo-event-arrow{opacity:1}
+.geo-event-focus:hover .geo-event-arrow{opacity:1}
+.geo-save-event{flex:0 0 auto;padding:7px 8px;border:1px solid #7199bd30;border-radius:7px;background:#75b6df0b;color:#a9cbe8;font:inherit;font-size:8px;font-weight:800;cursor:pointer;white-space:nowrap}
+.geo-save-event:hover:not(:disabled){border-color:#75b6df70;background:#75b6df18}
+.geo-save-event:disabled{opacity:.48;cursor:not-allowed}
+.geo-save-note{margin:8px 0 0;color:#8297ac;font-size:9px;line-height:1.5}
 .geo-state{display:flex;align-items:center;gap:9px;padding:17px 3px;color:#93a6b9;font-size:11px}
 .geo-state-error{align-items:flex-start;color:#f0a6a6}
 .geo-state-error button{border:0;background:transparent;color:#9acbfa;font:inherit;text-decoration:underline;cursor:pointer}
