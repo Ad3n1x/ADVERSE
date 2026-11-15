@@ -13,6 +13,7 @@ type NaturalEvent = {
   longitude: number; latitude: number; url: string; locationBasis: string;
 };
 type FeedTab = 'earthquakes' | 'natural';
+type StacCollection = { id: string; title: string; description: string; license: string; href: string };
 
 const mapHost = ref<HTMLDivElement | null>(null);
 const creditHost = ref<HTMLDivElement | null>(null);
@@ -27,6 +28,11 @@ const quakeUpdatedAt = ref('');
 const naturalUpdatedAt = ref('');
 const quakeCount = ref(0);
 const naturalCount = ref(0);
+const stacCollections = ref<StacCollection[]>([]);
+const stacLoading = ref(true);
+const stacError = ref('');
+const stacUpdatedAt = ref('');
+const stacEndpoint = 'https://earth-search.aws.element84.com/v1/collections';
 const activeEvents = computed(() => activeFeed.value === 'earthquakes' ? earthquakes.value : naturalEvents.value);
 const activeLoading = computed(() => activeFeed.value === 'earthquakes' ? loadingQuakes.value : loadingNatural.value);
 const activeError = computed(() => activeFeed.value === 'earthquakes' ? quakeError.value : naturalError.value);
@@ -155,8 +161,39 @@ async function refreshNaturalEvents() {
   }
 }
 
+async function refreshStacCatalog() {
+  stacLoading.value = true;
+  stacError.value = '';
+  try {
+    const response = await fetch(stacEndpoint, { headers: { Accept: 'application/geo+json, application/json' } });
+    if (!response.ok) throw new Error(`STAC catalogue returned HTTP ${response.status}`);
+    const payload = await response.json();
+    if (disposed) return;
+    const collections = Array.isArray(payload.collections) ? payload.collections : [];
+    stacCollections.value = collections.slice(0, 5).map((collection: any) => {
+      const id = String(collection.id ?? '');
+      const selfLink = Array.isArray(collection.links) ? collection.links.find((link: any) => link.rel === 'self')?.href : '';
+      const safeHref = typeof selfLink === 'string' && selfLink.startsWith('https://earth-search.aws.element84.com/')
+        ? selfLink
+        : `https://earth-search.aws.element84.com/v1/collections/${encodeURIComponent(id)}`;
+      return {
+        id,
+        title: String(collection.title ?? id),
+        description: String(collection.description ?? 'Public STAC collection'),
+        license: String(collection.license ?? 'See publisher terms'),
+        href: safeHref,
+      };
+    }).filter((collection: StacCollection) => Boolean(collection.id));
+    stacUpdatedAt.value = new Date().toLocaleString();
+  } catch (cause) {
+    if (!disposed) stacError.value = cause instanceof Error ? cause.message : 'Unable to load the public STAC catalogue.';
+  } finally {
+    if (!disposed) stacLoading.value = false;
+  }
+}
+
 async function refreshAll() {
-  await Promise.allSettled([refreshEarthquakes(), refreshNaturalEvents()]);
+  await Promise.allSettled([refreshEarthquakes(), refreshNaturalEvents(), refreshStacCatalog()]);
 }
 
 function focusEvent(event: Quake | NaturalEvent) {
@@ -230,7 +267,7 @@ onBeforeUnmount(() => {
       </article>
       <article class="geo-metric geo-metric-blue">
         <span class="geo-metric-icon">◎</span>
-        <div><small>PUBLIC DATA SOURCES</small><strong>02</strong><span>Source-attributed feeds</span></div>
+        <div><small>PUBLIC DATA SOURCES</small><strong>03</strong><span>Public data and catalogue sources</span></div>
         <i></i>
       </article>
     </div>
@@ -283,6 +320,17 @@ onBeforeUnmount(() => {
           <div class="geo-feed-updated"><span class="geo-feed-status"></span> Updated {{ activeUpdatedAt || 'when source responds' }}</div>
         </div>
 
+
+        <div class="geo-catalog-panel">
+          <div class="geo-panel-heading"><div><p class="geo-panel-kicker">STAC / OPEN GEOSPATIAL DATA</p><h3>Public imagery catalogue</h3></div><span class="geo-catalog-count">{{ stacCollections.length }}</span></div>
+          <p class="geo-catalog-intro">Discover public Earth-observation datasets through an open SpatioTemporal Asset Catalog API.</p>
+          <div v-if="stacLoading && !stacCollections.length" class="geo-catalog-state"><span class="geo-loader"></span> Loading collection metadata…</div>
+          <p v-else-if="stacError" class="geo-catalog-state geo-state-error">{{ stacError }} <button type="button" @click="refreshStacCatalog">Retry</button></p>
+          <a v-for="collection in stacCollections" :key="collection.id" class="geo-catalog-item" :href="collection.href" target="_blank" rel="noreferrer">
+            <span class="geo-catalog-symbol">▦</span><span><strong>{{ collection.title }}</strong><small>{{ collection.id }} · {{ collection.license }}</small></span><b>↗</b>
+          </a>
+          <div class="geo-catalog-footer"><span>Element 84 / Earth Search</span><span>{{ stacUpdatedAt ? 'Checked ' + stacUpdatedAt : 'Catalogue status pending' }}</span></div>
+        </div>
         <div class="geo-provenance">
           <div class="geo-panel-heading"><div><p class="geo-panel-kicker">TRACEABLE BY DESIGN</p><h3>Source provenance</h3></div><span class="geo-shield">✓</span></div>
           <a class="geo-source-link" href="https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson" target="_blank" rel="noreferrer">
@@ -385,4 +433,18 @@ onBeforeUnmount(() => {
 @media(max-width:850px){.geo-workspace{grid-template-columns:1fr}.geo-map-card{min-height:470px}.geo-side{display:grid;grid-template-columns:1fr 1fr;align-items:stretch}.geo-feed-panel{min-height:420px}.geo-provenance{align-self:start}}
 @media(max-width:600px){.geo-heading{align-items:flex-start;flex-direction:column}.geo-refresh{min-height:40px}.geo-metrics{grid-template-columns:1fr;gap:8px}.geo-metric{padding:12px 14px}.geo-metric-icon{width:35px;height:35px;flex-basis:35px}.geo-metric strong{font-size:22px}.geo-map-card{min-height:390px}.geo-side{display:flex}.geo-feed-panel{min-height:390px}.geo-map-footnote{display:none}.geo-footer{flex-direction:column;gap:5px}}
 @media(prefers-reduced-motion:reduce){.geo-loader{animation:none}.geo-refresh,.geo-event,.geo-source-link{transition:none}}
+
+.geo-catalog-panel{padding:15px;border:1px solid var(--geo-border);border-radius:15px;background:linear-gradient(155deg,rgba(17,31,47,.98),rgba(11,22,35,.98));box-shadow:0 12px 28px rgba(0,0,0,.1)}
+.geo-catalog-count{display:grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border:1px solid #75b6df30;border-radius:8px;background:#75b6df10;color:#9bc9ed;font-size:10px;font-weight:800}
+.geo-catalog-intro{margin:10px 0;color:#8297ac;font-size:9px;line-height:1.55}
+.geo-catalog-item{display:flex;align-items:center;gap:9px;margin-top:7px;padding:9px;border:1px solid #ffffff0c;border-radius:9px;background:#ffffff04;color:inherit;text-decoration:none;transition:border-color .15s,background .15s}
+.geo-catalog-item:hover{border-color:#75b6df55;background:#ffffff08}
+.geo-catalog-symbol{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border-radius:8px;background:#75b6df17;color:#9bc9ed;font-size:16px}
+.geo-catalog-item span:nth-child(2){display:grid;gap:3px;min-width:0;flex:1}
+.geo-catalog-item strong{overflow:hidden;color:#dce8f4;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.geo-catalog-item small{overflow:hidden;color:#8499ad;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
+.geo-catalog-item>b{color:#8ca5bb;font-size:12px}
+.geo-catalog-state{display:flex;align-items:center;gap:8px;padding:10px 0;color:#93a6b9;font-size:10px}
+.geo-catalog-state button{border:0;background:transparent;color:#9acbfa;font:inherit;text-decoration:underline;cursor:pointer}
+.geo-catalog-footer{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #ffffff0c;color:#788da2;font-size:8px}
 </style>
