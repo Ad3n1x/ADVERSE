@@ -142,3 +142,20 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .workspace-mode{padding:3px 5px;border:1px solid rgba(93,228,255,.22);border-radius:5px;color:#79dff2;font:7px var(--mono);letter-spacing:1px}
 .nav-active-indicator{width:5px;height:5px;margin-left:auto;border-radius:50%;background:#65eaff;box-shadow:0 0 10px #65eaff}
 .admin-nav-item{margin-top:14px}
+
+/* Live WebGL globe — the intelligence workspace has actual depth, not a flat illustration. */
+.adverse-3d-scene{
+  position:fixed;z-index:0;top:54px;right:0;width:min(76vw,1120px);height:min(78vh,790px);
+  pointer-events:none;opacity:.78;mix-blend-mode:screen;
+  mask-image:radial-gradient(ellipse at 62% 43%,#000 0%,rgba(0,0,0,.88) 36%,transparent 76%);
+}
+.app-shell>.main{position:relative;z-index:1}
+.app-shell>.sidebar{z-index:5}
+.app-shell>.main .content{position:relative}
+.app-shell>.main .panel,.app-shell>.main .search-panel,.app-shell>.main .metric-card{
+  backdrop-filter:blur(9px);
+}
+@media(max-width:760px){
+ .adverse-3d-scene{top:110px;width:100vw;height:420px;opacity:.38;mask-image:radial-gradient(ellipse at 70% 30%,#000 0%,transparent 75%)}
+}
+@media(prefers-reduced-motion:reduce){.adverse-3d-scene{opacity:.22}}
