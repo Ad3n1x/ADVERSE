@@ -286,7 +286,7 @@ onBeforeUnmount(() => {
     <header class="geo-heading">
       <div class="geo-title-group">
         <p class="geo-kicker"><span class="geo-kicker-dot"></span> ADVERSE / PUBLIC GEOSPATIAL DATA</p>
-        <h2>Geospatial Intelligence</h2>
+        <h2>Global event monitor</h2>
         <p class="geo-subtitle">A live geographic picture built from attributed public event feeds.</p>
       </div>
       <button class="geo-refresh" type="button" :disabled="loadingQuakes || loadingNatural" @click="refreshAll">
@@ -377,7 +377,7 @@ onBeforeUnmount(() => {
           <a v-for="collection in stacCollections" :key="collection.id" class="geo-catalog-item" :href="collection.href" target="_blank" rel="noreferrer">
             <span class="geo-catalog-symbol">▦</span><span><strong>{{ collection.title }}</strong><small>{{ collection.id }} · {{ collection.license }}</small></span><b>↗</b>
           </a>
-          <div class="geo-catalog-footer"><span>Element 84 / Earth Search</span><span>{{ stacUpdatedAt ? 'Checked ' + stacUpdatedAt : 'Catalogue status pending' }}</span></div>
+          <div class="geo-catalog-footer"><a :href="stacEndpoint" target="_blank" rel="noreferrer">Element 84 / Earth Search ↗</a><span>{{ stacUpdatedAt ? 'Checked ' + stacUpdatedAt : 'Catalogue status pending' }}</span></div>
         </div>
         <div class="geo-provenance">
           <div class="geo-panel-heading"><div><p class="geo-panel-kicker">TRACEABLE BY DESIGN</p><h3>Source provenance</h3></div><span class="geo-shield">✓</span></div>
@@ -499,5 +499,5 @@ onBeforeUnmount(() => {
 .geo-catalog-item>b{color:#8ca5bb;font-size:12px}
 .geo-catalog-state{display:flex;align-items:center;gap:8px;padding:10px 0;color:#93a6b9;font-size:10px}
 .geo-catalog-state button{border:0;background:transparent;color:#9acbfa;font:inherit;text-decoration:underline;cursor:pointer}
-.geo-catalog-footer{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #ffffff0c;color:#788da2;font-size:8px}
+.geo-catalog-footer a{color:#8fbce0;text-decoration:none}.geo-catalog-footer{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #ffffff0c;color:#788da2;font-size:8px}
 </style>
