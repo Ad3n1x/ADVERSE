@@ -159,3 +159,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
  .adverse-3d-scene{top:110px;width:100vw;height:420px;opacity:.38;mask-image:radial-gradient(ellipse at 70% 30%,#000 0%,transparent 75%)}
 }
 @media(prefers-reduced-motion:reduce){.adverse-3d-scene{opacity:.22}}
+
+/* Public entry and sign-in screens share the same live 3D identity. */
+.adverse-landing,.auth-shell{position:relative;isolation:isolate}
+.adverse-landing>*:not(.adverse-3d-scene),.auth-shell>*:not(.adverse-3d-scene){position:relative;z-index:1}
+.adverse-landing .adverse-3d-scene,.auth-shell .adverse-3d-scene{z-index:0;top:0;right:0;width:min(100vw,1500px);height:100vh;opacity:.62}
+.adverse-landing .landing-hero,.auth-shell .auth-card{backdrop-filter:blur(8px)}
+@media(max-width:760px){
+ .adverse-landing .adverse-3d-scene,.auth-shell .adverse-3d-scene{height:75vh;opacity:.34}
+}
