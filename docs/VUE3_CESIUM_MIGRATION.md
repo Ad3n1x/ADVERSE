@@ -30,18 +30,37 @@ The current branch deliberately keeps the existing React shell running while a V
 - Added a Geospatial navigation item. The feature is lazy-loaded so the Cesium bundle is not part of the initial workspace route.
 - Excludes Cesium's large static asset folders from PWA precaching to avoid making the service worker cache the full globe runtime.
 - Updated the quality-gate runtime to Node 24.22.2, which satisfies the pinned GEV package's declared Node engine range.
+- Added `docs/OPEN_SOURCE_ECOSYSTEM_RESEARCH.md` with a reviewed shortlist of relevant public repositories, licenses, fit, integration priorities and explicit adoption cautions.
 
 This integration uses the GEV viewer export, not the complete GEV standalone application. GEV's application lifecycle API requires the consumer to supply its own scene, controls, data and tools constructors; ADVERSE does not import the full standalone catalog or its unrelated provider features.
 
+## External repository decisions
+
+- **GeoLibre (MIT):** use as an architectural reference for cloud-native formats and browser-side spatial analysis. Do not transplant its complete React/Tauri application.
+- **GeoLens (Apache-2.0):** use as a benchmark for dataset catalogue, source freshness and version history. Preserve ADVERSE's existing Express/MongoDB architecture and evidence model.
+- **STAC Browser (ISC):** shortlist for a future Vue-based public catalogue route after an allowlisted STAC source registry exists.
+- **Sigma.js (MIT):** benchmark against the current force graph before considering a graph-renderer replacement.
+- **deck.gl (MIT) and Turf.js (MIT):** defer until dense map rendering or concrete spatial-analysis features justify the added runtime/dependency cost.
+- **MapLibre GL JS:** shortlist for a future 2D map mode; verify exact license metadata and provider terms before code reuse.
+
+See [Open-source ecosystem research](OPEN_SOURCE_ECOSYSTEM_RESEARCH.md) for the full assessment.
+
+## Verification snapshot
+
+For commit `aaba94f9ce426c4c40aa147711b340746150490b`, GitHub reported successful quality-gate, CI and security workflow runs. CI included browser smoke tests, API syntax/regression tests, live API health/readiness, frontend typecheck and production build. GitHub's Vercel commit status reported deployment completed.
+
+These checks establish that the configured checks and deployment completed for that commit. They do not establish full React-to-Vue route parity or prove every Cesium runtime interaction in the deployed preview. The subsequent documentation-only commit triggers a fresh CI/deployment cycle.
+
 ## Remaining migration work
 
-1. Port the remaining workspace UI and routes to Vue 3: authentication, settings, investigations, search, evidence vault, entities/relationships, graph, monitoring, admin and download flows.
-2. Define and test the Vue-side API client and route guards against the existing Express API. Preserve the existing API contracts and owner/tenant isolation.
-3. Expand the geospatial layer adapter only for public, attributable, non-personal datasets after source and provider-term review.
-4. Verify mobile interaction, accessibility, Cesium asset paths, CSP, service-worker behavior, memory use and performance.
-5. Run type checks, frontend production build, API regression tests and browser smoke tests.
-6. Keep the React implementation available as rollback until the Vue route set has parity.
-7. Do not merge or deploy the migration automatically. Production cutover requires successful CI and a production-like preview check.
+1. Perform a real browser check against the Vercel preview: authenticate, open Geospatial, verify globe rendering, Cesium workers, OpenStreetMap tiles, USGS feed, event selection, attribution, mobile layout, console and network errors.
+2. Port the remaining workspace UI and routes to Vue 3: authentication, settings, investigations, search, evidence vault, entities/relationships, graph, monitoring, admin and download flows.
+3. Define and test the Vue-side API client and route guards against the existing Express API. Preserve existing API contracts and owner/tenant isolation.
+4. Add a public STAC/OGC catalogue only after a server-side allowlist and source/provenance contract are designed.
+5. Verify mobile interaction, accessibility, Cesium asset paths, CSP, service-worker behavior, memory use and performance.
+6. Run type checks, frontend production build, API regression tests and browser smoke tests after each route migration.
+7. Keep the React implementation available as rollback until the Vue route set has parity.
+8. Do not merge or deploy the migration automatically. Production cutover requires successful CI and a production-like preview check.
 
 ## Runtime
 
@@ -49,6 +68,4 @@ GEV currently declares Node `>=24.14.0 <25 || >=26 <27`. The quality-gate workfl
 
 ## Status
 
-The first real GEV/Cesium feature slice is now committed to this migration branch. The branch is still a staged hybrid, not a completed React-to-Vue conversion. Production remains unchanged pending CI, preview verification and completion of the remaining routes.
-
-The earlier React Globe.gl prototype in PR #18 is not the final geospatial engine and should not be merged as the replacement for this implementation.
+The first GEV/Cesium feature slice is committed to the migration branch and its code commit passed the configured GitHub checks. A Vercel deployment completed for that code commit. The branch remains a staged React/Vue hybrid, not a completed React-to-Vue conversion. Production remains unchanged pending browser verification, route parity, and an explicit production cutover.
