@@ -8,7 +8,7 @@ type GeospatialSaveHandler = (
   excerpt: string,
   publisher: string,
   entityType: 'organization' | 'domain' | 'document',
-) => void | Promise<void>;
+) => Promise<boolean>;
 
 type Props = {
   onSave?: GeospatialSaveHandler;
