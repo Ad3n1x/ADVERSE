@@ -16,7 +16,7 @@ type FeedTab = 'earthquakes' | 'natural';
 type StacCollection = { id: string; title: string; description: string; license: string; href: string };
 const props = defineProps<{
   onSave?: (title: string, url: string, excerpt: string, publisher: string, entityType: 'organization' | 'domain' | 'document') => Promise<boolean>;
-  canSave?: boolean;
+  canSave?: () => boolean;
 }>();
 
 const mapHost = ref<HTMLDivElement | null>(null);
@@ -40,6 +40,7 @@ const stacEndpoint = 'https://earth-search.aws.element84.com/v1/collections';
 const savingEventId = ref('');
 const savedEventIds = ref<string[]>([]);
 const saveError = ref('');
+const canSave = computed(() => props.canSave?.() ?? false);
 const activeEvents = computed(() => activeFeed.value === 'earthquakes' ? earthquakes.value : naturalEvents.value);
 const activeLoading = computed(() => activeFeed.value === 'earthquakes' ? loadingQuakes.value : loadingNatural.value);
 const activeError = computed(() => activeFeed.value === 'earthquakes' ? quakeError.value : naturalError.value);
@@ -213,7 +214,7 @@ function focusEvent(event: Quake | NaturalEvent) {
 }
 
 async function saveEvent(event: Quake | NaturalEvent) {
-  if (!props.canSave || !props.onSave) {
+  if (!canSave.value || !props.onSave) {
     saveError.value = 'Choose an active collection in the workspace header before saving evidence.';
     return;
   }
@@ -357,13 +358,13 @@ onBeforeUnmount(() => {
                 </span>
                 <span class="geo-event-arrow">↗</span>
               </button>
-              <button class="geo-save-event" type="button" :disabled="!props.canSave || savingEventId === event.id || savedEventIds.includes(event.id)" @click="saveEvent(event)">
+              <button class="geo-save-event" type="button" :disabled="!canSave || savingEventId === event.id || savedEventIds.includes(event.id)" @click="saveEvent(event)">
                 {{ savedEventIds.includes(event.id) ? 'Saved' : savingEventId === event.id ? 'Saving…' : 'Save evidence' }}
               </button>
             </div>
           </div>
           <p v-if="saveError" class="geo-save-note geo-state-error">{{ saveError }}</p>
-          <p v-else-if="!props.canSave" class="geo-save-note">Select a collection in the workspace header to save event records into Evidence Vault.</p>
+          <p v-else-if="!canSave" class="geo-save-note">Select a collection in the workspace header to save event records into Evidence Vault.</p>
           <div class="geo-feed-updated"><span class="geo-feed-status"></span> Updated {{ activeUpdatedAt || 'when source responds' }}</div>
         </div>
 
