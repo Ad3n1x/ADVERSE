@@ -135,3 +135,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 @media(max-width:420px){.page-heading h1{font-size:27px}.metric-value{font-size:28px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Navigation refinements */
+.workspace-switch{display:flex;align-items:center;gap:9px}
+.workspace-switch>span:nth-child(2){flex:1}
+.workspace-mode{padding:3px 5px;border:1px solid rgba(93,228,255,.22);border-radius:5px;color:#79dff2;font:7px var(--mono);letter-spacing:1px}
+.nav-active-indicator{width:5px;height:5px;margin-left:auto;border-radius:50%;background:#65eaff;box-shadow:0 0 10px #65eaff}
+.admin-nav-item{margin-top:14px}
