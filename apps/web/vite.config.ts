@@ -1,10 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import vue from '@vitejs/plugin-vue';
+import cesium from 'vite-plugin-cesium';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
+    cesium(),
+    vue(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'pwa-icon-192.svg', 'pwa-icon-512.svg'],
@@ -40,6 +44,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/download\/?$/],
+        globIgnores: ['cesium/**', 'Workers/**', 'Assets/**', 'ThirdParty/**', 'Widgets/**'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true
