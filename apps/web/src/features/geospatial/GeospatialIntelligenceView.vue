@@ -15,7 +15,7 @@ type NaturalEvent = {
 type FeedTab = 'earthquakes' | 'natural';
 type StacCollection = { id: string; title: string; description: string; license: string; href: string };
 const props = defineProps<{
-  onSave?: (title: string, url: string, excerpt: string, publisher: string, entityType: 'organization' | 'domain' | 'document') => void | Promise<void>;
+  onSave?: (title: string, url: string, excerpt: string, publisher: string, entityType: 'organization' | 'domain' | 'document') => Promise<boolean>;
   canSave?: boolean;
 }>();
 
