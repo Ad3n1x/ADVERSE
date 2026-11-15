@@ -35,6 +35,12 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
   const graphRef = useRef<any>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ width: 900, height: 520 });
+  const [selectedSourceId, setSelectedSourceId] = useState('');
+  const selectedEntity = entities.find(entity => String(key(entity) || entity.name) === selectedId);
+  const selectedEvidence = evidence.find((item, index) => 'source-' + String(key(item) || index) === selectedSourceId);
+  const selectedRelationships = selectedEntity ? relationships.filter(item => String(item.fromEntityId) === selectedId || String(item.toEntityId) === selectedId) : [];
+  const selectedEvidenceIds = new Set([...(selectedEntity?.evidenceIds || []), ...selectedRelationships.flatMap(item => item.evidenceIds || [])].map(String));
+  const connectedEvidence = evidence.filter((item, index) => selectedEvidenceIds.has(String(key(item) || index)));
   const normalizedQuery = query.trim().toLowerCase();
 
   const graphData = useMemo(() => {
@@ -162,16 +168,44 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
             if (node.kind === 'entity') {
               const entity = entities.find(item => String(key(item) || item.name) === node.id);
               if (entity) onSelect(entity);
-            } else if (node.url) {
-              try {
-                const url = new URL(node.url);
-                if (url.protocol === 'https:' || url.protocol === 'http:') window.open(url.href, '_blank', 'noopener,noreferrer');
-              } catch { /* Ignore malformed saved URLs. */ }
+            } else {
+              setSelectedSourceId(node.id);
             }
           }}
           rendererConfig={{ antialias: false, alpha: false, powerPreference: 'low-power' }}
         />
       </div>
+      {(selectedEntity || selectedEvidence) && <aside className="graph3d-inspector" aria-live="polite">
+        {selectedEntity && <div className="graph3d-inspector-main">
+          <div className="graph3d-inspector-heading"><span>SELECTED ENTITY</span><b>{selectedEntity.name}</b><small>{selectedEntity.type || 'Entity'}</small></div>
+          {selectedEntity.description && <p>{selectedEntity.description}</p>}
+          <div className="graph3d-inspector-columns">
+            <div><small>RECORDED RELATIONSHIPS</small><b>{selectedRelationships.length}</b></div>
+            <div><small>LINKED EVIDENCE</small><b>{connectedEvidence.length}</b></div>
+          </div>
+          {selectedRelationships.length > 0 && <div className="graph3d-inspector-section"><strong>RELATIONSHIPS</strong>
+            {selectedRelationships.map((relationship, index) => {
+              const otherId = String(relationship.fromEntityId) === selectedId ? String(relationship.toEntityId) : String(relationship.fromEntityId);
+              const other = entities.find(entity => String(key(entity) || entity.name) === otherId);
+              return <button type="button" className="graph3d-relation-row" key={String(key(relationship) || index)} onClick={() => other && onSelect(other)}>
+                <span>{relationship.type || 'Related to'} <b>{other?.name || 'Unknown entity'}</b></span>
+                <small>{relationship.verificationStatus || 'Unverified'} · confidence {relationship.confidence || 'not recorded'}</small>
+              </button>;
+            })}
+          </div>}
+          {connectedEvidence.length > 0 && <div className="graph3d-inspector-section"><strong>ASSOCIATED EVIDENCE</strong>
+            {connectedEvidence.map((item, index) => <button type="button" className="graph3d-source-row" key={String(key(item) || index)} onClick={() => setSelectedSourceId('source-' + String(key(item) || index))}>
+              <span>{item.title || item.publisher || 'Saved source'}</span><small>{item.publisher || item.sourceType || 'Source'} · {item.verificationStatus || 'Unverified'}</small>
+            </button>)}
+          </div>}
+        </div>}
+        {selectedEvidence && <div className="graph3d-inspector-source">
+          <div className="graph3d-inspector-heading"><span>SELECTED SOURCE</span><b>{selectedEvidence.title || selectedEvidence.publisher || 'Saved source'}</b><small>{selectedEvidence.publisher || selectedEvidence.sourceType || 'Evidence'}</small></div>
+          <p>{selectedEvidence.excerpt || 'No excerpt was saved for this source.'}</p>
+          <div className="graph3d-source-meta"><span>{selectedEvidence.verificationStatus || 'Unverified'}</span><span>{selectedEvidence.publishedAt ? 'Published ' + new Date(selectedEvidence.publishedAt).toLocaleDateString() : 'Publication date not recorded'}</span></div>
+          {selectedEvidence.url && <a href={selectedEvidence.url} target="_blank" rel="noopener noreferrer">Open original source ↗</a>}
+        </div>}
+      </aside>}
       <div className="graph3d-legend"><span><i className="entity-dot"/> Entities</span><span><i className="source-dot"/> Saved sources</span><span><i className="edge-dot"/> Recorded relationship</span><small>Rotate by dragging · Scroll to zoom · Select nodes to inspect</small></div>
       <p className="graph3d-disclaimer">Connections represent relationships recorded in this collection. They are not independent verification of a claim.</p>
     </section>
