@@ -10,7 +10,7 @@ type Quake = {
 };
 type NaturalEvent = {
   id: string; title: string; category: string; occurredAt: string;
-  longitude: number; latitude: number; url: string;
+  longitude: number; latitude: number; url: string; locationBasis: string;
 };
 type FeedTab = 'earthquakes' | 'natural';
 
@@ -38,6 +38,27 @@ let disposed = false;
 
 const usgsUrl = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson';
 const eonetUrl = 'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=40';
+
+function representativeCoordinate(geometry: any): { coordinates: number[]; basis: string } | null {
+  if (!geometry || !Array.isArray(geometry.coordinates)) return null;
+  if (geometry.type === 'Point' && geometry.coordinates.length >= 2) {
+    return { coordinates: geometry.coordinates, basis: 'reported point' };
+  }
+  const rings = geometry.type === 'Polygon'
+    ? [geometry.coordinates[0]]
+    : geometry.type === 'MultiPolygon'
+      ? geometry.coordinates.map((polygon: any[]) => polygon?.[0])
+      : geometry.type === 'LineString' || geometry.type === 'MultiPoint'
+        ? [geometry.coordinates]
+        : [];
+  const positions = rings.flat().filter((position: any) =>
+    Array.isArray(position) && Number.isFinite(position[0]) && Number.isFinite(position[1])
+  );
+  if (!positions.length) return null;
+  const longitude = positions.reduce((sum: number, position: number[]) => sum + position[0], 0) / positions.length;
+  const latitude = positions.reduce((sum: number, position: number[]) => sum + position[1], 0) / positions.length;
+  return { coordinates: [longitude, latitude], basis: 'approximate geometry centre' };
+}
 
 function formatTime(value: number | string | null) {
   if (!value) return 'Time unavailable';
@@ -94,18 +115,17 @@ async function refreshNaturalEvents() {
     if (disposed || !viewer) return;
     const sourceEvents = Array.isArray(payload.events) ? payload.events : [];
     const parsed: NaturalEvent[] = sourceEvents.map((event: any) => {
-      const point = [...(event.geometry ?? [])].reverse().find((item: any) =>
-        item?.type === 'Point' && Array.isArray(item.coordinates) && item.coordinates.length >= 2
-      );
-      if (!point) return null;
-      const [longitude, latitude] = point.coordinates;
+      const latestGeometry = [...(event.geometry ?? [])].reverse().find((item: any) => representativeCoordinate(item));
+      const location = latestGeometry ? representativeCoordinate(latestGeometry) : null;
+      if (!latestGeometry || !location) return null;
+      const [longitude, latitude] = location.coordinates;
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
       return {
         id: String(event.id ?? event.title),
         title: String(event.title ?? 'Public natural event'),
         category: String(event.categories?.map((item: any) => item.title).filter(Boolean).join(' · ') || 'Natural event'),
-        occurredAt: String(point.date ?? ''),
-        longitude: Number(longitude), latitude: Number(latitude),
+        occurredAt: String(latestGeometry.date ?? ''),
+        longitude: Number(longitude), latitude: Number(latitude), locationBasis: location.basis,
         url: String(event.sources?.[0]?.url ?? 'https://eonet.gsfc.nasa.gov/'),
       };
     }).filter((event: NaturalEvent | null): event is NaturalEvent => Boolean(event));
@@ -121,7 +141,7 @@ async function refreshNaturalEvents() {
     if (naturalLayer) await viewer.dataSources.remove(naturalLayer, true);
     naturalLayer = await Cesium.GeoJsonDataSource.load(geoJson as any, {
       clampToGround: false, markerColor: Cesium.Color.fromCssColorString('#69c8d7'),
-      markerSize: 11, markerSymbol: 'point',
+      markerSize: 11, markerSymbol: 'circle',
     });
     if (disposed) { naturalLayer = null; return; }
     await viewer.dataSources.add(naturalLayer);
@@ -255,7 +275,7 @@ onBeforeUnmount(() => {
               <span class="geo-event-copy">
                 <strong>{{ 'place' in event ? event.place : event.title }}</strong>
                 <small>{{ 'magnitude' in event ? formatTime(event.occurredAt) : event.category + ' · ' + formatTime(event.occurredAt) }}</small>
-                <small>{{ event.latitude.toFixed(2) }}, {{ event.longitude.toFixed(2) }}</small>
+                <small>{{ event.latitude.toFixed(2) }}, {{ event.longitude.toFixed(2) }}<template v-if="'locationBasis' in event"> · {{ event.locationBasis }}</template></small>
               </span>
               <span class="geo-event-arrow">↗</span>
             </button>
