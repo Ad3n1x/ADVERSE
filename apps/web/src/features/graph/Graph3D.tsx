@@ -48,7 +48,12 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
       (entity.name + ' ' + entity.type + ' ' + (entity.description || '')).toLowerCase().includes(normalizedQuery)
     );
     const entityIds = new Set(visibleEntities.map(entity => String(key(entity) || entity.name)));
+    const relevantEvidenceIds = new Set([
+      ...visibleEntities.flatMap(entity => entity.evidenceIds || []),
+      ...relationships.filter(item => entityIds.has(String(item.fromEntityId)) && entityIds.has(String(item.toEntityId))).flatMap(item => item.evidenceIds || [])
+    ].map(String));
     const visibleEvidence = evidence.filter(item =>
+      relevantEvidenceIds.has(String(key(item))) ||
       ((item.title || '') + ' ' + (item.publisher || '') + ' ' + (item.url || '') + ' ' + (item.excerpt || '')).toLowerCase().includes(normalizedQuery)
     );
     const sourceNodes: Node[] = visibleEvidence.map((item, index) => ({
