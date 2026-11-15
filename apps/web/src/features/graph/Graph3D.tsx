@@ -112,6 +112,10 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
   }, []);
 
   useEffect(() => {
+    setSelectedSourceId('');
+  }, [layoutKey]);
+
+  useEffect(() => {
     if (!graphData.nodes.length) return;
     const frame = requestAnimationFrame(() => graphRef.current?.zoomToFit?.(650, 90));
     return () => cancelAnimationFrame(frame);
@@ -152,7 +156,8 @@ function Graph3D({ entities, evidence, relationships, onSelect, selectedId, quer
           nodeResolution={10}
           linkColor={(link: Link) => link.kind === 'evidence' ? '#52d6b0' : ['verified', 'confirmed', 'independently verified'].includes(String(link.verificationStatus || '').toLowerCase()) ? '#66d3a0' : ['disputed', 'conflicting', 'contradicted', 'rejected'].includes(String(link.verificationStatus || '').toLowerCase()) ? '#ff7171' : '#6c8db8'}
           linkWidth={(link: Link) => link.kind === 'evidence' ? 0.8 : 1.25}
-          linkOpacity={0.72}\n          linkLabel={(link: Link) => link.type + ' · ' + (link.kind === 'evidence' ? 'saved source association' : link.verificationStatus || 'unverified')}
+          linkOpacity={0.72}
+          linkLabel={(link: Link) => link.type + ' · ' + (link.kind === 'evidence' ? 'saved source association' : link.verificationStatus || 'unverified')}
           linkDirectionalParticles={(link: Link) => link.kind === 'evidence' ? 2 : 1}
           linkDirectionalParticleWidth={1.8}
           linkDirectionalParticleSpeed={0.003}
