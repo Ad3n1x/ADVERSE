@@ -115,7 +115,6 @@ export default function IntelligenceScene() {
       return { buffer, count: data.length / 3 };
     });
 
-    let frame = 0;
     let raf = 0;
     let width = 0;
     let height = 0;
@@ -146,7 +145,6 @@ export default function IntelligenceScene() {
         gl.uniform1f(scale, Math.min(width, height) / 650);
         gl.drawArrays(gl.LINES, 0, item.count);
       });
-      frame++;
       raf = window.requestAnimationFrame(draw);
     };
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
