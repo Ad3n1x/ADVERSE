@@ -235,7 +235,7 @@ async function saveEvent(event: Quake | NaturalEvent) {
     'This record preserves the source observation; it is not independent verification.',
   ].join('\\n');
   try {
-    await props.onSave(title, event.url, detail, publisher, 'web');
+    await props.onSave(title, event.url, detail, publisher, 'document');
     savedEventIds.value = [...savedEventIds.value, event.id];
   } catch (cause) {
     saveError.value = cause instanceof Error ? cause.message : 'Unable to save this event to the active collection.';
