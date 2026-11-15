@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
 import './features/graph/graph-viewer.css';
+import './features/graph/adverse-3d.css';
 import './media-analysis.css';
 import './bright-theme.css';
 import './pwa-install.css';
@@ -10,7 +11,7 @@ import './connection-status.css';
 
 // The Android APK identifies itself with a dedicated user-agent marker.
 // Set this before React mounts so download prompts never flash inside the app.
-const isNativeAndroid = /ADVERSENativeAndroid\//i.test(navigator.userAgent);
+const isNativeAndroid = /ADVERSENativeAndroid\\//i.test(navigator.userAgent);
 if (isNativeAndroid) {
   document.documentElement.classList.add('adverse-native-android');
   document.documentElement.dataset.adverseApp = 'android';
