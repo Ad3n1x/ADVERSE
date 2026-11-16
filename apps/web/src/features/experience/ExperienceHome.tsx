@@ -37,13 +37,14 @@ function classifyIntent(value: string): IntentKind {
 function buildIntentPlan(value: string): IntentPlan {
   const request = value.trim().replace(/\s+/g, ' ');
   const kind = classifyIntent(request);
-  const actionPattern = /\b(send|buy|book|publish|delete|transfer|deploy|submit|message|pay|post|order|cancel)\b/i;
+  const actionPattern = /\b(buy|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message)\b.{0,40}\b(to|via|through)\b/i;
   const constraints = [
     ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between|for)\s+[^,.;!?]+/gi), match => match[0].trim()),
     ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
   const focus = request
-    .replace(/^(?:please\s+)?(?:help me\s+)?(?:to\s+)?[a-z]+\s*/i, '')
+    .replace(/^(?:(?:please|can you|could you|i want to|i need to|help me|help us|we need to)\s+)*/i, '')
+    .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
     .replace(/\b(?:under|below|within|before|after|by|between|for|using|with|without)\s+[^,.;!?]+/gi, '')
     .trim()
     .replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
