@@ -13,6 +13,20 @@ const publicSearchResponse = {
 };
 
 test('intent workspace resolves public sources and renders evidence cards', async ({ page }) => {
+  await page.route('**/api/v1/experience/resolve', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ data: { plan: {
+      kind: 'research',
+      request: 'Research renewable energy storage',
+      focus: 'renewable energy storage',
+      outcome: 'An evidence-led review with practical next steps',
+      constraints: [],
+      steps: ['Define the research scope', 'Collect source material', 'Review the evidence'],
+      spaces: ['Sources', 'Findings', 'Questions'],
+      approvalRequired: false,
+    }, engine: { mode: 'deterministic', provider: 'Test planner', model: 'test-v1' } } }),
+  }));
   await page.route('**/api/v1/public-search**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
@@ -25,6 +39,8 @@ test('intent workspace resolves public sources and renders evidence cards', asyn
   await page.getByRole('button', { name: /shape workspace/i }).click();
 
   await expect(page.getByRole('heading', { name: 'Research workspace' })).toBeVisible();
+  await expect(page.getByText('Local structured planner')).toBeVisible();
+  await expect(page.getByText('Define the research scope')).toBeVisible();
   await expect(page.getByText('renewable energy storage', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: /example renewable energy research/i })).toHaveAttribute('href', 'https://example.com/renewable-energy');
   await expect(page.getByText(/reachable when checked/i)).toBeVisible();
