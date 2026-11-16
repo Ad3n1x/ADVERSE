@@ -43,7 +43,7 @@ function classifyIntent(value: string): IntentKind {
 function buildIntentPlan(value: string): IntentPlan {
   const request = value.trim().replace(/\s+/g, ' ');
   const kind = classifyIntent(request);
-  const actionPattern = /\b(buy|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message)\b.{0,40}\b(to|via|through)\b/i;
+  const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
   const constraints = [
     ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between|for)\s+[^,.;!?]+/gi), match => match[0].trim()),
     ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
