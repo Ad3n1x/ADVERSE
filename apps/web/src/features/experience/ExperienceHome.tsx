@@ -155,7 +155,7 @@ export default function ExperienceHome() {
     setSourceCoverage('');
     setIsResolving(true);
     setHistory(current => [
-      { id: \`${Date.now()}-${Math.random().toString(36).slice(2, 8)}\`, intent: trimmed, kind: intentPlan.kind, createdAt: Date.now() },
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, intent: trimmed, kind: intentPlan.kind, createdAt: Date.now() },
       ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
     ].slice(0, HISTORY_LIMIT));
     try {
@@ -291,7 +291,7 @@ export default function ExperienceHome() {
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
                 <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
-                <span>{isResolving ? 'Searching public sources…' : sources.length ? \`${sources.length} sources found\` : 'Source discovery'}</span>
+                <span>{isResolving ? 'Searching public sources…' : sources.length ? `${sources.length} sources found` : 'Source discovery'}</span>
               </div>
               {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
               {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
