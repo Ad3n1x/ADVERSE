@@ -4,6 +4,7 @@ import {
   Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
 } from 'lucide-react';
 import { request } from '../../lib/api';
+import ExperienceConstellation from './ExperienceConstellation';
 import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
@@ -295,6 +296,7 @@ export default function ExperienceHome() {
               </div>
               {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
               {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
+              {!isResolving && sources.length > 0 && <ExperienceConstellation intent={activeIntent} sources={sources} />}
               {!isResolving && sources.length > 0 && <div className="experience-source-list">
                 {sources.map((source, index) => <article className="experience-source-card" key={source.url}>
                   <div className="experience-source-index">{String(index + 1).padStart(2, '0')}</div>
