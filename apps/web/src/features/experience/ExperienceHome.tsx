@@ -27,24 +27,24 @@ type IntentPlan = {
 
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
-  if (/\\b(compare|versus|vs\\.?|difference|better than|pros and cons)\\b/.test(text)) return 'compare';
-  if (/\\b(plan|schedule|roadmap|organize|steps|project|timeline)\\b/.test(text)) return 'plan';
-  if (/\\b(build|create|design|make|develop|write|draft|generate)\\b/.test(text)) return 'create';
-  if (/\\b(research|investigate|find|source|learn|understand|explain|analy[sz]e)\\b/.test(text)) return 'research';
+  if (/\b(compare|versus|vs\.?|difference|better than|pros and cons)\b/.test(text)) return 'compare';
+  if (/\b(plan|schedule|roadmap|organize|steps|project|timeline)\b/.test(text)) return 'plan';
+  if (/\b(build|create|design|make|develop|write|draft|generate)\b/.test(text)) return 'create';
+  if (/\b(research|investigate|find|source|learn|understand|explain|analy[sz]e)\b/.test(text)) return 'research';
   return 'explore';
 }
 
 function buildIntentPlan(value: string): IntentPlan {
-  const request = value.trim().replace(/\\s+/g, ' ');
+  const request = value.trim().replace(/\s+/g, ' ');
   const kind = classifyIntent(request);
-  const actionPattern = /\\b(send|buy|book|publish|delete|transfer|deploy|submit|message|pay|post|order|cancel)\\b/i;
+  const actionPattern = /\b(send|buy|book|publish|delete|transfer|deploy|submit|message|pay|post|order|cancel)\b/i;
   const constraints = [
-    ...Array.from(request.matchAll(/\\b(?:under|below|within|before|after|by|between|for)\\s+[^,.;!?]+/gi), match => match[0].trim()),
-    ...Array.from(request.matchAll(/\\b(?:using|with|without)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between|for)\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
   const focus = request
-    .replace(/^(?:please\\s+)?(?:help me\\s+)?(?:to\\s+)?[a-z]+\\s*/i, '')
-    .replace(/\\b(?:under|below|within|before|after|by|between|for|using|with|without)\\s+[^,.;!?]+/gi, '')
+    .replace(/^(?:please\s+)?(?:help me\s+)?(?:to\s+)?[a-z]+\s*/i, '')
+    .replace(/\b(?:under|below|within|before|after|by|between|for|using|with|without)\s+[^,.;!?]+/gi, '')
     .trim()
     .replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
   const outcomeByKind: Record<IntentKind, string> = {
