@@ -4,6 +4,7 @@ import { registerAuthRoutes } from './routes/auth.routes.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
 import { registerInvestigationRoutes } from './routes/investigations.routes.js';
 import { registerPublicSearchRoutes } from './routes/public-search.routes.js';
+import { registerExperienceRoutes } from './routes/experience.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerResearchRoutes } from './routes/research.routes.js';
 import { registerUtilityRoutes } from './routes/utility.routes.js';
@@ -194,6 +195,9 @@ registerPublicSearchRoutes(app, {
   assessSourceContext, titleSimilarity, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, searchImages, searchVideos,
   searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth,
+});
+registerExperienceRoutes(app, {
+  optionalAuth, limitProvider, wrap, sendError, getUserProviderKeys,
 });
 registerSearchRoutes(app, {
   requireAuth, limitProvider, wrap, sendError, isDb, User, memory,
