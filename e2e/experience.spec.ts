@@ -48,6 +48,20 @@ test('intent workspace resolves public sources and renders evidence cards', asyn
 });
 
 test('workspace history survives reload and can be removed', async ({ page }) => {
+  await page.route('**/api/v1/experience/resolve', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ data: { plan: {
+      kind: 'compare',
+      request: 'Compare solar and wind energy',
+      focus: 'solar and wind energy',
+      outcome: 'A structured comparison',
+      constraints: [],
+      steps: ['Identify options', 'Choose criteria', 'Compare trade-offs'],
+      spaces: ['Options', 'Criteria', 'Decision'],
+      approvalRequired: false,
+    }, engine: { mode: 'deterministic', provider: 'Test planner', model: 'test-v1' } } }),
+  }));
   await page.route('**/api/v1/public-search**', route => route.fulfill({
     status: 200,
     contentType: 'application/json',
