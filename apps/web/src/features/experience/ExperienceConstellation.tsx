@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 
-type SourceNode = { id: string; name: string; color: string; group: string };
+type SourceNode = { id: string; name: string; color: string; group: string; url?: string };
 type SourceLink = { source: string; target: string };
 type SourceGraph = { nodes: SourceNode[]; links: SourceLink[] };
 type Props = { intent: string; sources: Array<{ title?: string; url: string; provider?: string; publisher?: string }> };
@@ -14,8 +14,10 @@ export default function ExperienceConstellation({ intent, sources }: Props) {
   useEffect(() => {
     const query = window.matchMedia('(min-width: 900px) and (prefers-reduced-motion: no-preference)');
     const update = () => {
-      setEnabled(query.matches && Boolean(window.WebGLRenderingContext));
-      setWidth(Math.max(320, Math.min(1100, window.innerWidth - 96)));
+      const canvas = document.createElement('canvas');
+      const webglAvailable = Boolean(canvas.getContext('webgl2') || canvas.getContext('webgl'));
+      setEnabled(query.matches && webglAvailable);
+      setWidth(Math.max(320, Math.min(860, window.innerWidth - 80)));
     };
     update();
     query.addEventListener?.('change', update);
@@ -36,6 +38,7 @@ export default function ExperienceConstellation({ intent, sources }: Props) {
         name: source.title || source.url,
         color: '#66b9db',
         group: 'source',
+        url: source.url,
       });
       links.push({ source: 'intent', target: id });
     }
@@ -66,6 +69,10 @@ export default function ExperienceConstellation({ intent, sources }: Props) {
             enableNodeDrag={false}
             enableNavigationControls
             showNavInfo={false}
+            onNodeClick={(node: object) => {
+              const url = (node as SourceNode).url;
+              if (url) window.open(url, '_blank', 'noopener,noreferrer');
+            }}
             cooldownTicks={90}
             warmupTicks={30}
           />
