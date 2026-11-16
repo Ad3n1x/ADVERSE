@@ -1,11 +1,14 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, Network,
-  Plus, Search, Sparkles, Workflow, X
+  Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
 } from 'lucide-react';
 import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
+type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
+const HISTORY_KEY = 'adverse.experience.history.v1';
+const HISTORY_LIMIT = 8;
 
 const examples = [
   { icon: FileSearch, label: 'Research a topic', prompt: 'Research the latest advances in renewable energy storage' },
@@ -59,15 +62,62 @@ export default function ExperienceHome() {
   const [intent, setIntent] = useState('');
   const [activeIntent, setActiveIntent] = useState('');
   const [showDetails, setShowDetails] = useState(false);
+  const [history, setHistory] = useState<SavedIntent[]>([]);
+  const [storageReady, setStorageReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(HISTORY_KEY);
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const safe = parsed.filter((item): item is SavedIntent =>
+            item && typeof item.id === 'string' &&
+            typeof item.intent === 'string' && item.intent.length <= 500 &&
+            ['research', 'plan', 'compare', 'create', 'explore'].includes(item.kind) &&
+            typeof item.createdAt === 'number'
+          ).slice(0, HISTORY_LIMIT);
+          setHistory(safe);
+        }
+      }
+    } catch {
+      // Storage may be disabled or unavailable; the workspace still works in memory.
+    } finally {
+      setStorageReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    try {
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch {
+      // Quota/private-mode failures must not block workspace use.
+    }
+  }, [history, storageReady]);
+
+  function openIntent(value: string) {
+    const trimmed = value.trim().slice(0, 500);
+    if (!trimmed) return;
+    const nextKind = classifyIntent(trimmed);
+    setIntent(trimmed);
+    setActiveIntent(trimmed);
+    setShowDetails(true);
+    setHistory(current => [
+      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, intent: trimmed, kind: nextKind, createdAt: Date.now() },
+      ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
+    ].slice(0, HISTORY_LIMIT));
+  }
+
+  function removeIntent(id: string) {
+    setHistory(current => current.filter(item => item.id !== id));
+  }
   const kind = useMemo(() => classifyIntent(activeIntent), [activeIntent]);
   const workspace = intentCopy[kind];
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const trimmed = intent.trim();
-    if (!trimmed) return;
-    setActiveIntent(trimmed);
-    setShowDetails(true);
+    openIntent(intent);
   }
 
   return (
@@ -113,23 +163,38 @@ export default function ExperienceHome() {
         <div className="experience-input-foot"><span><Search size={12} /> Start with an outcome, question, or task</span><span>Up to 500 characters</span></div>
 
         {!showDetails ? (
+          <>
           <div className="experience-examples">
             <div className="experience-examples-label">START WITH AN EXAMPLE</div>
             <div className="experience-example-grid">
               {examples.map(item => {
                 const Icon = item.icon;
-                return <button key={item.label} className="experience-example" type="button" onClick={() => { setIntent(item.prompt); setActiveIntent(item.prompt); setShowDetails(true); }}>
+                return <button key={item.label} className="experience-example" type="button" onClick={() => openIntent(item.prompt)}>
                   <span className="experience-example-icon"><Icon size={17} /></span>
                   <span>{item.label}</span><ArrowUpRight size={14} />
                 </button>;
               })}
             </div>
           </div>
+          {history.length > 0 && <section className="experience-history">
+            <div className="experience-history-head"><span className="experience-section-label"><Clock3 size={13} /> RECENT WORKSPACES</span><span>{history.length} saved locally</span></div>
+            <div className="experience-history-list">
+              {history.map(item => <div className="experience-history-item" key={item.id}>
+                <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent)}>
+                  <span className="experience-history-kind">{item.kind.toUpperCase()}</span>
+                  <span className="experience-history-text">{item.intent}</span>
+                  <ArrowUpRight size={14} />
+                </button>
+                <button type="button" className="experience-history-delete" aria-label={`Delete saved workspace: ${item.intent}`} onClick={() => removeIntent(item.id)}><Trash2 size={14} /></button>
+              </div>)}
+            </div>
+          </section>}
+          </>
         ) : (
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <p className="experience-workspace-description">{workspace.description}</p>
