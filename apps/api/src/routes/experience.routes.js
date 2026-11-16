@@ -64,7 +64,7 @@ function deterministicPlan(value) {
     .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
     .replace(/\b(?:under|below|within|before|after|by|between|for|using|with|without)\s+[^,.;!?]+/gi, '')
     .trim().replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
-  const actionPattern = /\b(buy|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message)\b.{0,40}\b(to|via|through)\b/i;
+  const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
   return {
     kind, request, focus: focus.slice(0, 180),
     outcome: defaults[kind].outcome,
@@ -80,7 +80,7 @@ function safePlan(candidate, original) {
   if (!parsed.success) return null;
   const value = parsed.data;
   const request = original.trim().replace(/\s+/g, ' ').slice(0, 500);
-  const actionPattern = /\b(buy|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message)\b.{0,40}\b(to|via|through)\b/i;
+  const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
   return {
     ...value,
     request,
