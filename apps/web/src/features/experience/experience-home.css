@@ -71,3 +71,23 @@
 .experience-approval-note{display:flex;align-items:flex-start;gap:8px;margin:0 0 13px;padding:10px 11px;border:1px solid rgba(207,170,100,.25);border-radius:8px;background:rgba(73,55,24,.2);color:#d8c397;font-size:10px;line-height:1.55}
 .experience-approval-note svg{flex:0 0 auto;margin-top:1px;color:#e3c47d}
 @media(max-width:520px){.experience-intent-blueprint{grid-template-columns:1fr}.experience-blueprint-wide{grid-column:auto}}
+
+.experience-live-sources{margin-top:18px;padding:15px;border:1px solid rgba(112,190,177,.2);border-radius:11px;background:rgba(7,17,23,.58)}
+.experience-live-sources-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.experience-live-sources-head>span:last-child{color:#91aaa3;font:9px 'DM Mono',monospace}
+.experience-source-loading{display:flex;align-items:center;gap:10px;padding:14px 4px;color:#a5bbb4;font-size:11px}
+.experience-source-loading>span{width:13px;height:13px;border:2px solid rgba(119,224,201,.2);border-top-color:#83e5d0;border-radius:50%;animation:experience-spin .8s linear infinite}
+.experience-source-error{margin:10px 0;padding:11px;border:1px solid rgba(218,154,112,.22);border-radius:8px;background:rgba(77,40,27,.2);color:#e0b39c;font-size:11px;line-height:1.6}
+.experience-source-list{display:grid;gap:8px}
+.experience-source-card{display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;padding:11px;border:1px solid rgba(113,160,157,.14);border-radius:8px;background:rgba(19,37,42,.62)}
+.experience-source-index{display:grid;place-items:center;width:27px;height:27px;border:1px solid rgba(109,210,190,.2);border-radius:7px;background:#17322f;color:#88e2ce;font:9px 'DM Mono',monospace}
+.experience-source-content{min-width:0}
+.experience-source-content>a{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;color:#d9eee7;font-size:11px;font-weight:600;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}
+.experience-source-content>a:hover{color:#8debd4}
+.experience-source-content>a svg{flex:0 0 auto;margin-top:2px;color:#83b5a7}
+.experience-source-content>span{display:block;margin-top:5px;color:#83a69c;font:8px 'DM Mono',monospace;line-height:1.5}
+.experience-source-content p{margin:7px 0 0;color:#9bb2aa;font-size:10px;line-height:1.6}
+.experience-source-coverage{margin:12px 0 0;color:#77968d;font:9px 'DM Mono',monospace;line-height:1.6}
+.experience-source-disclaimer{margin:12px 0 0;padding-top:10px;border-top:1px solid rgba(113,160,157,.12);color:#7e9690;font-size:9px;line-height:1.6}
+@keyframes experience-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.experience-source-loading>span{animation:none}}
