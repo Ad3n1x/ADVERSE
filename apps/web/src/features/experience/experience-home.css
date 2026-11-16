@@ -46,3 +46,17 @@
 @media(max-width:680px){.experience-topbar{padding:15px 17px}.experience-mode{display:none}.experience-hero{padding:75px 17px 40px}.experience-hero h1{font-size:clamp(37px,10vw,54px)}.experience-lede{font-size:12px}.experience-intent-form{gap:7px;padding:7px 7px 7px 11px}.experience-intent-form input{font-size:12px}.experience-submit{min-height:40px;padding:0 10px;font-size:10px}.experience-example-grid{grid-template-columns:1fr}.experience-example{min-height:55px}.experience-workspace{padding:15px}.experience-workspace-grid{grid-template-columns:1fr}.experience-footer{flex-direction:column}.experience-ambient{top:95px;opacity:.42}}
 @media(max-width:390px){.experience-old-link{font-size:10px}.experience-brand{font-size:14px}.experience-submit{font-size:0;gap:4px}.experience-submit svg{width:18px;height:18px}.experience-intent-form input::placeholder{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.experience-example,.experience-submit{transition:none}.experience-example:hover,.experience-submit:hover{transform:none}.experience-workspace{animation:none}}
+
+.experience-history{margin:28px auto 0;text-align:left}
+.experience-history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:11px}
+.experience-history-head>span:last-child{color:#718b86;font:9px 'DM Mono',monospace}
+.experience-history-list{display:grid;gap:7px}
+.experience-history-item{display:flex;align-items:center;gap:6px;padding:5px 7px 5px 12px;border:1px solid rgba(113,160,157,.16);border-radius:9px;background:rgba(13,27,34,.72)}
+.experience-history-open{display:flex;align-items:center;gap:11px;flex:1;min-width:0;padding:5px 0;border:0;background:transparent;color:#c6d9d3;text-align:left}
+.experience-history-kind{flex:0 0 auto;color:#80cdb9;font:8px 'DM Mono',monospace;letter-spacing:.08em}
+.experience-history-text{overflow:hidden;color:#b9cbc5;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.experience-history-open>svg{flex:0 0 auto;margin-left:auto;color:#7ca89d}
+.experience-history-delete{display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border:1px solid transparent;border-radius:7px;background:transparent;color:#7f9991}
+.experience-history-delete:hover{border-color:rgba(224,130,130,.3);background:rgba(105,39,39,.2);color:#efaaaa}
+.experience-history-open:focus-visible,.experience-history-delete:focus-visible{outline:2px solid #8de7d1;outline-offset:3px}
+@media(max-width:520px){.experience-history-kind{display:none}.experience-history-item{padding-left:9px}.experience-history-text{font-size:10px}}
