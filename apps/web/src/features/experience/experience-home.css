@@ -60,3 +60,14 @@
 .experience-history-delete:hover{border-color:rgba(224,130,130,.3);background:rgba(105,39,39,.2);color:#efaaaa}
 .experience-history-open:focus-visible,.experience-history-delete:focus-visible{outline:2px solid #8de7d1;outline-offset:3px}
 @media(max-width:520px){.experience-history-kind{display:none}.experience-history-item{padding-left:9px}.experience-history-text{font-size:10px}}
+
+.experience-intent-blueprint{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:17px 0 12px}
+.experience-blueprint-item{min-width:0;padding:12px;border:1px solid rgba(112,177,163,.2);border-radius:9px;background:rgba(8,20,26,.55)}
+.experience-blueprint-item>span{display:block;margin-bottom:7px;color:#78a99c;font:8px 'DM Mono',monospace;letter-spacing:.13em}
+.experience-blueprint-item strong{display:block;color:#d4e5df;font-size:10px;font-weight:500;line-height:1.6;overflow-wrap:anywhere}
+.experience-blueprint-wide{grid-column:1/-1}
+.experience-constraint-list{display:flex;flex-wrap:wrap;gap:6px}
+.experience-constraint-list span{padding:5px 8px;border:1px solid rgba(116,198,176,.22);border-radius:6px;background:rgba(27,63,54,.45);color:#a9dfcc;font-size:9px}
+.experience-approval-note{display:flex;align-items:flex-start;gap:8px;margin:0 0 13px;padding:10px 11px;border:1px solid rgba(207,170,100,.25);border-radius:8px;background:rgba(73,55,24,.2);color:#d8c397;font-size:10px;line-height:1.55}
+.experience-approval-note svg{flex:0 0 auto;margin-top:1px;color:#e3c47d}
+@media(max-width:520px){.experience-intent-blueprint{grid-template-columns:1fr}.experience-blueprint-wide{grid-column:auto}}
