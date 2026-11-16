@@ -91,3 +91,11 @@
 .experience-source-disclaimer{margin:12px 0 0;padding-top:10px;border-top:1px solid rgba(113,160,157,.12);color:#7e9690;font-size:9px;line-height:1.6}
 @keyframes experience-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.experience-source-loading>span{animation:none}}
+
+.experience-constellation{margin:12px 0 14px;overflow:hidden;border:1px solid rgba(105,190,176,.2);border-radius:9px;background:#081219}
+.experience-constellation-heading{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(105,190,176,.13);color:#8bc8b7;font:8px 'DM Mono',monospace;letter-spacing:.1em}
+.experience-constellation-heading span:last-child{color:#718e87;letter-spacing:0;text-align:right}
+.experience-constellation-canvas{width:100%;height:270px;overflow:hidden}
+.experience-constellation-loading{display:grid;place-items:center;height:100%;color:#86aaa0;font-size:10px}
+.experience-constellation-note{margin:0;padding:8px 12px;border-top:1px solid rgba(105,190,176,.12);color:#718e87;font-size:8px;line-height:1.5}
+@media(max-width:899px){.experience-constellation{display:none}}
