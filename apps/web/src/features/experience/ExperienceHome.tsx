@@ -42,7 +42,6 @@ function buildIntentPlan(value: string): IntentPlan {
     ...Array.from(request.matchAll(/\\b(?:under|below|within|before|after|by|between|for)\\s+[^,.;!?]+/gi), match => match[0].trim()),
     ...Array.from(request.matchAll(/\\b(?:using|with|without)\\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
-  const actionLead = request.match(/^(?:please\\s+)?(?:help me\\s+)?(?:to\\s+)?([a-z]+)\\b/i)?.[1];
   const focus = request
     .replace(/^(?:please\\s+)?(?:help me\\s+)?(?:to\\s+)?[a-z]+\\s*/i, '')
     .replace(/\\b(?:under|below|within|before|after|by|between|for|using|with|without)\\s+[^,.;!?]+/gi, '')
