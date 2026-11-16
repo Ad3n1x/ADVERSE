@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerExperienceWorkspaceRoutes } from './experience-workspaces.routes.js';
@@ -36,9 +37,9 @@ function makeHarness() {
 
 test('cloud workspace endpoints isolate records by account and enforce ownership on deletion', async () => {
   const api = makeHarness();
-  const owner = 'experience-owner-' + crypto.randomUUID();
-  const other = 'experience-other-' + crypto.randomUUID();
-  const item = { workspaceId: 'workspace-' + crypto.randomUUID(), intent: 'Research clean energy storage', kind: 'research', createdAt: Date.now() };
+  const owner = 'experience-owner-' + randomUUID();
+  const other = 'experience-other-' + randomUUID();
+  const item = { workspaceId: 'workspace-' + randomUUID(), intent: 'Research clean energy storage', kind: 'research', createdAt: Date.now() };
 
   const saved = await api.call('POST', '/api/v1/experience/workspaces', { user: { id: owner }, body: item });
   assert.equal(saved.statusCode, 201);
@@ -66,7 +67,7 @@ test('cloud workspace endpoints isolate records by account and enforce ownership
 
 test('saving the same intent replaces the older workspace and caps history at eight', async () => {
   const api = makeHarness();
-  const owner = 'experience-cap-' + crypto.randomUUID();
+  const owner = 'experience-cap-' + randomUUID();
   for (let index = 0; index < 10; index++) {
     await api.call('POST', '/api/v1/experience/workspaces', {
       user: { id: owner },
