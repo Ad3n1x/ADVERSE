@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
-import { ExternalLink, Maximize2, Minimize2, Network, Search, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
+import { Maximize2, Minimize2, Network, Search, RotateCcw, ZoomIn, ZoomOut } from 'lucide-react';
 import type { Entity, Evidence, Relationship } from '../../types/research';
 import { getRecordId as key } from '../../lib/ids';
 

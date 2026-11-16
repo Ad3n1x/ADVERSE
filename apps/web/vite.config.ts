@@ -41,6 +41,9 @@ export default defineConfig({
         ]
       },
       workbox: {
+        // The current production bundle is larger than Workbox's 2 MiB default.
+        // Keep the app shell precached until the heavy visualisation modules are split.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webmanifest}'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/download\/?$/],
