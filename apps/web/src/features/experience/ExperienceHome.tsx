@@ -3,10 +3,13 @@ import {
   ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, Network,
   Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
 } from 'lucide-react';
+import { request } from '../../lib/api';
 import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
 type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
+type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; linkCheck?: { status?: string; note?: string } };
+type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number } };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
 
@@ -104,6 +107,10 @@ export default function ExperienceHome() {
   const [showDetails, setShowDetails] = useState(false);
   const [history, setHistory] = useState<SavedIntent[]>([]);
   const [storageReady, setStorageReady] = useState(false);
+  const [sources, setSources] = useState<ExperienceSource[]>([]);
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState('');
+  const [sourceCoverage, setSourceCoverage] = useState('');
 
   useEffect(() => {
     try {
@@ -136,17 +143,34 @@ export default function ExperienceHome() {
     }
   }, [history, storageReady]);
 
-  function openIntent(value: string) {
+  async function openIntent(value: string) {
     const trimmed = value.trim().slice(0, 500);
     if (!trimmed) return;
-    const nextKind = classifyIntent(trimmed);
+    const intentPlan = buildIntentPlan(trimmed);
     setIntent(trimmed);
     setActiveIntent(trimmed);
     setShowDetails(true);
+    setSources([]);
+    setResolveError('');
+    setSourceCoverage('');
+    setIsResolving(true);
     setHistory(current => [
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, intent: trimmed, kind: nextKind, createdAt: Date.now() },
+      { id: \`${Date.now()}-${Math.random().toString(36).slice(2, 8)}\`, intent: trimmed, kind: intentPlan.kind, createdAt: Date.now() },
       ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
     ].slice(0, HISTORY_LIMIT));
+    try {
+      const query = intentPlan.focus.length >= 2 ? intentPlan.focus : trimmed;
+      const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+      setSources(Array.isArray(response.data) ? response.data.slice(0, 12) : []);
+      setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
+      if (!response.data?.length) {
+        setResolveError(response.meta?.providerError || 'No public sources were returned. Try a more specific request.');
+      }
+    } catch (error) {
+      setResolveError(error instanceof Error ? error.message : 'Public source discovery is temporarily unavailable.');
+    } finally {
+      setIsResolving(false);
+    }
   }
 
   function removeIntent(id: string) {
@@ -235,7 +259,7 @@ export default function ExperienceHome() {
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); setSources([]); setResolveError(''); setSourceCoverage(''); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
@@ -264,7 +288,26 @@ export default function ExperienceHome() {
                 {workspace.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
               </div>
             </div>
-            <div className="experience-preview-note"><Sparkles size={14} /> This is an interaction-model preview. Connected services and external actions are not active in this phase preview.</div>
+            <section className="experience-live-sources" aria-live="polite">
+              <div className="experience-live-sources-head">
+                <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
+                <span>{isResolving ? 'Searching public sources…' : sources.length ? \`${sources.length} sources found\` : 'Source discovery'}</span>
+              </div>
+              {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
+              {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
+              {!isResolving && sources.length > 0 && <div className="experience-source-list">
+                {sources.map((source, index) => <article className="experience-source-card" key={source.url}>
+                  <div className="experience-source-index">{String(index + 1).padStart(2, '0')}</div>
+                  <div className="experience-source-content">
+                    <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
+                    <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}</span>
+                    {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
+                  </div>
+                </article>)}
+              </div>}
+              {sourceCoverage && <p className="experience-source-coverage">{sourceCoverage}</p>}
+              <p className="experience-source-disclaimer">Search results are leads, not verified facts. Open original sources and assess their context. ADVERSE does not execute purchases, bookings, messages, deployments, or other external actions from this preview.</p>
+            </section>
           </section>
         )}
       </section>
