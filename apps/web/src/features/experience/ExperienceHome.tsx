@@ -16,13 +16,53 @@ const examples = [
   { icon: Layers3, label: 'Compare options', prompt: 'Compare the best approaches for building a fast web application' },
 ];
 
+type IntentPlan = {
+  kind: IntentKind;
+  request: string;
+  focus: string;
+  outcome: string;
+  constraints: string[];
+  approvalRequired: boolean;
+};
+
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
-  if (/compare|versus| vs |difference|better than/.test(text)) return 'compare';
-  if (/plan|schedule|roadmap|organize|steps|project/.test(text)) return 'plan';
-  if (/build|create|design|make|develop|write/.test(text)) return 'create';
-  if (/research|investigate|find|source|learn|understand/.test(text)) return 'research';
+  if (/\\b(compare|versus|vs\\.?|difference|better than|pros and cons)\\b/.test(text)) return 'compare';
+  if (/\\b(plan|schedule|roadmap|organize|steps|project|timeline)\\b/.test(text)) return 'plan';
+  if (/\\b(build|create|design|make|develop|write|draft|generate)\\b/.test(text)) return 'create';
+  if (/\\b(research|investigate|find|source|learn|understand|explain|analy[sz]e)\\b/.test(text)) return 'research';
   return 'explore';
+}
+
+function buildIntentPlan(value: string): IntentPlan {
+  const request = value.trim().replace(/\\s+/g, ' ');
+  const kind = classifyIntent(request);
+  const actionPattern = /\\b(send|buy|book|publish|delete|transfer|deploy|submit|message|pay|post|order|cancel)\\b/i;
+  const constraints = [
+    ...Array.from(request.matchAll(/\\b(?:under|below|within|before|after|by|between|for)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\\b(?:using|with|without)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+  ].slice(0, 4);
+  const actionLead = request.match(/^(?:please\\s+)?(?:help me\\s+)?(?:to\\s+)?([a-z]+)\\b/i)?.[1];
+  const focus = request
+    .replace(/^(?:please\\s+)?(?:help me\\s+)?(?:to\\s+)?[a-z]+\\s*/i, '')
+    .replace(/\\b(?:under|below|within|before|after|by|between|for|using|with|without)\\s+[^,.;!?]+/gi, '')
+    .trim()
+    .replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
+  const outcomeByKind: Record<IntentKind, string> = {
+    research: 'A concise evidence-led understanding with sources and unanswered questions',
+    plan: 'A sequence of milestones, dependencies, and practical next steps',
+    compare: 'A side-by-side evaluation with explicit criteria and trade-offs',
+    create: 'A defined deliverable with requirements and a review path',
+    explore: 'A clearer direction, useful discoveries, and a concrete next step',
+  };
+  return {
+    kind,
+    request,
+    focus: focus.slice(0, 180),
+    outcome: outcomeByKind[kind],
+    constraints,
+    approvalRequired: actionPattern.test(request),
+  };
 }
 
 const intentCopy: Record<IntentKind, { title: string; description: string; steps: string[]; spaces: string[] }> = {
@@ -112,7 +152,8 @@ export default function ExperienceHome() {
   function removeIntent(id: string) {
     setHistory(current => current.filter(item => item.id !== id));
   }
-  const kind = useMemo(() => classifyIntent(activeIntent), [activeIntent]);
+  const plan = useMemo(() => buildIntentPlan(activeIntent), [activeIntent]);
+  const kind = plan.kind;
   const workspace = intentCopy[kind];
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -197,6 +238,21 @@ export default function ExperienceHome() {
               <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
+            <div className="experience-intent-blueprint">
+              <div className="experience-blueprint-item">
+                <span>DETECTED FOCUS</span>
+                <strong>{plan.focus}</strong>
+              </div>
+              <div className="experience-blueprint-item">
+                <span>EXPECTED OUTCOME</span>
+                <strong>{plan.outcome}</strong>
+              </div>
+              {plan.constraints.length > 0 && <div className="experience-blueprint-item experience-blueprint-wide">
+                <span>REQUESTED CONSTRAINTS</span>
+                <div className="experience-constraint-list">{plan.constraints.map(item => <span key={item}>{item}</span>)}</div>
+              </div>}
+            </div>
+            {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
             <div className="experience-workspace-grid">
               <div className="experience-plan">
