@@ -26,6 +26,8 @@ type IntentPlan = {
   focus: string;
   outcome: string;
   constraints: string[];
+  steps: string[];
+  spaces: string[];
   approvalRequired: boolean;
 };
 
@@ -65,6 +67,20 @@ function buildIntentPlan(value: string): IntentPlan {
     focus: focus.slice(0, 180),
     outcome: outcomeByKind[kind],
     constraints,
+    steps: ({
+      research: ['Clarify the question and scope', 'Gather relevant sources', 'Review evidence and open questions'],
+      plan: ['Define the desired outcome', 'Break the work into milestones', 'Identify dependencies and next actions'],
+      compare: ['Identify the available options', 'Choose evaluation criteria', 'Compare evidence and trade-offs'],
+      create: ['Define the expected output', 'Collect requirements and resources', 'Create and review the result'],
+      explore: ['Identify what matters most', 'Explore useful directions', 'Choose a concrete next step'],
+    } as Record<IntentKind, string[]>)[kind],
+    spaces: ({
+      research: ['Source collection', 'Key findings', 'Open questions'],
+      plan: ['Milestones', 'Task flow', 'Resources'],
+      compare: ['Options', 'Evaluation criteria', 'Decision notes'],
+      create: ['Brief', 'Working material', 'Review'],
+      explore: ['Starting point', 'Discoveries', 'Next direction'],
+    } as Record<IntentKind, string[]>)[kind],
     approvalRequired: actionPattern.test(request),
   };
 }
@@ -112,6 +128,8 @@ export default function ExperienceHome() {
   const [isResolving, setIsResolving] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
+  const [plannerMode, setPlannerMode] = useState<'gemini' | 'deterministic'>('deterministic');
+  const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
 
   useEffect(() => {
     try {
@@ -155,12 +173,31 @@ export default function ExperienceHome() {
     setResolveError('');
     setSourceCoverage('');
     setIsResolving(true);
+    setPlannerMode('deterministic');
+    setResolvedPlan(intentPlan);
     setHistory(current => [
       { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, intent: trimmed, kind: intentPlan.kind, createdAt: Date.now() },
       ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
     ].slice(0, HISTORY_LIMIT));
+    let activePlan = intentPlan;
     try {
-      const query = intentPlan.focus.length >= 2 ? intentPlan.focus : trimmed;
+      const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'gemini' | 'deterministic'; provider?: string; model?: string } } }>(
+        '/experience/resolve',
+        { method: 'POST', body: JSON.stringify({ intent: trimmed }) },
+      );
+      if (resolved.data?.plan) {
+        activePlan = resolved.data.plan;
+        setResolvedPlan(activePlan);
+        setPlannerMode(resolved.data.engine?.mode === 'gemini' ? 'gemini' : 'deterministic');
+        setHistory(current => current.map(item => item.intent.toLowerCase() === trimmed.toLowerCase()
+          ? { ...item, kind: activePlan.kind }
+          : item));
+      }
+    } catch {
+      // The local intent planner remains available if the optional AI endpoint is unavailable.
+    }
+    try {
+      const query = activePlan.focus.length >= 2 ? activePlan.focus : trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
       setSources(Array.isArray(response.data) ? response.data.slice(0, 12) : []);
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
@@ -177,7 +214,8 @@ export default function ExperienceHome() {
   function removeIntent(id: string) {
     setHistory(current => current.filter(item => item.id !== id));
   }
-  const plan = useMemo(() => buildIntentPlan(activeIntent), [activeIntent]);
+  const localPlan = useMemo(() => buildIntentPlan(activeIntent), [activeIntent]);
+  const plan = resolvedPlan?.request === activeIntent ? resolvedPlan : localPlan;
   const kind = plan.kind;
   const workspace = intentCopy[kind];
 
@@ -277,16 +315,17 @@ export default function ExperienceHome() {
                 <div className="experience-constraint-list">{plan.constraints.map(item => <span key={item}>{item}</span>)}</div>
               </div>}
             </div>
+            <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'gemini' ? 'Google Gemini' : 'Local structured planner'}</strong></div>
             {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
             <div className="experience-workspace-grid">
               <div className="experience-plan">
                 <span className="experience-section-label">A POSSIBLE FLOW</span>
-                {workspace.steps.map((step, index) => <div className="experience-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b></div>)}
+                {plan.steps.map((step, index) => <div className="experience-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b></div>)}
               </div>
               <div className="experience-spaces">
                 <span className="experience-section-label">YOUR WORKING SPACES</span>
-                {workspace.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
+                {plan.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
               </div>
             </div>
             <section className="experience-live-sources" aria-live="polite">
