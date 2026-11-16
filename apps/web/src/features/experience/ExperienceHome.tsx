@@ -162,10 +162,38 @@ export default function ExperienceHome() {
     }
   }, [history, storageReady]);
 
+  useEffect(() => {
+    if (!storageReady) return;
+    let cancelled = false;
+    request<{ data: SavedIntent[] }>('/experience/workspaces')
+      .then(response => {
+        if (cancelled || !Array.isArray(response.data)) return;
+        const remote = response.data.filter(item =>
+          item && typeof item.id === 'string' && typeof item.intent === 'string' &&
+          ['research', 'plan', 'compare', 'create', 'explore'].includes(item.kind) &&
+          typeof item.createdAt === 'number'
+        );
+        setHistory(current => {
+          const merged = new Map<string, SavedIntent>();
+          for (const item of [...remote, ...current]) merged.set(item.id, item);
+          return [...merged.values()]
+            .sort((a, b) => b.createdAt - a.createdAt)
+            .filter((item, index, all) => all.findIndex(other => other.intent.toLowerCase() === item.intent.toLowerCase()) === index)
+            .slice(0, HISTORY_LIMIT);
+        });
+      })
+      .catch(() => {
+        // Guests and offline users keep their browser-local workspace history.
+      });
+    return () => { cancelled = true; };
+  }, [storageReady]);
+
   async function openIntent(value: string) {
     const trimmed = value.trim().slice(0, 500);
     if (!trimmed) return;
     const intentPlan = buildIntentPlan(trimmed);
+    const workspaceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = Date.now();
     setIntent(trimmed);
     setActiveIntent(trimmed);
     setShowDetails(true);
@@ -176,7 +204,7 @@ export default function ExperienceHome() {
     setPlannerMode('deterministic');
     setResolvedPlan(intentPlan);
     setHistory(current => [
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, intent: trimmed, kind: intentPlan.kind, createdAt: Date.now() },
+      { id: workspaceId, intent: trimmed, kind: intentPlan.kind, createdAt },
       ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
     ].slice(0, HISTORY_LIMIT));
     let activePlan = intentPlan;
@@ -197,6 +225,14 @@ export default function ExperienceHome() {
       // The local intent planner remains available if the optional AI endpoint is unavailable.
     }
     try {
+      await request('/experience/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({ workspaceId, intent: trimmed, kind: activePlan.kind, createdAt }),
+      });
+    } catch {
+      // Signed-out users retain local history; authenticated users sync when the API is available.
+    }
+    try {
       const query = activePlan.focus.length >= 2 ? activePlan.focus : trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
       setSources(Array.isArray(response.data) ? response.data.slice(0, 12) : []);
@@ -213,6 +249,9 @@ export default function ExperienceHome() {
 
   function removeIntent(id: string) {
     setHistory(current => current.filter(item => item.id !== id));
+    void request('/experience/workspaces/' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => {
+      // Browser-local removal remains immediate if cloud sync is unavailable.
+    });
   }
   const localPlan = useMemo(() => buildIntentPlan(activeIntent), [activeIntent]);
   const plan = resolvedPlan?.request === activeIntent ? resolvedPlan : localPlan;
@@ -281,7 +320,7 @@ export default function ExperienceHome() {
             </div>
           </div>
           {history.length > 0 && <section className="experience-history">
-            <div className="experience-history-head"><span className="experience-section-label"><Clock3 size={13} /> RECENT WORKSPACES</span><span>{history.length} saved locally</span></div>
+            <div className="experience-history-head"><span className="experience-section-label"><Clock3 size={13} /> RECENT WORKSPACES</span><span>{history.length} saved · syncs when signed in</span></div>
             <div className="experience-history-list">
               {history.map(item => <div className="experience-history-item" key={item.id}>
                 <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent)}>
