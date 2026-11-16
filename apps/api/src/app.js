@@ -9,6 +9,7 @@ import { registerResearchRoutes } from './routes/research.routes.js';
 import { registerUtilityRoutes } from './routes/utility.routes.js';
 import { registerMonitoringRoutes } from './routes/monitoring.routes.js';
 import { registerCyberRoutes } from './routes/cyber.routes.js';
+import { registerIntentRoutes } from './routes/intent.routes.js';
 import { registerInternalRoutes } from './routes/internal.routes.js';
 import { assessSourceContext, inspectPublicLink, titleSimilarity } from './services/research/source-assessment.js';
 export { assessSourceContext, inspectPublicLink } from './services/research/source-assessment.js';
@@ -255,6 +256,7 @@ registerMonitoringRoutes(app, {
   requireAuth, wrap, sendError, exists, isDb, listFor, saveRecord, id,
   Watch, Alert, memory, watchSchema, validatePublicUrl, runMonitoringCycle,
 });
+registerIntentRoutes(app, { limitProvider, wrap, sendError, optionalAuth, getUserProviderKeys });
 registerCyberRoutes(app, {
   requireAuth, limitProvider, wrap, sendError, exists, isDb, memory, id,
   CyberAsset, CyberEvent, cyberAssetSchema, validatePublicUrl,
