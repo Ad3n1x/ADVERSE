@@ -298,7 +298,7 @@ export default function ExperienceHome() {
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); setSources([]); setResolveError(''); setSourceCoverage(''); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); setSources([]); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
