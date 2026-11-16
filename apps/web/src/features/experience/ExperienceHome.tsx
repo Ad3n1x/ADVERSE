@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, Network,
   Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
@@ -130,6 +130,7 @@ export default function ExperienceHome() {
   const [sourceCoverage, setSourceCoverage] = useState('');
   const [plannerMode, setPlannerMode] = useState<'gemini' | 'deterministic'>('deterministic');
   const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
+  const resolutionSequence = useRef(0);
 
   useEffect(() => {
     try {
@@ -191,6 +192,7 @@ export default function ExperienceHome() {
   async function openIntent(value: string) {
     const trimmed = value.trim().slice(0, 500);
     if (!trimmed) return;
+    const resolutionId = ++resolutionSequence.current;
     const intentPlan = buildIntentPlan(trimmed);
     const workspaceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
@@ -213,6 +215,7 @@ export default function ExperienceHome() {
         '/experience/resolve',
         { method: 'POST', body: JSON.stringify({ intent: trimmed }) },
       );
+      if (resolutionId !== resolutionSequence.current) return;
       if (resolved.data?.plan) {
         activePlan = resolved.data.plan;
         setResolvedPlan(activePlan);
@@ -232,18 +235,20 @@ export default function ExperienceHome() {
     } catch {
       // Signed-out users retain local history; authenticated users sync when the API is available.
     }
+    if (resolutionId !== resolutionSequence.current) return;
     try {
       const query = activePlan.focus.length >= 2 ? activePlan.focus : trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+      if (resolutionId !== resolutionSequence.current) return;
       setSources(Array.isArray(response.data) ? response.data.slice(0, 12) : []);
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
       if (!response.data?.length) {
         setResolveError(response.meta?.providerError || 'No public sources were returned. Try a more specific request.');
       }
     } catch (error) {
-      setResolveError(error instanceof Error ? error.message : 'Public source discovery is temporarily unavailable.');
+      if (resolutionId === resolutionSequence.current) setResolveError(error instanceof Error ? error.message : 'Public source discovery is temporarily unavailable.');
     } finally {
-      setIsResolving(false);
+      if (resolutionId === resolutionSequence.current) setIsResolving(false);
     }
   }
 
