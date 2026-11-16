@@ -99,3 +99,7 @@
 .experience-constellation-loading{display:grid;place-items:center;height:100%;color:#86aaa0;font-size:10px}
 .experience-constellation-note{margin:0;padding:8px 12px;border-top:1px solid rgba(105,190,176,.12);color:#718e87;font-size:8px;line-height:1.5}
 @media(max-width:899px){.experience-constellation{display:none}}
+
+.experience-planner-mode{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 11px;border:1px solid rgba(110,178,164,.14);border-radius:7px;background:rgba(9,23,27,.55)}
+.experience-planner-mode span{color:#769a91;font:8px 'DM Mono',monospace;letter-spacing:.12em}
+.experience-planner-mode strong{color:#9adbc9;font:9px 'DM Mono',monospace;font-weight:500}
