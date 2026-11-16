@@ -33,6 +33,11 @@ export function registerExperienceWorkspaceRoutes(app, {
     const item = parsed.data;
     const createdAt = new Date(item.createdAt || Date.now());
     if (isDb()) {
+      await ExperienceWorkspace.deleteMany({
+        ownerId: req.user.id,
+        intent: item.intent,
+        workspaceId: { $ne: item.workspaceId },
+      });
       const record = await ExperienceWorkspace.findOneAndUpdate(
         { ownerId: req.user.id, workspaceId: item.workspaceId },
         {
@@ -51,6 +56,9 @@ export function registerExperienceWorkspaceRoutes(app, {
     }
     const store = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__ ||= new Map();
     const records = store.get(req.user.id) || new Map();
+    for (const [key, value] of records) {
+      if (value.intent.toLowerCase() === item.intent.toLowerCase() && key !== item.workspaceId) records.delete(key);
+    }
     records.set(item.workspaceId, { id: item.workspaceId, intent: item.intent, kind: item.kind, createdAt: createdAt.getTime() });
     const sorted = [...records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
     store.set(req.user.id, new Map(sorted.map(row => [row.id, row])));
