@@ -355,7 +355,7 @@ export default function ExperienceHome() {
             <div className="experience-history-head"><span className="experience-section-label"><Clock3 size={13} /> RECENT WORKSPACES</span><span>{history.length} saved · syncs when signed in</span></div>
             <div className="experience-history-list">
               {history.map(item => <div className="experience-history-item" key={item.id}>
-                <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent)}>
+                <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent, item.id)}>
                   <span className="experience-history-kind">{item.kind.toUpperCase()}</span>
                   <span className="experience-history-text">{item.intent}</span>
                   <ArrowUpRight size={14} />
