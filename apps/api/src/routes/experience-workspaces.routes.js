@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import { rateLimit } from 'express-rate-limit';
+
+const workspaceRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many workspace requests. Try again in one minute.' } },
+});
 
 const workspaceSchema = z.object({
   workspaceId: z.string().trim().min(1).max(100),
@@ -10,7 +19,7 @@ const workspaceSchema = z.object({
 export function registerExperienceWorkspaceRoutes(app, {
   requireAuth, wrap, sendError, isDb, ExperienceWorkspace,
 }) {
-  app.get('/api/v1/experience/workspaces', requireAuth, wrap(async (req, res) => {
+  app.get('/api/v1/experience/workspaces', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
     if (isDb()) {
       const records = await ExperienceWorkspace.find({ ownerId: req.user.id })
         .sort({ updatedAt: -1 }).limit(8).lean();
@@ -27,7 +36,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     return res.json({ data: records });
   }));
 
-  app.post('/api/v1/experience/workspaces', requireAuth, wrap(async (req, res) => {
+  app.post('/api/v1/experience/workspaces', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
     const parsed = workspaceSchema.safeParse(req.body || {});
     if (!parsed.success) return sendError(res, 400, 'INVALID_WORKSPACE', 'Workspace details are invalid.');
     const item = parsed.data;
@@ -65,7 +74,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     return res.status(201).json({ data: { id: item.workspaceId, intent: item.intent, kind: item.kind, createdAt: createdAt.getTime() } });
   }));
 
-  app.delete('/api/v1/experience/workspaces/:workspaceId', requireAuth, wrap(async (req, res) => {
+  app.delete('/api/v1/experience/workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
     if (isDb()) {
