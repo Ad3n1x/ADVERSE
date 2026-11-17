@@ -16,6 +16,48 @@ const workspaceSchema = z.object({
   createdAt: z.number().int().positive().optional(),
 });
 
+const sourceSchema = z.object({
+  url: z.string().url().max(2048),
+  title: z.string().max(500).optional().default(''),
+  excerpt: z.string().max(2000).optional().default(''),
+  publisher: z.string().max(240).optional().default(''),
+  provider: z.string().max(160).optional().default(''),
+  providers: z.array(z.string().max(160)).max(8).optional().default([]),
+  sourceType: z.string().max(40).optional().default('web'),
+  publishedAt: z.string().max(40).nullable().optional().default(null),
+  retrievedAt: z.string().max(40).nullable().optional().default(null),
+  linkCheck: z.object({
+    status: z.enum(['reachable', 'not_confirmed', 'not_checked']).optional().default('not_checked'),
+    checkedAt: z.string().max(40).nullable().optional().default(null),
+    note: z.string().max(500).optional().default(''),
+  }).optional().default({}),
+});
+
+function normalizeSources(input) {
+  const parsed = z.array(sourceSchema).max(12).safeParse(input);
+  if (!parsed.success) return null;
+  const seen = new Set();
+  const sources = [];
+  for (const item of parsed.data) {
+    try {
+      const url = new URL(item.url);
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+      url.hash = '';
+      const canonicalUrl = url.toString();
+      if (seen.has(canonicalUrl)) continue;
+      seen.add(canonicalUrl);
+      sources.push({
+        ...item,
+        url: canonicalUrl,
+        providers: [...new Set(item.providers.map(value => value.trim()).filter(Boolean))].slice(0, 8),
+      });
+    } catch {
+      return null;
+    }
+  }
+  return sources;
+}
+
 export function registerExperienceWorkspaceRoutes(app, {
   requireAuth, wrap, sendError, isDb, ExperienceWorkspace,
 }) {
@@ -33,7 +75,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const store = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__ ||= new Map();
     const records = [...(store.get(req.user.id)?.values() || [])]
       .sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
-    return res.json({ data: records });
+    return res.json({ data: records.map(({ sources, ...item }) => item) });
   }));
 
   app.post('/api/v1/experience/workspaces', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
@@ -68,10 +110,52 @@ export function registerExperienceWorkspaceRoutes(app, {
     for (const [key, value] of records) {
       if (value.intent.toLowerCase() === item.intent.toLowerCase() && key !== item.workspaceId) records.delete(key);
     }
-    records.set(item.workspaceId, { id: item.workspaceId, intent: item.intent, kind: item.kind, createdAt: createdAt.getTime() });
+    const previous = records.get(item.workspaceId);
+    records.set(item.workspaceId, {
+      id: item.workspaceId, intent: item.intent, kind: item.kind,
+      createdAt: createdAt.getTime(), sources: previous?.sources || [],
+    });
     const sorted = [...records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
     store.set(req.user.id, new Map(sorted.map(row => [row.id, row])));
     return res.status(201).json({ data: { id: item.workspaceId, intent: item.intent, kind: item.kind, createdAt: createdAt.getTime() } });
+  }));
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/sources', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    if (isDb()) {
+      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('sources').lean();
+      if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+      return res.json({ data: Array.isArray(record.sources) ? record.sources : [] });
+    }
+    const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    return res.json({ data: record.sources || [] });
+  }));
+
+  app.put('/api/v1/experience/workspaces/:workspaceId/sources', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    const sources = normalizeSources(req.body?.sources);
+    if (!sources) return sendError(res, 400, 'INVALID_SOURCES', 'Provide up to 12 unique public HTTP(S) sources with valid metadata.');
+    if (isDb()) {
+      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('sources').lean();
+      if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+      const previous = new Map((record.sources || []).map(item => [item.url, item]));
+      const merged = sources.map(item => {
+        const old = previous.get(item.url);
+        return { ...item, savedAt: old?.savedAt || new Date() };
+      });
+      await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { sources: merged } });
+      return res.json({ data: merged, meta: { saved: merged.length } });
+    }
+    const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    record.sources = sources.map(item => ({
+      ...item,
+      savedAt: record.sources?.find(old => old.url === item.url)?.savedAt || new Date().toISOString(),
+    }));
+    return res.json({ data: record.sources, meta: { saved: record.sources.length } });
   }));
 
   app.delete('/api/v1/experience/workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
