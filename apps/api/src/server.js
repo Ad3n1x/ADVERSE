@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import { app } from './app.js';
 import { startMonitoringWorker } from './monitor.js';
 import { startDiscoveryWorker } from './discovery.js';
-import { Investigation } from './models.js';
+import { Investigation, ExperienceWorkspace } from './models.js';
 import { PublicSearchDocument } from './models/public-search-document.model.js';
 import { interruptedAgentState } from './agent-run-state.js';
 const port=Number(process.env.PORT||4000);
@@ -15,6 +15,9 @@ if(process.env.MONGODB_URI){
   console.log('ADVERSE MongoDB connected');
   await PublicSearchDocument.createIndexes().catch(error => {
     console.warn('ADVERSE public search index initialization deferred:', String(error?.message || 'index creation failed').slice(0, 180));
+  });
+  await ExperienceWorkspace.createIndexes().catch(error => {
+    console.warn('ADVERSE experience workspace index initialization deferred:', String(error?.message || 'index creation failed').slice(0, 180));
   });
 }else{globalThis.__ADVERSE_MONGO_READY__=false;console.warn('MONGODB_URI not set; local development data is ephemeral.');}
 if(globalThis.__ADVERSE_MONGO_READY__===true){

@@ -4,6 +4,8 @@ import { registerAuthRoutes } from './routes/auth.routes.js';
 import { registerAdminRoutes } from './routes/admin.routes.js';
 import { registerInvestigationRoutes } from './routes/investigations.routes.js';
 import { registerPublicSearchRoutes } from './routes/public-search.routes.js';
+import { registerExperienceRoutes } from './routes/experience.routes.js';
+import { registerExperienceWorkspaceRoutes } from './routes/experience-workspaces.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerResearchRoutes } from './routes/research.routes.js';
 import { registerUtilityRoutes } from './routes/utility.routes.js';
@@ -19,7 +21,7 @@ import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import { timingSafeEqual, createHmac, scryptSync } from 'node:crypto';
 import { z } from 'zod';
-import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent, AdminAuditEvent, SearchMetric, PlatformConfig, Incident, JobRun, LinkCheck } from './models.js';
+import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent, AdminAuditEvent, SearchMetric, PlatformConfig, Incident, JobRun, LinkCheck, ExperienceWorkspace } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
 import { searchAllPublic, rankPublicResults, diversifyPublicResults, normalizeResultUrl } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
@@ -194,6 +196,12 @@ registerPublicSearchRoutes(app, {
   assessSourceContext, titleSimilarity, searchAllPublic, rankPublicResults,
   diversifyPublicResults, normalizeResultUrl, searchImages, searchVideos,
   searchPeople, scrapePublicPage, getUserProviderKeys, optionalAuth,
+});
+registerExperienceRoutes(app, {
+  optionalAuth, limitProvider, wrap, sendError, getUserProviderKeys,
+});
+registerExperienceWorkspaceRoutes(app, {
+  requireAuth, wrap, sendError, isDb, ExperienceWorkspace,
 });
 registerSearchRoutes(app, {
   requireAuth, limitProvider, wrap, sendError, isDb, User, memory,

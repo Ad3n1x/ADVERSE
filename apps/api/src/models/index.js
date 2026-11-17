@@ -13,3 +13,4 @@ export { PlatformConfig } from './platform-config.model.js';
 export { Incident } from './incident.model.js';
 export { JobRun } from './job-run.model.js';
 export { LinkCheck } from './link-check.model.js';
+export { ExperienceWorkspace } from './experience-workspace.model.js';
