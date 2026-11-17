@@ -1,4 +1,13 @@
 import { z } from 'zod';
+import { rateLimit } from 'express-rate-limit';
+
+const resolveRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: { code: 'RATE_LIMITED', message: 'Too many intent requests. Try again in one minute.' } },
+});
 
 const intentSchema = z.object({
   intent: z.string().trim().min(2).max(500),
@@ -121,7 +130,7 @@ async function generateGeminiPlan({ apiKey, model, intent }) {
 export function registerExperienceRoutes(app, {
   optionalAuth, limitProvider, wrap, sendError, getUserProviderKeys,
 }) {
-  app.post('/api/v1/experience/resolve', optionalAuth, limitProvider, wrap(async (req, res) => {
+  app.post('/api/v1/experience/resolve', resolveRateLimit, optionalAuth, limitProvider, wrap(async (req, res) => {
     const input = intentSchema.safeParse(req.body || {});
     if (!input.success) return sendError(res, 400, 'INVALID_INTENT', 'Enter an intent between 2 and 500 characters.');
     const intent = input.data.intent;
