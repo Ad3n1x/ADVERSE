@@ -556,6 +556,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       analystNote: '',
     };
     const nextSources = [...sources, source];
+    setSources(nextSources);
     try {
       const saved = await request<{ data: ExperienceSource[] }>(
         '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
@@ -570,8 +571,10 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       return true;
     } catch {
       if (sequence === sourceSaveSequence.current) {
+        setSourceNotes(current => ({ ...current, [source.url]: '' }));
         setSourceSyncStatus('local');
-        setReviewSaveNotice('The event could not be synced. It has not been marked as saved.');
+        setReviewSaveNotice('Public event observation is saved for this session only; account sync is unavailable.');
+        return true;
       }
       return false;
     }
