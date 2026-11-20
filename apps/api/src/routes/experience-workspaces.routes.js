@@ -83,7 +83,7 @@ function normalizeClaims(input, allowedSourceUrls) {
 }
 
 function normalizeSources(input) {
-  const parsed = z.array(sourceSchema).max(12).safeParse(input);
+  const parsed = z.array(sourceSchema).max(24).safeParse(input);
   if (!parsed.success) return null;
   const seen = new Set();
   const sources = [];
@@ -186,7 +186,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
     const sources = normalizeSources(req.body?.sources);
-    if (!sources) return sendError(res, 400, 'INVALID_SOURCES', 'Provide up to 12 unique public HTTP(S) sources with valid metadata.');
+    if (!sources) return sendError(res, 400, 'INVALID_SOURCES', 'Provide up to 24 unique public HTTP(S) sources with valid metadata.');
     if (isDb()) {
       const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('sources').lean();
       if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
