@@ -215,6 +215,9 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     const trimmed = value.trim().slice(0, 500);
     if (!trimmed) return;
     const resolutionId = ++resolutionSequence.current;
+    sourceSaveSequence.current += 1;
+    setCheckingUrl('');
+    setAlternativeSearchingUrl('');
     const intentPlan = buildIntentPlan(trimmed);
     const workspaceId = existingWorkspaceId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
@@ -392,6 +395,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
 
   async function checkSourceLink(source: ExperienceSource) {
     if (checkingUrl || alternativeSearchingUrl || reviewSavingUrl) return;
+    const sequence = ++sourceSaveSequence.current;
     setCheckingUrl(source.url);
     setReviewSaveNotice('');
     try {
@@ -408,6 +412,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         method: 'POST',
         body: JSON.stringify({ url: source.url }),
       });
+      if (sequence !== sourceSaveSequence.current) return;
       const nextSources = sources.map(item => item.url === source.url ? {
         ...item,
         title: response.data.title || item.title,
@@ -428,6 +433,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
             '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
             { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
           );
+          if (sequence !== sourceSaveSequence.current) return;
           setSources(Array.isArray(saved.data) ? saved.data : nextSources);
           setSourceSyncStatus('saved');
           setReviewSaveNotice('Destination check saved. Reachability describes access at check time, not factual trustworthiness.');
@@ -442,12 +448,13 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     } catch {
       setReviewSaveNotice('ADVERSE could not complete this link check. That does not prove the destination is dead.');
     } finally {
-      setCheckingUrl('');
+      if (sequence === sourceSaveSequence.current) setCheckingUrl('');
     }
   }
 
   async function findAlternatives(source: ExperienceSource) {
     if (alternativeSearchingUrl || checkingUrl || reviewSavingUrl) return;
+    const sequence = ++sourceSaveSequence.current;
     const availableSlots = 24 - sources.length;
     if (availableSlots <= 0) {
       setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace to collect more alternatives.');
@@ -459,6 +466,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     setReviewSaveNotice('');
     try {
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+      if (sequence !== sourceSaveSequence.current) return;
       const originalHostname = new URL(source.url).hostname.toLowerCase();
       const originalHost = originalHostname.startsWith('www.') ? originalHostname.slice(4) : originalHostname;
       const existingUrls = new Set(sources.map(item => item.url));
@@ -490,12 +498,13 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
           { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
         );
+        if (sequence !== sourceSaveSequence.current) return;
         setSources(Array.isArray(saved.data) ? saved.data : nextSources);
         setSourceSyncStatus('saved');
       } catch {
-        setSourceSyncStatus('local');
+        if (sequence === sourceSaveSequence.current) setSourceSyncStatus('local');
       }
-      if (activeWorkspaceId) {
+      if (sequence === sourceSaveSequence.current && activeWorkspaceId) {
         const runId = window.crypto?.randomUUID?.() || ('alternatives-' + Date.now());
         await request('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/runs', {
           method: 'POST',
@@ -516,7 +525,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     } catch {
       setReviewSaveNotice('Alternative search is temporarily unavailable. The original source remains in your workspace.');
     } finally {
-      setAlternativeSearchingUrl('');
+      if (sequence === sourceSaveSequence.current) setAlternativeSearchingUrl('');
     }
   }
 
