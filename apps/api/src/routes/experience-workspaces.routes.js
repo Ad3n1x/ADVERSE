@@ -103,9 +103,29 @@ function normalizeSources(input) {
       const canonicalUrl = url.toString();
       if (seen.has(canonicalUrl)) continue;
       seen.add(canonicalUrl);
+
+      const alternativeFor = item.alternativeFor ? canonicalSourceUrl(item.alternativeFor) : null;
+      if (item.alternativeFor && !alternativeFor) return null;
+
+      const finalUrl = item.linkCheck.finalUrl ? canonicalSourceUrl(item.linkCheck.finalUrl) : null;
+      if (item.linkCheck.finalUrl && !finalUrl) return null;
+      const redirects = [];
+      let expectedFrom = canonicalUrl;
+      for (const redirect of item.linkCheck.redirects) {
+        const from = canonicalSourceUrl(redirect.from);
+        const to = canonicalSourceUrl(redirect.to);
+        if (!from || !to || from !== expectedFrom) return null;
+        redirects.push({ status: redirect.status, from, to });
+        expectedFrom = to;
+      }
+      if (finalUrl && redirects.length && expectedFrom !== finalUrl) return null;
+      if (finalUrl && !redirects.length && finalUrl !== canonicalUrl) return null;
+
       sources.push({
         ...item,
         url: canonicalUrl,
+        alternativeFor,
+        linkCheck: { ...item.linkCheck, finalUrl, redirects },
         providers: [...new Set(item.providers.map(value => value.trim()).filter(Boolean))].slice(0, 8),
       });
     } catch {
