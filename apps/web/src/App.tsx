@@ -7,7 +7,7 @@ import DownloadPage from './pages/DownloadPage';
 import './android-download.css';
 
 export default function App() {
-  const isClassicRoute = window.location.pathname === '/classic' || window.location.pathname === '/classic/';
+  const isLegacyRoute = window.location.pathname === '/classic' || window.location.pathname === '/classic/';
   const isDownloadRoute =
     window.location.pathname === '/download' ||
     window.location.pathname === '/download/';
@@ -16,7 +16,12 @@ export default function App() {
     window.location.pathname === '/admin/' ||
     new URLSearchParams(window.location.search).get('admin') === '1';
 
-  if (isAdminRoute) {
+  if (isLegacyRoute) {
+    window.location.replace('/experience');
+    return null;
+  }
+
+  if (isAdminRoute || window.location.pathname === '/experience') {
     let robots = document.head.querySelector('meta[name="robots"]');
     if (!robots) {
       robots = document.createElement('meta');
@@ -30,7 +35,7 @@ export default function App() {
 
   return (
     <>
-      {isAdminRoute ? <AdminApp /> : <WorkspaceApp showExperience={!isClassicRoute} />}
+      {isAdminRoute ? <AdminApp /> : <WorkspaceApp />}
       <ConnectionStatus />
       <SharedLinkHandler />
       {!isAdminRoute && <AndroidDownloadLink />}
