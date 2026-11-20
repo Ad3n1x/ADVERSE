@@ -7,7 +7,7 @@ export type ExperienceSource = {
   provider?: string;
   providers?: string[];
   sourceType?: string;
-  alternativeFor?: string;
+  alternativeFor?: string | null;
   publishedAt?: string | null;
   retrievedAt?: string | null;
   savedAt?: string;
