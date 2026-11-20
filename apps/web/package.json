@@ -20,7 +20,8 @@
     "react-force-graph-3d": "^1.29.2",
     "vue": "^3.5.44",
     "cesium": "^1.124.0",
-    "gods-eye-view": "github:bilawalsidhu/gods-eye-view#44d9e573bd8762ece5a6b29ea3d9911a13f76e41"
+    "gods-eye-view": "github:bilawalsidhu/gods-eye-view#44d9e573bd8762ece5a6b29ea3d9911a13f76e41",
+    "three": "0.187.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",
