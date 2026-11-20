@@ -42,7 +42,7 @@ function WorkspaceApp(){
   const isLegacyWorkspacePath = path === '/classic' || path === '/classic/';
   if (authState === 'authenticated' && path !== '/experience' && !isLegacyWorkspacePath) {
    window.history.replaceState({}, '', '/experience');
-  } else if (authState === 'anonymous' && (path === '/experience' || isLegacyWorkspacePath)) {
+  } else if (authState === 'anonymous' && path === '/experience') {
    window.history.replaceState({}, '', '/');
   }
   const robots = document.head.querySelector('meta[name="robots"]');
