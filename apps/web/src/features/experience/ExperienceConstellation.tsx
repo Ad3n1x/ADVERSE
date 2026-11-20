@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { ExperienceClaim, ExperienceSource } from './experience-types';
 
-type NodeKind = 'intent' | 'source' | 'claim';
+type NodeKind = 'intent' | 'source' | 'alternative' | 'claim';
 type SourceNode = {
   id: string;
   name: string;
@@ -23,6 +23,7 @@ const ForceGraph3D = lazy(() => import('react-force-graph-3d'));
 const palette: Record<NodeKind, string> = {
   intent: '#8cf0d8',
   source: '#66b9db',
+  alternative: '#e6b26b',
   claim: '#b7a3ff',
 };
 
@@ -65,11 +66,20 @@ export default function ExperienceConstellation({ intent, sources, claims = [] }
       nodes.push({
         id,
         name: source.title || source.url,
-        color: palette.source,
-        group: 'source',
+        color: source.sourceType === 'alternative' ? palette.alternative : palette.source,
+        group: source.sourceType === 'alternative' ? 'alternative' : 'source',
         url: source.url,
       });
       links.push({ source: 'intent', target: id, role: 'discovery' });
+    }
+
+    for (const source of sources.slice(0, 24)) {
+      if (!source.alternativeFor) continue;
+      const alternativeId = sourceIds.get(source.url);
+      const originalId = sourceIds.get(source.alternativeFor);
+      if (alternativeId && originalId) {
+        links.push({ source: alternativeId, target: originalId, role: 'context' });
+      }
     }
 
     for (const [index, claim] of claims.slice(0, 24).entries()) {
@@ -114,12 +124,12 @@ export default function ExperienceConstellation({ intent, sources, claims = [] }
             backgroundColor="#081219"
             nodeLabel={(node: object) => {
               const item = node as SourceNode;
-              return item.group === 'claim'
-                ? item.name + ' · ' + (item.assessment || 'unreviewed')
-                : item.name;
+              if (item.group === 'claim') return item.name + ' · ' + (item.assessment || 'unreviewed');
+              if (item.group === 'alternative') return 'Alternative candidate: ' + item.name;
+              return item.name;
             }}
             nodeColor={(node: object) => palette[(node as SourceNode).group] || palette.source}
-            nodeVal={(node: object) => (node as SourceNode).group === 'intent' ? 10 : (node as SourceNode).group === 'claim' ? 7 : 5}
+            nodeVal={(node: object) => (node as SourceNode).group === 'intent' ? 10 : (node as SourceNode).group === 'claim' ? 7 : (node as SourceNode).group === 'alternative' ? 6 : 5}
             nodeRelSize={5}
             linkColor={(link: object) => roleColors[(link as SourceLink).role] || roleColors.discovery}
             linkLabel={(link: object) => {
