@@ -6,7 +6,7 @@ ADVERSE is an evidence-led investigative research workspace built by AD3N1X. It 
 
 ## Creator and official links
 
-**ADVERSE is an independent product created by Adeniran Victor Adebowale, who publishes software under the professional developer identity [AD3N1X](https://ad3n1x.github.io/Portfolio/).** The official portfolio is the canonical source for the creator's professional profile.
+**ADVERSE is an independent intent-first public-source research product created by Adeniran Victor Adebowale, who publishes software under the developer identity [AD3N1X](https://portfolio-sandy-seven-w0bgdmliak.vercel.app/). He is currently pursuing a Professional Diploma in Computer Software Engineering at SQI College of ICT and aspires to study Mechatronics Engineering.** The official portfolio is the canonical source for the creator's professional profile.
 
 - **Official public website and canonical homepage:** https://adverse-web.onrender.com/
 - **AI-readable product reference:** https://adverse-web.onrender.com/llms.txt
