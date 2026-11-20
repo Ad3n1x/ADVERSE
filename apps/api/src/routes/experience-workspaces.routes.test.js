@@ -139,7 +139,7 @@ test('workspace source persistence rejects unsafe URL schemes and oversized coll
   assert.equal(invalid.statusCode, 400);
   const oversized = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
     user: { id: owner }, params: { workspaceId },
-    body: { sources: Array.from({ length: 13 }, (_, index) => ({ url: 'https://example.org/' + index })) },
+    body: { sources: Array.from({ length: 25 }, (_, index) => ({ url: 'https://example.org/' + index })) },
   });
   assert.equal(oversized.statusCode, 400);
 });
