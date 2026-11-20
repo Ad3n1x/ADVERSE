@@ -57,7 +57,7 @@ test('Brevo alert email returns success when provider accepts the message', asyn
       { message: 'Review this archived source.' },
       { url: 'https://example.org/page', label: '<source & page>' }
     );
-    assert.deepEqual(result, { sent: true, reason: '' });
+    assert.deepEqual(result, { accepted: true, messageId: '', reason: '' });
     assert.equal(request.url, 'https://api.brevo.com/v3/smtp/email');
     assert.equal(request.options.headers['api-key'], 'test-key');
     const body = JSON.parse(request.options.body);
@@ -77,7 +77,7 @@ test('Brevo alert email remains pending when provider rejects the message', asyn
       { message: 'Review this archived source.' },
       { url: 'https://example.org/page', label: 'Example' }
     );
-    assert.equal(result.sent, false);
+    assert.equal(result.accepted, false);
     assert.match(result.reason, /429/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -93,7 +93,7 @@ test('Brevo alert email reports missing configuration without attempting a send'
       { message: 'Review this archived source.' },
       { url: 'https://example.org/page', label: 'Example' }
     );
-    assert.equal(result.sent, false);
+    assert.equal(result.accepted, false);
     assert.match(result.reason, /configuration is incomplete/);
     assert.equal(called, false);
   } finally {
@@ -120,7 +120,7 @@ test('archive alerts fall back to the configured Brevo sender', async () => {
       { message: 'Review this archived source.' },
       { url: 'https://example.org/page', label: 'Example' }
     );
-    assert.deepEqual(result, { sent: true, reason: '' });
+    assert.deepEqual(result, { accepted: true, messageId: '', reason: '' });
     assert.equal(JSON.parse(request.options.body).sender.email, 'sender@example.org');
   } finally {
     globalThis.fetch = originalFetch;
