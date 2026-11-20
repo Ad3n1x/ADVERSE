@@ -20,7 +20,7 @@ type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: nu
 type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
 
-type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number } };
+type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number; providers?: string[] } };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
 
@@ -141,6 +141,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [sourceReviewFilter, setSourceReviewFilter] = useState<SourceReviewFilter>('all');
   const [sourceNotes, setSourceNotes] = useState<Record<string, string>>({});
   const [reviewSavingUrl, setReviewSavingUrl] = useState('');
+  const [checkingUrl, setCheckingUrl] = useState('');
+  const [alternativeSearchingUrl, setAlternativeSearchingUrl] = useState('');
   const [reviewSaveNotice, setReviewSaveNotice] = useState('');
   const sourceSaveSequence = useRef(0);
   const [isResolving, setIsResolving] = useState(false);
@@ -388,6 +390,134 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     }
   }
 
+  async function checkSourceLink(source: ExperienceSource) {
+    if (checkingUrl || alternativeSearchingUrl) return;
+    setCheckingUrl(source.url);
+    setReviewSaveNotice('');
+    try {
+      const response = await request<{ data: {
+        status: 'reachable' | 'not_confirmed';
+        checkedAt: string;
+        httpStatus: number | null;
+        finalUrl: string | null;
+        redirects: Array<{ status: number; from: string; to: string }>;
+        note: string;
+        title?: string;
+        excerpt?: string;
+      } }>('/public-search/check-link', {
+        method: 'POST',
+        body: JSON.stringify({ url: source.url }),
+      });
+      const nextSources = sources.map(item => item.url === source.url ? {
+        ...item,
+        title: response.data.title || item.title,
+        excerpt: response.data.excerpt || item.excerpt,
+        linkCheck: {
+          status: response.data.status,
+          checkedAt: response.data.checkedAt,
+          httpStatus: response.data.httpStatus,
+          finalUrl: response.data.finalUrl,
+          redirects: response.data.redirects || [],
+          note: response.data.note || '',
+        },
+      } : item);
+      setSources(nextSources);
+      if (activeWorkspaceId) {
+        try {
+          const saved = await request<{ data: ExperienceSource[] }>(
+            '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
+            { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
+          );
+          setSources(Array.isArray(saved.data) ? saved.data : nextSources);
+          setSourceSyncStatus('saved');
+          setReviewSaveNotice('Destination check saved. Reachability describes access at check time, not factual trustworthiness.');
+        } catch {
+          setSourceSyncStatus('local');
+          setReviewSaveNotice('Destination checked for this session, but the result could not be synced to the account.');
+        }
+      } else {
+        setSourceSyncStatus('local');
+        setReviewSaveNotice('Destination check is available in this session only.');
+      }
+    } catch {
+      setReviewSaveNotice('ADVERSE could not complete this link check. That does not prove the destination is dead.');
+    } finally {
+      setCheckingUrl('');
+    }
+  }
+
+  async function findAlternatives(source: ExperienceSource) {
+    if (alternativeSearchingUrl || checkingUrl) return;
+    const availableSlots = 24 - sources.length;
+    if (availableSlots <= 0) {
+      setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace to collect more alternatives.');
+      return;
+    }
+    const query = [activeIntent, source.title, source.publisher].filter(Boolean).join(' ').slice(0, 200);
+    if (query.length < 2) return;
+    setAlternativeSearchingUrl(source.url);
+    setReviewSaveNotice('');
+    try {
+      const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+      const originalHost = new URL(source.url).hostname.toLowerCase().replace(/^www\\./, '');
+      const existingUrls = new Set(sources.map(item => item.url));
+      const candidates = (Array.isArray(response.data) ? response.data : []).filter(candidate => {
+        try {
+          const parsed = new URL(candidate.url);
+          const host = parsed.hostname.toLowerCase().replace(/^www\\./, '');
+          return candidate.url !== source.url && host !== originalHost && !existingUrls.has(candidate.url);
+        } catch {
+          return false;
+        }
+      }).slice(0, availableSlots);
+      if (!candidates.length) {
+        setReviewSaveNotice('No distinct alternative destinations were found. A failed automated check is not proof that the original site is dead.');
+        return;
+      }
+      const additions: ExperienceSource[] = candidates.map(candidate => ({
+        ...candidate,
+        sourceType: 'alternative',
+        alternativeFor: source.url,
+        reviewStatus: 'unreviewed',
+        analystNote: '',
+      }));
+      const nextSources = [...sources, ...additions].slice(0, 24);
+      setSources(nextSources);
+      try {
+        const saved = await request<{ data: ExperienceSource[] }>(
+          '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
+          { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
+        );
+        setSources(Array.isArray(saved.data) ? saved.data : nextSources);
+        setSourceSyncStatus('saved');
+      } catch {
+        setSourceSyncStatus('local');
+      }
+      if (activeWorkspaceId) {
+        const runId = window.crypto?.randomUUID?.() || ('alternatives-' + Date.now());
+        await request('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/runs', {
+          method: 'POST',
+          body: JSON.stringify({
+            runId,
+            query,
+            plannerKind: 'explore',
+            sourceCount: Math.min(additions.length, 12),
+            successfulSearches: Math.max(0, Math.min(response.meta?.successfulSearches || 0, 20)),
+            providerNames: (response.meta?.providers || []).slice(0, 8),
+            coverage: (response.meta?.coverage || 'Alternative candidates found from public search.').slice(0, 500),
+          }),
+        }).catch(() => undefined);
+        setRunRefreshKey(value => value + 1);
+      }
+      const reachable = additions.filter(item => item.linkCheck?.status === 'reachable').length;
+      setReviewSaveNotice(`Added ${additions.length} alternative candidate(s); ${reachable} were reachable when checked. Candidates are not endorsements or fact verification.`);
+    } catch {
+      setReviewSaveNotice('Alternative search is temporarily unavailable. The original source remains in your workspace.');
+    } finally {
+      setAlternativeSearchingUrl('');
+    }
+  }
+
   async function saveGeospatialSource(
     title: string,
     url: string,
@@ -624,9 +754,14 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                           <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
                           <span className={'experience-review-status status-' + reviewStatus.replace('_', '-')}>{reviewStatus === 'not_relevant' ? 'NOT RELEVANT' : reviewStatus.toUpperCase()}</span>
                         </div>
-                        <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
+                        <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.linkCheck?.httpStatus ? ' · HTTP ' + source.linkCheck.httpStatus : ''}{source.linkCheck?.redirects?.length ? ' · ' + source.linkCheck.redirects.length + ' redirect(s)' : ''}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
+                        {source.alternativeFor && <p className="experience-source-alternative">ALTERNATIVE CANDIDATE · Found as a possible alternative to <a href={source.alternativeFor} target="_blank" rel="noreferrer">{source.alternativeFor}</a></p>}
+                        {source.linkCheck?.finalUrl && source.linkCheck.finalUrl !== source.url && <p className="experience-source-final-url">Final destination: <a href={source.linkCheck.finalUrl} target="_blank" rel="noreferrer">{source.linkCheck.finalUrl}</a></p>}
+                        {source.linkCheck?.note && <p className="experience-source-link-note">{source.linkCheck.note}</p>}
                         {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
                         <div className="experience-source-review-actions" aria-label={'Review source: ' + (source.title || source.url)}>
+                          <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void checkSourceLink(source)}>{checkingUrl === source.url ? 'Checking…' : source.linkCheck?.status === 'not_checked' ? 'Check link' : 'Recheck link'}</button>
+                          {source.linkCheck?.status !== 'reachable' && source.sourceType !== 'alternative' && <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void findAlternatives(source)}>{alternativeSearchingUrl === source.url ? 'Finding…' : 'Find alternatives'}</button>}
                           <button type="button" className={reviewStatus === 'useful' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'useful' })}><Check size={13} /> Useful</button>
                           <button type="button" className={reviewStatus === 'not_relevant' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'not_relevant' })}><X size={13} /> Not relevant</button>
                           <button type="button" className="reset" disabled={Boolean(reviewSavingUrl) || reviewStatus === 'unreviewed'} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'unreviewed' })}>Reset</button>
