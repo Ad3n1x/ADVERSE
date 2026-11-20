@@ -22,8 +22,8 @@ export default function PublicSearchScreen({ onSignIn, onCreateAccount }: Props)
   <section className="landing-hero">
    <div className="landing-hero-copy">
     <span className="landing-kicker"><span className="landing-live-dot"/> AUTONOMOUS INTELLIGENCE RESEARCH</span>
-    <h1>Investigate the question.<br/><em>Follow the evidence.</em></h1>
-    <p className="landing-lede">ADVERSE is an AI-assisted intelligence research workspace for multi-step public-source research, evidence organization and connection discovery.</p>
+    <h1>Find the right source.<br/><em>Follow the evidence.</em></h1>
+    <p className="landing-lede">ADVERSE helps you discover useful public webpages, check where links lead, follow related research paths, and organize source-backed evidence in one intelligence workspace.</p>
     <div className="landing-actions"><button className="landing-primary" onClick={onCreateAccount}>Create your workspace <ArrowRight size={17}/></button><button className="landing-secondary" onClick={onSignIn}>Sign in</button></div>
     <p className="landing-access-note"><ShieldCheck size={14}/> The investigation tools are inside the secure workspace after you sign in.</p>
    </div>
