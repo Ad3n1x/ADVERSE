@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, Network,
+  ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, LogOut, Network,
   Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
 } from 'lucide-react';
 import { request } from '../../lib/api';
@@ -118,7 +118,7 @@ const intentCopy: Record<IntentKind, { title: string; description: string; steps
   },
 };
 
-export default function ExperienceHome() {
+export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () => void; userEmail: string }) {
   const [intent, setIntent] = useState('');
   const [activeIntent, setActiveIntent] = useState('');
   const [showDetails, setShowDetails] = useState(false);
@@ -313,7 +313,7 @@ export default function ExperienceHome() {
         </a>
         <div className="experience-top-actions">
           <span className="experience-mode"><i /> INTELLIGENCE ENVIRONMENT</span>
-          <a className="experience-old-link" href="/classic">Legacy workspace <ArrowUpRight size={14} /></a>
+          <span className="experience-account" title={userEmail}>{userEmail}</span><button className="experience-signout" type="button" onClick={onLogout}>Sign out <LogOut size={14} /></button>
         </div>
       </header>
 
