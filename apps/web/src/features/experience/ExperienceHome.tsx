@@ -9,10 +9,11 @@ import ExperienceClaimsPanel from './ExperienceClaimsPanel';
 import ExperienceCoveragePanel from './ExperienceCoveragePanel';
 import ExperienceDossierActions from './ExperienceDossierActions';
 import ExperienceRunHistoryPanel from './ExperienceRunHistoryPanel';
-const GeospatialIntelligencePanel = lazy(() => import('../geospatial/GeospatialIntelligencePanel'));
 import ExperienceSourceTimeline from './ExperienceSourceTimeline';
 import type { ExperienceClaim, ExperienceSource } from './experience-types';
 import './experience-home.css';
+
+const GeospatialIntelligencePanel = lazy(() => import('../geospatial/GeospatialIntelligencePanel'));
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
 type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
