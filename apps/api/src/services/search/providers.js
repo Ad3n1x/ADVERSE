@@ -97,7 +97,7 @@ function isPrivateIPv6(ip) {
 export function assertPublicAddressSet(records, message = 'Private network destinations are blocked.') {
   if (!Array.isArray(records) || records.length === 0) throw new Error(message);
   for (const record of records) {
-    const address = String(record?.address || '').replace(/^\\[|\\]$/g, '');
+    const address = String(record?.address || '');
     const family = net.isIP(address);
     if (!family || (record?.family != null && Number(record.family) !== family)) throw new Error(message);
     if (family === 4 ? isPrivateIPv4(address) : isPrivateIPv6(address)) throw new Error(message);
