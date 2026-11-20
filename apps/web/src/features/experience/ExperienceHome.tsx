@@ -312,8 +312,8 @@ export default function ExperienceHome() {
           <span>ADVERSE<small>BEYOND BROWSING</small></span>
         </a>
         <div className="experience-top-actions">
-          <span className="experience-mode"><i /> EXPERIENCE PREVIEW</span>
-          <a className="experience-old-link" href="/">Current ADVERSE <ArrowUpRight size={14} /></a>
+          <span className="experience-mode"><i /> INTELLIGENCE ENVIRONMENT</span>
+          <a className="experience-old-link" href="/classic">Legacy workspace <ArrowUpRight size={14} /></a>
         </div>
       </header>
 
