@@ -285,8 +285,22 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       const savedByUrl = new Map(savedSources.map(source => [source.url, source]));
       const mergeReviewState = (source: ExperienceSource): ExperienceSource => {
         const saved = savedByUrl.get(source.url);
+        const savedCheckTime = Date.parse(saved?.linkCheck?.checkedAt || '') || 0;
+        const freshCheckTime = Date.parse(source.linkCheck?.checkedAt || '') || 0;
+        const savedHasCheck = Boolean(saved?.linkCheck && saved.linkCheck.status !== 'not_checked');
+        const freshHasCheck = Boolean(source.linkCheck && source.linkCheck.status !== 'not_checked');
+        const linkCheck = savedHasCheck && (!freshHasCheck || savedCheckTime >= freshCheckTime)
+          ? saved?.linkCheck
+          : source.linkCheck || saved?.linkCheck;
+        const savedSourceType = saved?.sourceType && saved.sourceType !== 'web' ? saved.sourceType : null;
         return {
           ...source,
+          ...(savedSourceType ? { sourceType: savedSourceType } : {}),
+          alternativeFor: saved?.alternativeFor || source.alternativeFor || null,
+          linkCheck,
+          publisher: source.publisher || saved?.publisher || '',
+          provider: source.provider || saved?.provider || '',
+          providers: [...new Set([...(saved?.providers || []), ...(source.providers || [])])].slice(0, 8),
           reviewStatus: saved?.reviewStatus || 'unreviewed',
           analystNote: saved?.analystNote || '',
           ...(saved?.savedAt ? { savedAt: saved.savedAt } : {}),
