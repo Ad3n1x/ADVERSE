@@ -10,6 +10,7 @@ const experienceSourceSchema = new Schema({
   provider: { type: String, default: '', maxlength: 160 },
   providers: { type: [String], default: [] },
   sourceType: { type: String, default: 'web', maxlength: 40 },
+  alternativeFor: { type: String, default: null, maxlength: 2048 },
   reviewStatus: { type: String, enum: ['unreviewed', 'useful', 'not_relevant'], default: 'unreviewed' },
   analystNote: { type: String, default: '', maxlength: 1000 },
   publishedAt: { type: String, default: null, maxlength: 40 },
@@ -17,6 +18,16 @@ const experienceSourceSchema = new Schema({
   linkCheck: {
     status: { type: String, enum: ['reachable', 'not_confirmed', 'not_checked'], default: 'not_checked' },
     checkedAt: { type: String, default: null, maxlength: 40 },
+    httpStatus: { type: Number, default: null, min: 100, max: 599 },
+    finalUrl: { type: String, default: null, maxlength: 2048 },
+    redirects: {
+      type: [{
+        status: { type: Number, required: true, min: 300, max: 399 },
+        from: { type: String, required: true, maxlength: 2048 },
+        to: { type: String, required: true, maxlength: 2048 },
+      }],
+      default: [],
+    },
     note: { type: String, default: '', maxlength: 500 },
   },
   savedAt: { type: Date, default: Date.now },
