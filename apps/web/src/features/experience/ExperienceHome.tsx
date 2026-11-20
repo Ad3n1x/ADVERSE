@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { FormEvent, lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, LogOut, Network,
-  Clock3, Plus, Search, Sparkles, Trash2, Workflow, X, Check
+  Clock3, Plus, Search, Sparkles, Trash2, Workflow, X, Check, Globe2
 } from 'lucide-react';
 import { request } from '../../lib/api';
 import ExperienceConstellation from './ExperienceConstellation';
@@ -9,6 +9,7 @@ import ExperienceClaimsPanel from './ExperienceClaimsPanel';
 import ExperienceCoveragePanel from './ExperienceCoveragePanel';
 import ExperienceDossierActions from './ExperienceDossierActions';
 import ExperienceRunHistoryPanel from './ExperienceRunHistoryPanel';
+const GeospatialIntelligencePanel = lazy(() => import('../geospatial/GeospatialIntelligencePanel'));
 import ExperienceSourceTimeline from './ExperienceSourceTimeline';
 import type { ExperienceClaim, ExperienceSource } from './experience-types';
 import './experience-home.css';
@@ -146,6 +147,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [sourceCoverage, setSourceCoverage] = useState('');
   const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
   const [plannerMode, setPlannerMode] = useState<'gemini' | 'deterministic'>('deterministic');
+  const [showGeospatial, setShowGeospatial] = useState(false);
   const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
   const resolutionSequence = useRef(0);
 
@@ -214,6 +216,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     const workspaceId = existingWorkspaceId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
     setActiveWorkspaceId(workspaceId);
+    setShowGeospatial(false);
     setSourceReviewFilter('all');
     setSourceNotes({});
     setReviewSaveNotice('');
@@ -373,6 +376,45 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     }
   }
 
+  async function saveGeospatialSource(
+    title: string,
+    url: string,
+    excerpt: string,
+    publisher: string,
+    sourceType: 'organization' | 'domain' | 'document',
+  ): Promise<boolean> {
+    if (!activeWorkspaceId || !url) return false;
+    if (sources.some(source => source.url === url)) return true;
+    const source: ExperienceSource = {
+      title: title.slice(0, 240),
+      url,
+      excerpt: excerpt.slice(0, 4500),
+      publisher: publisher.slice(0, 180),
+      provider: publisher.slice(0, 120),
+      sourceType,
+      retrievedAt: new Date().toISOString(),
+      reviewStatus: 'unreviewed',
+      analystNote: '',
+    };
+    const nextSources = [...sources, source];
+    try {
+      const saved = await request<{ data: ExperienceSource[] }>(
+        '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
+        { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
+      );
+      const normalized = Array.isArray(saved.data) ? saved.data : nextSources;
+      setSources(normalized);
+      setSourceNotes(Object.fromEntries(normalized.map(item => [item.url, item.analystNote || ''])));
+      setSourceSyncStatus('saved');
+      setReviewSaveNotice('Public event observation saved to this workspace.');
+      return true;
+    } catch {
+      setSourceSyncStatus('local');
+      setReviewSaveNotice('The event could not be synced. It has not been marked as saved.');
+      return false;
+    }
+  }
+
   const reviewCounts = useMemo(() => ({
     all: sources.length,
     unreviewed: sources.filter(source => !source.reviewStatus || source.reviewStatus === 'unreviewed').length,
@@ -476,7 +518,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setClaims([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setClaims([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); setShowGeospatial(false); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
@@ -507,6 +549,21 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </div>
             </div>
             <ExperienceCoveragePanel sources={sources} />
+            <section className="experience-geospatial-launch" aria-labelledby="experience-geospatial-title">
+              <div>
+                <span className="experience-section-label"><Globe2 size={13} /> PUBLIC-EVENT GEOSPATIAL INTELLIGENCE</span>
+                <h3 id="experience-geospatial-title">Explore the public world in 3D</h3>
+                <p>View attributed USGS earthquake and NASA natural-event observations on a 3D globe. Locations may be approximate; this is not personal-location tracking.</p>
+              </div>
+              <button type="button" className="experience-extension-primary" aria-expanded={showGeospatial} aria-controls="experience-geospatial-view" onClick={() => setShowGeospatial(value => !value)}>
+                <Globe2 size={14} /> {showGeospatial ? 'Hide 3D globe' : 'Open 3D globe'}
+              </button>
+            </section>
+            {showGeospatial && <div id="experience-geospatial-view" className="experience-geospatial-view">
+              <Suspense fallback={<div className="experience-constellation-loading">Preparing the public geospatial workspace…</div>}>
+                <GeospatialIntelligencePanel onSave={saveGeospatialSource} canSave={Boolean(activeWorkspaceId)} />
+              </Suspense>
+            </div>}
             {activeWorkspaceId && <>
               <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} />
               <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
