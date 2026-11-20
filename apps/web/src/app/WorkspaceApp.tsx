@@ -46,7 +46,7 @@ function WorkspaceApp(){
    window.history.replaceState({}, '', '/');
   }
   const robots = document.head.querySelector('meta[name="robots"]');
-  if (robots) robots.setAttribute('content', window.location.pathname === '/experience'
+  if (robots) robots.setAttribute('content', window.location.pathname === '/experience' || isLegacyWorkspacePath
    ? 'noindex, nofollow, noarchive'
    : 'index, follow, max-image-preview:large');
  }, [authState, resetToken]);
