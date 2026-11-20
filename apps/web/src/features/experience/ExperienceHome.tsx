@@ -360,7 +360,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   }
 
   async function updateSourceReview(url: string, patch: Partial<Pick<ExperienceSource, 'reviewStatus' | 'analystNote'>>) {
-    if (!activeWorkspaceId || reviewSavingUrl) return;
+    if (!activeWorkspaceId || reviewSavingUrl || checkingUrl || alternativeSearchingUrl) return;
     const sequence = ++sourceSaveSequence.current;
     const nextSources = sources.map(source => source.url === url ? { ...source, ...patch } : source);
     setSources(nextSources);
@@ -391,7 +391,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   }
 
   async function checkSourceLink(source: ExperienceSource) {
-    if (checkingUrl || alternativeSearchingUrl) return;
+    if (checkingUrl || alternativeSearchingUrl || reviewSavingUrl) return;
     setCheckingUrl(source.url);
     setReviewSaveNotice('');
     try {
@@ -447,7 +447,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   }
 
   async function findAlternatives(source: ExperienceSource) {
-    if (alternativeSearchingUrl || checkingUrl) return;
+    if (alternativeSearchingUrl || checkingUrl || reviewSavingUrl) return;
     const availableSlots = 24 - sources.length;
     if (availableSlots <= 0) {
       setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace to collect more alternatives.');
@@ -527,7 +527,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     publisher: string,
     sourceType: 'organization' | 'domain' | 'document',
   ): Promise<boolean> {
-    if (!activeWorkspaceId || !url) return false;
+    if (!activeWorkspaceId || !url || checkingUrl || alternativeSearchingUrl || reviewSavingUrl) return false;
     if (sources.some(source => source.url === url)) return true;
     if (sources.length >= 24) {
       setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace before saving more public event observations.');
@@ -762,11 +762,11 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                         {source.linkCheck?.note && <p className="experience-source-link-note">{source.linkCheck.note}</p>}
                         {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
                         <div className="experience-source-review-actions" aria-label={'Review source: ' + (source.title || source.url)}>
-                          <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void checkSourceLink(source)}>{checkingUrl === source.url ? 'Checking…' : source.linkCheck?.status === 'not_checked' ? 'Check link' : 'Recheck link'}</button>
-                          {source.linkCheck?.status !== 'reachable' && source.sourceType !== 'alternative' && <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void findAlternatives(source)}>{alternativeSearchingUrl === source.url ? 'Finding…' : 'Find alternatives'}</button>}
-                          <button type="button" className={reviewStatus === 'useful' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'useful' })}><Check size={13} /> Useful</button>
-                          <button type="button" className={reviewStatus === 'not_relevant' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'not_relevant' })}><X size={13} /> Not relevant</button>
-                          <button type="button" className="reset" disabled={Boolean(reviewSavingUrl) || reviewStatus === 'unreviewed'} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'unreviewed' })}>Reset</button>
+                          <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl) || Boolean(reviewSavingUrl)} onClick={() => void checkSourceLink(source)}>{checkingUrl === source.url ? 'Checking…' : source.linkCheck?.status === 'not_checked' ? 'Check link' : 'Recheck link'}</button>
+                          {source.linkCheck?.status !== 'reachable' && source.sourceType !== 'alternative' && <button type="button" className="reset" disabled={Boolean(checkingUrl) || Boolean(alternativeSearchingUrl) || Boolean(reviewSavingUrl)} onClick={() => void findAlternatives(source)}>{alternativeSearchingUrl === source.url ? 'Finding…' : 'Find alternatives'}</button>}
+                          <button type="button" className={reviewStatus === 'useful' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl) || Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'useful' })}><Check size={13} /> Useful</button>
+                          <button type="button" className={reviewStatus === 'not_relevant' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl) || Boolean(checkingUrl) || Boolean(alternativeSearchingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'not_relevant' })}><X size={13} /> Not relevant</button>
+                          <button type="button" className="reset" disabled={Boolean(reviewSavingUrl) || Boolean(checkingUrl) || Boolean(alternativeSearchingUrl) || reviewStatus === 'unreviewed'} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'unreviewed' })}>Reset</button>
                           {sourceSaving && <span className="experience-review-saving">Saving…</span>}
                         </div>
                         <label className="experience-source-note">
