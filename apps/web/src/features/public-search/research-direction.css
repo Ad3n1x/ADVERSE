@@ -11,3 +11,40 @@
 @media(max-width:620px){.adverse-landing{padding:0 17px}.landing-nav{height:65px}.landing-nav nav{gap:12px}.landing-nav nav>a{display:none}.landing-nav-login{padding:9px 11px}.landing-brand{font-size:12px}.landing-mark{width:33px;height:33px}.landing-hero{padding:55px 0 46px;gap:27px}.landing-hero h1{font-size:clamp(39px,11vw,56px)}.landing-lede{font-size:13px}.landing-preview{padding:12px;border-radius:13px}.preview-top,.preview-footer{font-size:7px}.landing-scene-caption{align-items:flex-start;flex-direction:column;gap:4px}.landing-scene-caption b{font-size:15px}.landing-3d-stage{height:360px;margin-top:9px}.landing-3d-label{font-size:7px}.landing-3d-hint{display:none}.landing-proof-strip{grid-template-columns:1fr;gap:15px;padding:19px 0}.landing-proof-strip>div{justify-content:flex-start}.landing-capabilities{padding:65px 0 55px}.landing-section-heading{text-align:left;margin-bottom:24px}.landing-capability-grid{grid-template-columns:1fr;gap:10px}.landing-capability{padding:18px}.landing-capability p{min-height:0}.landing-workflow{grid-template-columns:1fr;padding:21px;margin-bottom:42px}.landing-boundaries{padding:15px;margin-bottom:35px}.landing-footer{gap:14px}.landing-footer>span{text-align:right;font-size:9px}}
 @media(prefers-reduced-motion:reduce){.landing-primary,.landing-preview,.landing-capability{transition:none!important;animation:none!important}.landing-primary:hover,.landing-capability:hover{transform:none}}
 @supports(animation-timeline:view()){.landing-capability{animation:landing-card-enter linear both;animation-timeline:view();animation-range:entry 0% entry 45%}@keyframes landing-card-enter{from{opacity:.35;transform:translateY(25px) rotateX(3deg)}to{opacity:1;transform:translateY(0) rotateX(0)}}}
+
+
+/* Depth and interaction polish for the public 3D research landing. */
+.landing-preview-immersive{
+  position:relative;
+  isolation:isolate;
+  border-color:rgba(85,217,208,.34);
+  box-shadow:0 34px 110px #000a,0 0 0 1px rgba(85,217,208,.055),0 0 85px rgba(43,140,155,.16),inset 0 1px rgba(255,255,255,.08);
+}
+.landing-preview-immersive:before{
+  content:"";
+  position:absolute;
+  inset:-1px;
+  z-index:-1;
+  border-radius:inherit;
+  background:linear-gradient(125deg,rgba(85,217,208,.28),transparent 28%,transparent 68%,rgba(112,130,255,.2));
+  opacity:.7;
+  pointer-events:none;
+}
+.landing-3d-stage{
+  min-height:390px;
+  box-shadow:inset 0 0 65px rgba(25,111,137,.12),0 15px 38px rgba(0,0,0,.22);
+}
+.landing-3d-stage canvas{filter:drop-shadow(0 0 10px rgba(85,217,208,.08))}
+.landing-capability{backdrop-filter:blur(10px)}
+.landing-capability:hover .landing-capability-icon{
+  border-color:rgba(85,217,208,.7);
+  box-shadow:0 0 22px rgba(85,217,208,.13);
+}
+.landing-primary:focus-visible,.landing-secondary:focus-visible,.landing-nav-login:focus-visible{
+  outline:2px solid #8df4e9;
+  outline-offset:4px;
+}
+@media(max-width:620px){
+  .landing-3d-stage{min-height:340px}
+  .landing-preview-immersive{transform:none}
+}
