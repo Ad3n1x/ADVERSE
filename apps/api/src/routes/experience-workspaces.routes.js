@@ -24,6 +24,7 @@ const sourceSchema = z.object({
   provider: z.string().max(160).optional().default(''),
   providers: z.array(z.string().max(160)).max(8).optional().default([]),
   sourceType: z.string().max(40).optional().default('web'),
+  alternativeFor: z.string().url().max(2048).optional().nullable().default(null),
   reviewStatus: z.enum(['unreviewed', 'useful', 'not_relevant']).optional(),
   analystNote: z.string().max(1000).optional(),
   publishedAt: z.string().max(40).nullable().optional().default(null),
@@ -31,6 +32,13 @@ const sourceSchema = z.object({
   linkCheck: z.object({
     status: z.enum(['reachable', 'not_confirmed', 'not_checked']).optional().default('not_checked'),
     checkedAt: z.string().max(40).nullable().optional().default(null),
+    httpStatus: z.number().int().min(100).max(599).nullable().optional().default(null),
+    finalUrl: z.string().url().max(2048).nullable().optional().default(null),
+    redirects: z.array(z.object({
+      status: z.number().int().min(300).max(399),
+      from: z.string().url().max(2048),
+      to: z.string().url().max(2048),
+    })).max(5).optional().default([]),
     note: z.string().max(500).optional().default(''),
   }).optional().default({}),
 });
