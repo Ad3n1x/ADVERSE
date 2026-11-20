@@ -21,9 +21,13 @@ test('public landing leads to the authenticated intent-first ADVERSE workspace',
   await expect(page.getByRole('link', { name: /legacy workspace/i })).toHaveCount(0);
 
   await page.goto('/classic');
-  await expect(page).toHaveURL(/\/experience$/);
-  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/classic$/);
+  await expect(page.getByRole('button', { name: /new collection/i })).toBeVisible();
 
+  // The full legacy workspace remains available for collection and geospatial workflows.
+  // Return to the default intent-first workspace for the sign-out boundary check.
+  await page.goto('/experience');
+  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible();
   await page.getByRole('button', { name: /sign out/i }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: /find the right source.*follow the evidence/i })).toBeVisible();

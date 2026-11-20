@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 test('geospatial workspace combines public feeds, STAC discovery and evidence capture', async ({ page }) => {
+  page.on('pageerror', error => console.log('[geospatial pageerror]', error.stack || error.message));
+  page.on('console', message => { if (message.type() === 'error') console.log('[geospatial console]', message.text()); });
   await page.route('https://earthquake.usgs.gov/**', route => route.fulfill({
     status: 200,
     contentType: 'application/geo+json',
@@ -63,7 +65,10 @@ test('geospatial workspace combines public feeds, STAC discovery and evidence ca
   await expect(page.getByLabel('Choose active research collection')).toContainText('Geospatial integration test');
 
   await page.getByRole('button', { name: 'Geospatial' }).click();
-  await expect(page.getByRole('heading', { name: 'Global event monitor' })).toBeVisible();
+  await page.waitForTimeout(1200);
+  console.log('[geospatial debug body]', (await page.locator('body').innerText()).slice(-7000));
+  console.log('[geospatial debug mount]', await page.locator('.geospatial-vue-mount').innerHTML().catch(() => 'mount-not-found'));
+  await expect(page.getByRole('heading', { name: 'Global event monitor' })).toBeVisible({ timeout: 12_000 });
   await expect(page.getByText('ADVERSE test earthquake location')).toBeVisible();
   await expect(page.getByText('ADVERSE test satellite collection')).toBeVisible();
 
