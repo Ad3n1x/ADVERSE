@@ -103,3 +103,32 @@
 .experience-planner-mode{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:9px 11px;border:1px solid rgba(110,178,164,.14);border-radius:7px;background:rgba(9,23,27,.55)}
 .experience-planner-mode span{color:#769a91;font:8px 'DM Mono',monospace;letter-spacing:.12em}
 .experience-planner-mode strong{color:#9adbc9;font:9px 'DM Mono',monospace;font-weight:500}
+
+
+/* Phase 4 — persistent source triage */
+.experience-review-toolbar{display:flex;flex-wrap:wrap;gap:7px;margin:13px 0 12px;padding:8px;border:1px solid rgba(113,160,157,.15);border-radius:9px;background:rgba(8,19,26,.48)}
+.experience-review-toolbar button{display:inline-flex;align-items:center;gap:7px;min-height:32px;padding:0 10px;border:1px solid transparent;border-radius:7px;background:transparent;color:#91aaa3;font-size:9px;cursor:pointer}
+.experience-review-toolbar button span{display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border-radius:5px;background:rgba(116,157,148,.12);color:#b2c8c0;font:8px 'DM Mono',monospace}
+.experience-review-toolbar button.active{border-color:rgba(111,218,195,.35);background:rgba(35,78,70,.45);color:#baf3e2}
+.experience-review-toolbar button.active span{background:rgba(105,208,183,.2);color:#c9f6e7}
+.experience-source-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.experience-source-title-row>a{min-width:0}
+.experience-review-status{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(130,158,151,.2);border-radius:5px;color:#9bb4ac;font:7px 'DM Mono',monospace;letter-spacing:.06em}
+.experience-review-status.status-useful{border-color:rgba(102,212,175,.3);background:rgba(27,88,67,.22);color:#95e5c3}
+.experience-review-status.status-not-relevant{border-color:rgba(195,154,116,.28);background:rgba(89,58,31,.2);color:#dabb96}
+.experience-source-review-actions{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:11px}
+.experience-source-review-actions button,.experience-source-note button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:29px;padding:0 9px;border:1px solid rgba(115,161,151,.22);border-radius:6px;background:rgba(15,35,39,.8);color:#a8c3b9;font-size:9px;cursor:pointer}
+.experience-source-review-actions button.selected{border-color:rgba(103,211,177,.45);background:rgba(35,89,71,.32);color:#a4efd0}
+.experience-source-review-actions button:disabled,.experience-source-note button:disabled{opacity:.42;cursor:not-allowed}
+.experience-source-review-actions button.reset{color:#829c93}
+.experience-review-saving{color:#82cdb7;font:8px 'DM Mono',monospace}
+.experience-source-note{display:grid;gap:7px;margin-top:12px;padding-top:11px;border-top:1px solid rgba(113,160,157,.12)}
+.experience-source-note>span{display:flex;align-items:center;gap:8px;color:#7faaa0;font:8px 'DM Mono',monospace;letter-spacing:.12em}
+.experience-source-note>span small{color:#6d8a82;font:8px 'DM Mono',monospace;letter-spacing:0}
+.experience-source-note textarea{width:100%;min-height:55px;resize:vertical;padding:9px 10px;border:1px solid rgba(113,160,157,.2);border-radius:7px;outline:none;background:rgba(7,17,23,.7);color:#d5e6df;font:10px/1.55 'DM Sans',sans-serif}
+.experience-source-note textarea:focus{border-color:rgba(113,224,198,.65);box-shadow:0 0 0 3px rgba(113,224,198,.08)}
+.experience-source-note textarea::placeholder{color:#6f8880}
+.experience-source-note button{justify-self:start}
+.experience-review-empty{padding:22px 12px;border:1px dashed rgba(113,160,157,.2);border-radius:8px;color:#819b92;text-align:center;font-size:10px}
+.experience-review-save-notice{margin:9px 0 0;color:#84cdb5;font:8px 'DM Mono',monospace;line-height:1.6}
+@media(max-width:520px){.experience-review-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.experience-review-toolbar button{justify-content:space-between}.experience-source-title-row{display:block}.experience-review-status{display:inline-flex;margin-top:7px}.experience-source-review-actions button{flex:1}.experience-source-note>span{flex-wrap:wrap}}
