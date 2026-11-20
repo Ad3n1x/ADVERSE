@@ -54,5 +54,6 @@ export default defineConfig({
       }
     })
   ],
+  resolve: { dedupe: ['three'] },
   server: { proxy: { '/api': 'http://localhost:4000' } }
 });
