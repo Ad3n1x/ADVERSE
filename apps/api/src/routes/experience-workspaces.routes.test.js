@@ -173,6 +173,15 @@ test('workspace source persistence rejects unsafe URL schemes and oversized coll
     }] },
   });
   assert.equal(unsafeRedirect.statusCode, 400);
+
+  const unsafeAlternative = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{
+      url: 'https://example.org/alternative',
+      alternativeFor: 'javascript:alert(1)',
+    }] },
+  });
+  assert.equal(unsafeAlternative.statusCode, 400);
 });
 
 
