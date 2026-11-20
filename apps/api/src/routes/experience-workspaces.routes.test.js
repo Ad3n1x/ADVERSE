@@ -188,3 +188,79 @@ test('source review state and analyst notes persist across refreshes and stay ow
   });
   assert.equal(oversizedNote.statusCode, 400);
 });
+
+
+test('claim ledger is owner-scoped and rejects links to sources outside the workspace', async () => {
+  const api = makeHarness();
+  const owner = 'experience-claims-owner-' + randomUUID();
+  const other = 'experience-claims-other-' + randomUUID();
+  const workspaceId = 'workspace-claims-' + randomUUID();
+  const sourceUrl = 'https://example.org/energy-report';
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner }, body: { workspaceId, intent: 'Review energy storage research', kind: 'research', createdAt: Date.now() },
+  });
+  await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId }, body: { sources: [{ url: sourceUrl, title: 'Energy report' }] },
+  });
+  const claim = {
+    claimId: 'claim-' + randomUUID(),
+    text: 'Grid-scale storage deployment increased during the reporting period.',
+    assessment: 'unreviewed',
+    rationale: 'Needs comparison with an independent dataset.',
+    evidenceLinks: [{ url: sourceUrl, role: 'context' }],
+  };
+  const saved = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/claims', {
+    user: { id: owner }, params: { workspaceId }, body: { claims: [claim] },
+  });
+  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.body.data.length, 1);
+  const loaded = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/claims', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(loaded.body.data[0].evidenceLinks[0].url, sourceUrl);
+  const denied = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/claims', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(denied.statusCode, 404);
+  const foreignLink = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/claims', {
+    user: { id: owner }, params: { workspaceId },
+    body: { claims: [{ ...claim, evidenceLinks: [{ url: 'https://other.example/report', role: 'supports' }] }] },
+  });
+  assert.equal(foreignLink.statusCode, 400);
+  const invalidAssessment = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/claims', {
+    user: { id: owner }, params: { workspaceId }, body: { claims: [{ ...claim, assessment: 'verified' }] },
+  });
+  assert.equal(invalidAssessment.statusCode, 400);
+});
+
+test('research-run history is idempotent, bounded, and private to the workspace owner', async () => {
+  const api = makeHarness();
+  const owner = 'experience-runs-owner-' + randomUUID();
+  const other = 'experience-runs-other-' + randomUUID();
+  const workspaceId = 'workspace-runs-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner }, body: { workspaceId, intent: 'Compare public research sources', kind: 'compare', createdAt: Date.now() },
+  });
+  const run = {
+    runId: 'run-' + randomUUID(), query: 'public energy storage research', plannerKind: 'compare',
+    sourceCount: 2, successfulSearches: 3, providerNames: ['Provider A', 'Provider B'], coverage: 'Two sources were returned.',
+  };
+  const first = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/runs', {
+    user: { id: owner }, params: { workspaceId }, body: run,
+  });
+  assert.equal(first.statusCode, 201);
+  assert.equal(first.body.data.length, 1);
+  const duplicate = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/runs', {
+    user: { id: owner }, params: { workspaceId }, body: { ...run, sourceCount: 1 },
+  });
+  assert.equal(duplicate.body.data.length, 1);
+  assert.equal(duplicate.body.data[0].sourceCount, 1);
+  const list = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/runs', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(list.body.data.length, 1);
+  const denied = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/runs', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(denied.statusCode, 404);
+});

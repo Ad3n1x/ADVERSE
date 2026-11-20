@@ -57,6 +57,19 @@ ADVERSE is developed with AI-assisted engineering, including GPT-6 assistance. T
 - Input validation, DNS-pinned public-page retrieval (per-hop DNS resolution, private/mixed-answer rejection, manual redirect revalidation, TLS hostname verification, 1 MB response cap), Helmet headers, bounded request bodies, timeouts, mutation/authentication rate limiting, scrypt password hashing, signed HttpOnly SameSite cookies, and owner-scoped investigation access.
 - API unit/integration tests, Chromium browser workflow tests, and GitHub Actions CI for API checks, frontend production builds, and end-to-end registration/investigation/graph flows.
 
+## Intent-first evidence workflow
+
+The authenticated `/experience` workspace connects discovery to a reviewable research record:
+
+- **Source triage:** mark leads useful, not relevant, or unreviewed and keep private analyst notes.
+- **Claim ledger:** record a statement under examination and link only sources saved in that workspace as supporting, challenging, or contextual evidence. Analyst assessments remain provisional and human-controlled.
+- **Coverage snapshot:** inspect source count, hostname diversity, represented providers, missing publication dates, and publisher metadata gaps without a credibility score.
+- **Source chronology:** display publication, retrieval, workspace-save, and link-check dates as separate events.
+- **Research dossier:** export JSON or Markdown containing source provenance, source reviews, linked claims, and explicit limitations. JSON export carries a SHA-256 integrity digest over the pre-manifest payload; it is not a digital signature or trusted timestamp.
+- **Reproducible run history:** retain the latest 20 bounded search-run records for each workspace, including the query, planner type, provider metadata, result count, and retrieval coverage.
+
+These tools help organise and explain evidence. They do not automatically verify sources, determine whether a claim is true, or establish independent corroboration.
+
 ## Known limitations
 
 - Federated search covers the providers listed above when reachable; it is not a general web index, does not crawl the entire internet, and provider failures may reduce coverage.

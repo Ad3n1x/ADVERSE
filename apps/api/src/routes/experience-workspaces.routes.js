@@ -35,6 +35,53 @@ const sourceSchema = z.object({
   }).optional().default({}),
 });
 
+const claimSchema = z.object({
+  claimId: z.string().trim().min(1).max(100),
+  text: z.string().trim().min(5).max(1000),
+  assessment: z.enum(['unreviewed', 'supported', 'conflicting', 'insufficient']).optional().default('unreviewed'),
+  rationale: z.string().max(1000).optional().default(''),
+  evidenceLinks: z.array(z.object({
+    url: z.string().url().max(2048),
+    role: z.enum(['supports', 'challenges', 'context']),
+  })).max(12).optional().default([]),
+});
+const researchRunSchema = z.object({
+  runId: z.string().trim().min(1).max(100),
+  query: z.string().trim().min(2).max(500),
+  plannerKind: z.enum(['research', 'plan', 'compare', 'create', 'explore']),
+  sourceCount: z.number().int().min(0).max(12),
+  successfulSearches: z.number().int().min(0).max(20).optional().default(0),
+  providerNames: z.array(z.string().trim().min(1).max(160)).max(8).optional().default([]),
+  coverage: z.string().max(500).optional().default(''),
+});
+function canonicalSourceUrl(value) {
+  const url = new URL(value);
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+  url.hash = '';
+  return url.toString();
+}
+function normalizeClaims(input, allowedSourceUrls) {
+  const parsed = z.array(claimSchema).max(50).safeParse(input);
+  if (!parsed.success) return null;
+  const claimIds = new Set();
+  const claims = [];
+  for (const item of parsed.data) {
+    if (claimIds.has(item.claimId)) return null;
+    claimIds.add(item.claimId);
+    const seenLinks = new Set();
+    const evidenceLinks = [];
+    for (const link of item.evidenceLinks) {
+      let url;
+      try { url = canonicalSourceUrl(link.url); } catch { return null; }
+      if (!url || !allowedSourceUrls.has(url) || seenLinks.has(url)) return null;
+      seenLinks.add(url);
+      evidenceLinks.push({ url, role: link.role });
+    }
+    claims.push({ ...item, text: item.text.trim(), rationale: item.rationale.trim(), evidenceLinks });
+  }
+  return claims;
+}
+
 function normalizeSources(input) {
   const parsed = z.array(sourceSchema).max(12).safeParse(input);
   if (!parsed.success) return null;
@@ -115,7 +162,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const previous = records.get(item.workspaceId);
     records.set(item.workspaceId, {
       id: item.workspaceId, intent: item.intent, kind: item.kind,
-      createdAt: createdAt.getTime(), sources: previous?.sources || [],
+      createdAt: createdAt.getTime(), sources: previous?.sources || [], claims: previous?.claims || [], researchRuns: previous?.researchRuns || [],
     });
     const sorted = [...records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
     store.set(req.user.id, new Map(sorted.map(row => [row.id, row])));
@@ -165,6 +212,77 @@ export function registerExperienceWorkspaceRoutes(app, {
       savedAt: record.sources?.find(old => old.url === item.url)?.savedAt || new Date().toISOString(),
     }));
     return res.json({ data: record.sources, meta: { saved: record.sources.length } });
+  }));
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/claims', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    if (isDb()) {
+      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims').lean();
+      if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+      return res.json({ data: Array.isArray(record.claims) ? record.claims : [] });
+    }
+    const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    return res.json({ data: record.claims || [] });
+  }));
+
+  app.put('/api/v1/experience/workspaces/:workspaceId/claims', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims sources').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const allowedSourceUrls = new Set((record.sources || []).map(source => source.url));
+    const parsed = normalizeClaims(req.body?.claims, allowedSourceUrls);
+    if (!parsed) return sendError(res, 400, 'INVALID_CLAIMS', 'Claims must be valid, unique, and linked only to sources saved in this workspace.');
+    const previous = new Map((record.claims || []).map(claim => [claim.claimId, claim]));
+    const now = new Date();
+    const claims = parsed.map(claim => ({
+      ...claim,
+      createdAt: previous.get(claim.claimId)?.createdAt || now,
+      updatedAt: now,
+    }));
+    if (isDb()) await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { claims } });
+    else record.claims = claims.map(claim => ({ ...claim, createdAt: claim.createdAt.toISOString(), updatedAt: claim.updatedAt.toISOString() }));
+    const data = isDb()
+      ? claims.map(claim => ({ ...claim, createdAt: claim.createdAt.toISOString(), updatedAt: claim.updatedAt.toISOString() }))
+      : record.claims;
+    return res.json({ data, meta: { saved: data.length } });
+  }));
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/runs', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    if (isDb()) {
+      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('researchRuns').lean();
+      if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+      return res.json({ data: (record.researchRuns || []).slice().sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()).slice(0, 20) });
+    }
+    const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    return res.json({ data: (record.researchRuns || []).slice().sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()).slice(0, 20) });
+  }));
+
+  app.post('/api/v1/experience/workspaces/:workspaceId/runs', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    const parsed = researchRunSchema.safeParse(req.body || {});
+    if (!parsed.success) return sendError(res, 400, 'INVALID_RESEARCH_RUN', 'Research run details are invalid.');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('researchRuns').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const previous = new Map((record.researchRuns || []).map(run => [run.runId, run]));
+    const existing = previous.get(parsed.data.runId);
+    const run = { ...parsed.data, providerNames: [...new Set(parsed.data.providerNames)].slice(0, 8), recordedAt: existing?.recordedAt || new Date() };
+    const runs = [...(record.researchRuns || []).filter(item => item.runId !== run.runId), run]
+      .sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()).slice(0, 20);
+    if (isDb()) await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { researchRuns: runs } });
+    else record.researchRuns = runs.map(item => ({ ...item, recordedAt: new Date(item.recordedAt).toISOString() }));
+    const data = isDb() ? runs.map(item => ({ ...item, recordedAt: new Date(item.recordedAt).toISOString() })) : record.researchRuns;
+    return res.status(201).json({ data, meta: { saved: data.length } });
   }));
 
   app.delete('/api/v1/experience/workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {

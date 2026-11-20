@@ -5,13 +5,19 @@ import {
 } from 'lucide-react';
 import { request } from '../../lib/api';
 import ExperienceConstellation from './ExperienceConstellation';
+import ExperienceClaimsPanel from './ExperienceClaimsPanel';
+import ExperienceCoveragePanel from './ExperienceCoveragePanel';
+import ExperienceDossierActions from './ExperienceDossierActions';
+import ExperienceRunHistoryPanel from './ExperienceRunHistoryPanel';
+import ExperienceSourceTimeline from './ExperienceSourceTimeline';
+import type { ExperienceClaim, ExperienceSource } from './experience-types';
 import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
 type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
 type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
-type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; providers?: string[]; sourceType?: string; publishedAt?: string | null; retrievedAt?: string | null; savedAt?: string; reviewStatus?: SourceReviewStatus; analystNote?: string; linkCheck?: { status?: 'reachable' | 'not_confirmed' | 'not_checked'; checkedAt?: string | null; note?: string } };
+
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number } };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
@@ -127,6 +133,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [history, setHistory] = useState<SavedIntent[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [sources, setSources] = useState<ExperienceSource[]>([]);
+  const [claims, setClaims] = useState<ExperienceClaim[]>([]);
+  const [runRefreshKey, setRunRefreshKey] = useState(0);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState('');
   const [sourceReviewFilter, setSourceReviewFilter] = useState<SourceReviewFilter>('all');
   const [sourceNotes, setSourceNotes] = useState<Record<string, string>>({});
@@ -213,6 +221,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     setActiveIntent(trimmed);
     setShowDetails(true);
     setSources([]);
+    setClaims([]);
     setResolveError('');
     setSourceCoverage('');
     setSourceSyncStatus('idle');
@@ -284,15 +293,43 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       setSourceNotes(Object.fromEntries(mergedSources.map(source => [source.url, source.analystNote || ''])));
       if (freshSources.length) {
         try {
-          await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources', {
-            method: 'PUT', body: JSON.stringify({ sources: mergedSources }),
-          });
-          if (resolutionId === resolutionSequence.current) setSourceSyncStatus('saved');
+          const persisted = await request<{ data: ExperienceSource[] }>(
+            '/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources',
+            { method: 'PUT', body: JSON.stringify({ sources: mergedSources }) },
+          );
+          if (resolutionId === resolutionSequence.current) {
+            const normalized = Array.isArray(persisted.data) ? persisted.data : mergedSources;
+            setSources(normalized);
+            setSourceNotes(Object.fromEntries(normalized.map(source => [source.url, source.analystNote || ''])));
+            setSourceSyncStatus('saved');
+          }
         } catch {
           if (resolutionId === resolutionSequence.current) setSourceSyncStatus('local');
         }
       } else if (savedSources.length) {
         setSourceSyncStatus('saved');
+      }
+      try {
+        const providerNames = Array.from(new Set(mergedSources.flatMap(source => [
+          ...(source.providers || []),
+          ...(source.provider ? [source.provider] : []),
+        ]))).slice(0, 8);
+        const runId = window.crypto?.randomUUID?.() || ('run-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+        await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/runs', {
+          method: 'POST',
+          body: JSON.stringify({
+            runId,
+            query,
+            plannerKind: activePlan.kind,
+            sourceCount: mergedSources.length,
+            successfulSearches: Number(response.meta?.successfulSearches || 0),
+            providerNames,
+            coverage: response.meta?.coverage || '',
+          }),
+        });
+        if (resolutionId === resolutionSequence.current) setRunRefreshKey(value => value + 1);
+      } catch {
+        // Search and source review remain usable if the optional run-history record cannot sync.
       }
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
       if (!mergedSources.length) {
@@ -439,7 +476,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setClaims([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
@@ -469,6 +506,12 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 {plan.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
               </div>
             </div>
+            <ExperienceCoveragePanel sources={sources} />
+            {activeWorkspaceId && <>
+              <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} />
+              <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
+              <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
+            </>}
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
                 <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
@@ -541,6 +584,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                   })}
                 </div> : <div className="experience-review-empty">No sources match this review filter.</div>}
               </>}
+              {!isResolving && sources.length > 0 && <ExperienceSourceTimeline sources={sources} />}
               {sourceCoverage && <p className="experience-source-coverage">{sourceCoverage}</p>}
               {reviewSaveNotice && <p className="experience-review-save-notice" role="status">{reviewSaveNotice}</p>}
               <p className="experience-source-disclaimer">Review labels are your triage decisions, not factual verdicts or proof. Search results are leads, not verified facts. Open original sources and assess their context. ADVERSE does not execute purchases, bookings, messages, deployments, or other external actions from this preview.</p>

@@ -132,3 +132,81 @@
 .experience-review-empty{padding:22px 12px;border:1px dashed rgba(113,160,157,.2);border-radius:8px;color:#819b92;text-align:center;font-size:10px}
 .experience-review-save-notice{margin:9px 0 0;color:#84cdb5;font:8px 'DM Mono',monospace;line-height:1.6}
 @media(max-width:520px){.experience-review-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.experience-review-toolbar button{justify-content:space-between}.experience-source-title-row{display:block}.experience-review-status{display:inline-flex;margin-top:7px}.experience-source-review-actions button{flex:1}.experience-source-note>span{flex-wrap:wrap}}
+
+/* Phases 5–10: claim ledger, coverage, chronology, exports and reproducible runs */
+.experience-extension-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.experience-extension-heading h3{margin:7px 0 0;color:#e6f2ed;font:600 17px 'Space Grotesk',sans-serif;letter-spacing:-.025em}
+.experience-extension-heading>span{color:#76958c;font:8px 'DM Mono',monospace;text-align:right}
+.experience-extension-intro,.experience-extension-caveat{margin:0 0 12px;color:#8ea9a0;font-size:10px;line-height:1.65}
+.experience-extension-caveat{margin:12px 0 0;padding-top:10px;border-top:1px solid rgba(113,160,157,.12);font-size:9px}
+.experience-extension-muted,.experience-extension-empty{margin:10px 0;color:#8aa39a;font-size:10px;line-height:1.6}
+.experience-extension-error{margin:10px 0;color:#e7a99e;font-size:10px}
+.experience-extension-success{display:flex;align-items:center;gap:6px;margin:10px 0 0;color:#8bd8b9;font:9px 'DM Mono',monospace}
+.experience-coverage-panel,.experience-claims-panel,.experience-run-history,.experience-source-timeline,.experience-dossier-actions{margin-top:15px;padding:15px;border:1px solid rgba(112,190,177,.18);border-radius:11px;background:rgba(7,17,23,.56);text-align:left}
+.experience-coverage-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.experience-coverage-metrics>div{display:flex;flex-direction:column;gap:5px;padding:11px;border:1px solid rgba(113,160,157,.14);border-radius:8px;background:rgba(18,38,42,.55)}
+.experience-coverage-metrics strong{color:#d8eee5;font:600 21px 'Space Grotesk',sans-serif}
+.experience-coverage-metrics span,.experience-coverage-subline{color:#7e9c91;font:8px 'DM Mono',monospace;letter-spacing:.04em}
+.experience-coverage-subline{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:10px}
+.experience-coverage-subline span{display:flex;align-items:center;gap:5px}
+.experience-coverage-gaps{margin-top:12px;padding:10px 11px;border:1px solid rgba(188,153,106,.2);border-radius:8px;background:rgba(64,49,28,.17)}
+.experience-coverage-gaps strong{display:flex;align-items:center;gap:6px;color:#d4bd91;font:9px 'DM Mono',monospace}
+.experience-coverage-gaps p{margin:7px 0 0;color:#b9aa8f;font-size:9px;line-height:1.55}
+.experience-claim-create{display:grid;gap:10px;padding:12px;border:1px solid rgba(113,160,157,.15);border-radius:9px;background:rgba(12,27,33,.58)}
+.experience-claim-create label,.experience-claim-edit{display:grid;gap:6px;min-width:0}
+.experience-claim-create label>span,.experience-claim-edit>span,.experience-claim-source-picker>span{color:#80a69b;font:8px 'DM Mono',monospace;letter-spacing:.11em}
+.experience-claim-create textarea,.experience-claim-create input,.experience-claim-create select,.experience-claim-edit textarea,.experience-claim-edit select{width:100%;min-width:0;padding:9px 10px;border:1px solid rgba(113,160,157,.2);border-radius:7px;outline:none;background:rgba(7,17,23,.72);color:#d8e8e1;font:10px/1.55 'DM Sans',sans-serif}
+.experience-claim-create textarea:focus,.experience-claim-create input:focus,.experience-claim-create select:focus,.experience-claim-edit textarea:focus,.experience-claim-edit select:focus{border-color:rgba(113,224,198,.65);box-shadow:0 0 0 3px rgba(113,224,198,.07)}
+.experience-claim-create-row{display:grid;grid-template-columns:minmax(160px,.65fr) minmax(0,1.35fr);gap:9px}
+.experience-claim-source-picker{display:grid;gap:7px;padding-top:9px;border-top:1px solid rgba(113,160,157,.12)}
+.experience-claim-source-option{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px;border:1px solid rgba(113,160,157,.12);border-radius:6px;background:rgba(7,17,23,.5)}
+.experience-claim-source-option label{display:flex;align-items:center;gap:8px;min-width:0;color:#b6cac2;font-size:9px}
+.experience-claim-source-option label span{overflow-wrap:anywhere}
+.experience-claim-source-option input{width:14px;height:14px;flex:0 0 auto;accent-color:#7bdec2}
+.experience-claim-source-option select{width:auto;max-width:120px;padding:6px;color:#a9c3b9;font-size:9px}
+.experience-extension-primary,.experience-extension-save{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;width:max-content;padding:0 11px;border:1px solid rgba(112,220,193,.32);border-radius:7px;background:rgba(44,106,86,.3);color:#b5ebd7;font-size:9px;cursor:pointer}
+.experience-extension-primary:disabled,.experience-extension-save:disabled{opacity:.4;cursor:not-allowed}
+.experience-claim-card{display:grid;gap:9px;margin-top:9px;padding:12px;border:1px solid rgba(113,160,157,.15);border-radius:9px;background:rgba(16,33,39,.57)}
+.experience-claim-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.experience-claim-card-head strong{color:#d7e8e0;font-size:11px;font-weight:600;line-height:1.55}
+.experience-claim-status{flex:0 0 auto;padding:4px 6px;border:1px solid rgba(130,158,151,.2);border-radius:5px;color:#9bb4ac;font:7px 'DM Mono',monospace}
+.experience-claim-status.status-supported{border-color:rgba(102,212,175,.3);color:#95e5c3}
+.experience-claim-status.status-conflicting{border-color:rgba(210,134,123,.3);color:#e8a9a0}
+.experience-claim-status.status-insufficient{border-color:rgba(195,154,116,.28);color:#dabb96}
+.experience-claim-linked-sources{display:flex;flex-wrap:wrap;gap:5px}
+.experience-claim-linked-sources span{padding:5px 7px;border:1px solid rgba(112,170,158,.15);border-radius:5px;color:#8eafa3;font:8px 'DM Mono',monospace;overflow-wrap:anywhere}
+.experience-claim-edit{gap:5px}
+.experience-claim-edit textarea{resize:vertical}
+.experience-extension-save{min-height:29px}
+.experience-dossier-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px}
+.experience-dossier-actions>div:first-child{display:grid;gap:5px}
+.experience-dossier-actions>div:first-child>strong{color:#d8eae2;font:600 13px 'Space Grotesk',sans-serif}
+.experience-dossier-actions>div:first-child>p{margin:0;color:#819b92;font-size:9px;line-height:1.5}
+.experience-dossier-buttons{display:flex;flex-wrap:wrap;gap:6px}
+.experience-dossier-buttons button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 9px;border:1px solid rgba(113,174,160,.23);border-radius:7px;background:rgba(21,49,47,.55);color:#b1dccc;font-size:9px;cursor:pointer}
+.experience-dossier-buttons button:disabled{opacity:.42;cursor:not-allowed}
+.experience-dossier-actions>p{grid-column:1/-1;margin:0;color:#84cdb5;font:8px 'DM Mono',monospace}
+.experience-source-timeline ol{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.experience-source-timeline li{display:grid;grid-template-columns:minmax(125px,.7fr) 120px minmax(0,1.3fr);align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(113,160,157,.1)}
+.experience-source-timeline li:last-child{border-bottom:0}
+.experience-source-timeline time{color:#85a79a;font:8px 'DM Mono',monospace}
+.experience-source-timeline li strong{color:#b6ddcc;font-size:9px;font-weight:600}
+.experience-source-timeline li span{overflow:hidden;color:#9ab0a8;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.experience-run-row{display:grid;grid-template-columns:minmax(0,1fr) 65px 105px minmax(100px,.7fr);align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(113,160,157,.1)}
+.experience-run-row:last-of-type{border-bottom:0}
+.experience-run-row>div:first-child{display:grid;gap:4px;min-width:0}
+.experience-run-row>div:first-child strong{overflow:hidden;color:#cfe2d9;font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.experience-run-row>div:first-child span,.experience-run-count span{color:#78968b;font:8px 'DM Mono',monospace}
+.experience-run-count{display:grid;gap:3px;text-align:center}
+.experience-run-count strong{color:#a8e2ce;font:600 15px 'Space Grotesk',sans-serif}
+.experience-run-providers{color:#91aaa0;font:8px 'DM Mono',monospace;line-height:1.45;overflow-wrap:anywhere}
+@media(max-width:620px){
+  .experience-coverage-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .experience-claim-create-row{grid-template-columns:1fr}
+  .experience-dossier-actions{grid-template-columns:1fr}
+  .experience-dossier-buttons button{flex:1}
+  .experience-source-timeline li{grid-template-columns:1fr;gap:4px}
+  .experience-run-row{grid-template-columns:minmax(0,1fr) 54px 84px}
+  .experience-run-providers{grid-column:1/-1}
+}
+@media(prefers-reduced-motion:reduce){.experience-extension-primary,.experience-extension-save,.experience-dossier-buttons button{transition:none}}

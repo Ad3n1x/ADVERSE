@@ -1,6 +1,6 @@
 # Phase 4 — evidence triage
 
-**Status:** Implemented in source; production deployment and CI verification are tracked separately.
+**Status:** Implemented and deployed to the ADVERSE Render frontend and API.
 
 Phase 4 adds a review layer to the intent-first `/experience` public-source discovery workflow.
 
@@ -26,8 +26,13 @@ Review state and notes are stored inside the existing owner-scoped experience wo
 
 A review label is an analyst triage decision, not a fact-check, trust score, safety verdict, or proof that a source supports a claim. Search results remain leads until an analyst opens and evaluates the original source. Workspace records remain private to the authenticated account under the existing owner-scoped routes.
 
-## Verification required
+## Verification evidence
 
-- API tests cover review-state persistence across refresh, note persistence, invalid states, note length limits, and owner isolation.
-- The release must pass API tests, frontend type-check/build, browser smoke tests, and the production Render deployment check before Phase 4 is called live.
-- This phase does not close the broader release gates in `docs/RELEASE-READINESS.md`, including backup restoration, resilience testing, broader authorization review, and independent security review.
+- Source review fields are saved on the workspace source records; the API preserves existing analyst decisions when provider search refreshes the same source.
+- Frontend and API deployments were confirmed live on Render for the Phase 4 source-triage release.
+- API regression tests verify persistence across refresh, invalid state rejection, note length limits, and account isolation.
+- Dedicated browser E2E coverage exercises source triage, note persistence, filtering, responsive layout, and export workflows in CI.
+
+## Remaining release gates
+
+Passing the feature tests does not close broader release-readiness items such as isolated backup restoration, complete authorization coverage for legacy resource families, operational recovery drills, or independent security review. ADVERSE remains a deployed beta pending those separate gates.
