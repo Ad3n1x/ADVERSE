@@ -8,6 +8,7 @@ function makeHarness() {
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
     post(path, ...handlers) { routes.set('POST ' + path, handlers); },
+    put(path, ...handlers) { routes.set('PUT ' + path, handlers); },
     delete(path, ...handlers) { routes.set('DELETE ' + path, handlers); },
   };
   const sendError = (res, status, code, message) => res.status(status).json({ error: { code, message } });
@@ -81,4 +82,64 @@ test('saving the same intent replaces the older workspace and caps history at ei
   const list = await api.call('GET', '/api/v1/experience/workspaces', { user: { id: owner } });
   assert.equal(list.body.data.length, 8);
   assert.equal(list.body.data.filter(item => item.intent === 'Intent 9').length, 1);
+});
+
+
+test('workspace sources persist, deduplicate, and remain private to their owner', async () => {
+  const api = makeHarness();
+  const owner = 'experience-sources-owner-' + randomUUID();
+  const other = 'experience-sources-other-' + randomUUID();
+  const workspaceId = 'workspace-sources-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Research public transport systems', kind: 'research', createdAt: Date.now() },
+  });
+
+  const source = {
+    url: 'https://example.org/report#section',
+    title: 'Public transport report',
+    excerpt: 'A short source excerpt.',
+    publisher: 'Example Research',
+    provider: 'Public Search',
+    providers: ['Public Search', 'Secondary Search'],
+    sourceType: 'web',
+    linkCheck: { status: 'reachable', checkedAt: new Date().toISOString(), note: 'Readable when checked.' },
+  };
+  const saved = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId }, body: { sources: [source, { ...source, url: 'https://example.org/report#duplicate' }] },
+  });
+  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.body.data.length, 1);
+  assert.equal(saved.body.data[0].url, 'https://example.org/report');
+
+  const loaded = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(loaded.body.data.length, 1);
+  assert.equal(loaded.body.data[0].title, source.title);
+
+  const denied = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(denied.statusCode, 404);
+});
+
+test('workspace source persistence rejects unsafe URL schemes and oversized collections', async () => {
+  const api = makeHarness();
+  const owner = 'experience-sources-validation-' + randomUUID();
+  const workspaceId = 'workspace-validation-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Collect public reports', kind: 'research', createdAt: Date.now() },
+  });
+  const invalid = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ url: 'javascript:alert(1)', title: 'Unsafe' }] },
+  });
+  assert.equal(invalid.statusCode, 400);
+  const oversized = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: Array.from({ length: 13 }, (_, index) => ({ url: 'https://example.org/' + index })) },
+  });
+  assert.equal(oversized.statusCode, 400);
 });

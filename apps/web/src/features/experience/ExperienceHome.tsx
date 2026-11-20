@@ -9,7 +9,7 @@ import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
 type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
-type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; linkCheck?: { status?: string; note?: string } };
+type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; providers?: string[]; sourceType?: string; publishedAt?: string | null; retrievedAt?: string | null; linkCheck?: { status?: 'reachable' | 'not_confirmed' | 'not_checked'; checkedAt?: string | null; note?: string } };
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number } };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
@@ -128,6 +128,7 @@ export default function ExperienceHome() {
   const [isResolving, setIsResolving] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
+  const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
   const [plannerMode, setPlannerMode] = useState<'gemini' | 'deterministic'>('deterministic');
   const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
   const resolutionSequence = useRef(0);
@@ -189,12 +190,12 @@ export default function ExperienceHome() {
     return () => { cancelled = true; };
   }, [storageReady]);
 
-  async function openIntent(value: string) {
+  async function openIntent(value: string, existingWorkspaceId?: string) {
     const trimmed = value.trim().slice(0, 500);
     if (!trimmed) return;
     const resolutionId = ++resolutionSequence.current;
     const intentPlan = buildIntentPlan(trimmed);
-    const workspaceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const workspaceId = existingWorkspaceId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
     setIntent(trimmed);
     setActiveIntent(trimmed);
@@ -202,6 +203,7 @@ export default function ExperienceHome() {
     setSources([]);
     setResolveError('');
     setSourceCoverage('');
+    setSourceSyncStatus('idle');
     setIsResolving(true);
     setPlannerMode('deterministic');
     setResolvedPlan(intentPlan);
@@ -240,9 +242,34 @@ export default function ExperienceHome() {
       const query = activePlan.focus.length >= 2 ? activePlan.focus : trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
       if (resolutionId !== resolutionSequence.current) return;
-      setSources(Array.isArray(response.data) ? response.data.slice(0, 12) : []);
+      const freshSources = Array.isArray(response.data) ? response.data.slice(0, 12) : [];
+      let savedSources: ExperienceSource[] = [];
+      try {
+        const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources');
+        savedSources = Array.isArray(saved.data) ? saved.data : [];
+      } catch {
+        // Guest workspaces and offline sessions do not have cloud source history.
+      }
+      if (resolutionId !== resolutionSequence.current) return;
+      const savedByUrl = new Map(savedSources.map(source => [source.url, source]));
+      const mergedSources = freshSources.length
+        ? freshSources.map(source => ({ ...source, ...(savedByUrl.has(source.url) ? { savedAt: (savedByUrl.get(source.url) as ExperienceSource & { savedAt?: string }).savedAt } : {}) }))
+        : savedSources;
+      setSources(mergedSources);
+      if (freshSources.length) {
+        try {
+          await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources', {
+            method: 'PUT', body: JSON.stringify({ sources: freshSources }),
+          });
+          if (resolutionId === resolutionSequence.current) setSourceSyncStatus('saved');
+        } catch {
+          if (resolutionId === resolutionSequence.current) setSourceSyncStatus('local');
+        }
+      } else if (savedSources.length) {
+        setSourceSyncStatus('saved');
+      }
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
-      if (!response.data?.length) {
+      if (!mergedSources.length) {
         setResolveError(response.meta?.providerError || 'No public sources were returned. Try a more specific request.');
       }
     } catch (error) {
@@ -328,7 +355,7 @@ export default function ExperienceHome() {
             <div className="experience-history-head"><span className="experience-section-label"><Clock3 size={13} /> RECENT WORKSPACES</span><span>{history.length} saved · syncs when signed in</span></div>
             <div className="experience-history-list">
               {history.map(item => <div className="experience-history-item" key={item.id}>
-                <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent)}>
+                <button type="button" className="experience-history-open" onClick={() => openIntent(item.intent, item.id)}>
                   <span className="experience-history-kind">{item.kind.toUpperCase()}</span>
                   <span className="experience-history-text">{item.intent}</span>
                   <ArrowUpRight size={14} />
@@ -375,7 +402,7 @@ export default function ExperienceHome() {
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
                 <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
-                <span>{isResolving ? 'Searching public sources…' : sources.length ? `${sources.length} sources found` : 'Source discovery'}</span>
+                <span>{isResolving ? 'Searching public sources…' : sources.length ? `${sources.length} sources · ${sourceSyncStatus === 'saved' ? 'workspace synced' : sourceSyncStatus === 'local' ? 'local session' : 'results ready'}` : 'Source discovery'}</span>
               </div>
               {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
               {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
@@ -385,7 +412,7 @@ export default function ExperienceHome() {
                   <div className="experience-source-index">{String(index + 1).padStart(2, '0')}</div>
                   <div className="experience-source-content">
                     <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
-                    <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}</span>
+                    <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
                     {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
                   </div>
                 </article>)}
