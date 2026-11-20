@@ -1,77 +1,99 @@
 # ADVERSE release readiness record
 
-**Release posture:** Deployed beta; core CI and live smoke checks pass. A broad public launch is not yet independently cleared.
+**Release posture:** Deployed beta / controlled testing. Phases 4–10 are implemented and deployed; the latest automated release checks are green. A broad public launch is **not** cleared because the production backup/restore drill, live alert-email delivery, full resilience exercise, Atlas network restriction, and independent security review still require owner-controlled configuration or external verification.
 
+**Record updated:** 2026-11-20  
 **Repository:** https://github.com/Ad3n1x/ADVERSE  
 **Production web:** https://adverse-web.onrender.com/  
 **Production API:** https://adverse-api-7yim.onrender.com/  
-**Record updated:** 2026-10-21 (latest CI/deployment verification)
+**Latest source commit:** `635d04f7bd99de29bfaaf93a542e0c6a362ba97a` — Pin one Three.js runtime across the relationship graph
 
-**Latest verified code commit:** `157776f29b18939f26432b3c474aefb5fc054f56`  
-**Latest CI run:** [Run 39678237478 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478)  
-**Security checks:** [Run 39678237486 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237486), including CodeQL and production dependency audit.  
-**Render health-check workflow:** [Run 39673616808 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808)  
-**Live API deployment:** `dep-dbciq2lk3hvs739ldkfg` — Render confirmed status `live`.  
-**Live health-check path:** `/api/v1/ready`, confirmed in Render service configuration.
+**Render frontend deployment:** `dep-dc09vjt9el5s73fdqveg` — confirmed `live` on the latest commit.  
+**Render API deployment:** `dep-dc09vhre6fdc73c156b0` — confirmed `live` on the latest commit.  
+**CI:** [Run 44802720991 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720991)  
+**Quality gates:** [Run 44802721007 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802721007)  
+**Security:** [Run 44802720973 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720973), including CodeQL and the production dependency audit.
 
 ## What this record means
 
-GPT-6 assistance may have been used to inspect, change, and document this codebase. This is not an OpenAI-issued certificate, endorsement, security audit, or guarantee of correctness. OpenAI has not reviewed or certified ADVERSE through this document.
+This record summarizes repository changes and observed deployment/test evidence. It is not an OpenAI-issued certificate, endorsement, security audit, or guarantee of correctness. OpenAI has not independently reviewed or certified ADVERSE through this document.
 
-## Verified now
+## Phases 4–10 — implemented and deployed
 
-- API syntax checks and regression tests passed in CI for commit `157776f29b18939f26432b3c474aefb5fc054f56`, including Bearer-authenticated public search and a regression test guarding against cross-account provider-key leakage.
-- Frontend type-check and production build passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
-- Playwright browser smoke tests passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
-- Live API liveness, readiness, and public-search response-contract checks passed in [CI run 39678237478](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237478).
-- Render service configuration now reports `healthCheckPath: /api/v1/ready`; the configuration workflow verified the saved value and the resulting Render deployment is live.
-- Render application logs for the live deployment show successful MongoDB connection and a completed automated discovery cycle that processed two jobs, saved 12 results, and recorded zero provider failures in that cycle.
-- The latest API deployment is confirmed `live` on commit `157776f29b18939f26432b3c474aefb5fc054f56`.
-- Scheduled archive and cyber-monitoring jobs both passed in [run 39657523314](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
-- Automated discovery workflow succeeded in [run 39671815718](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
-
-## Additional automation added
-
-- Hourly public production monitor: [production-monitor.yml](https://github.com/Ad3n1x/ADVERSE/blob/main/.github/workflows/production-monitor.yml) checks the web page, API liveness/readiness, and the public search response contract.
-- Opt-in encrypted MongoDB backup: [database-backup.yml](https://github.com/Ad3n1x/ADVERSE/blob/main/.github/workflows/database-backup.yml). It requires the repository owner to configure `MONGODB_BACKUP_URI`, `BACKUP_ENCRYPTION_PASSPHRASE`, and repository variable `ADVERSE_BACKUP_ENABLED=true`. Until then, no backup is run. The encrypted GitHub artifact is temporary (up to 90 days), not a substitute for off-site backups and a restore drill.
-
-## Release gates
-
-Latest automated security checks are also green: [dependency audit and CodeQL](https://github.com/Ad3n1x/ADVERSE/actions/runs/39678237486). This is automated analysis, not an independent penetration test.
-
-| Gate | Status | Remaining work |
+| Phase | Capability | Current state |
 |---|---|---|
-| API deployment and health check | **Passed** | Continue monitoring live deployment events and readiness. |
-| API tests, frontend build, browser smoke tests | **Passed** on the commit linked above | Require green CI for each subsequent change. |
-| Live public-search contract | **Passed** | Expand ongoing representative-query and result-quality checks. |
-| MongoDB connectivity | **Observed working** in production logs | Confirm provider backup policy and access/recovery ownership. |
-| Scheduled monitoring | **Recent successful evidence** exists for archive and cyber-monitoring | Keep checking later scheduled runs; a single run is not a reliability guarantee. |
-| Automated discovery | **Successful run observed** | Verify recurrence and result quality over time. |
-| Database backup and restore | **Automation added; not yet verified** | Configure the required repository secrets/variable, confirm the target cluster, run the first encrypted backup, then test restore into an isolated database. Establish an independent off-site copy before broad launch. |
-| Privacy and authorization | **Partially covered by automated tests** | Complete cross-account/ownership testing for all private resource families. |
-| Operational resilience | **Partial** | Exercise provider outage, database outage, rate-limit, email-alert, and recovery scenarios. |
-| Production secrets | **Partially evidenced** | Successful protected scheduled jobs prove their required secrets were available for that run; not every production secret/value has been independently audited. Never publish secret values. |
-| Independent security review | **Not performed** | Have an independent reviewer assess the deployed application before claiming security certification or broad launch readiness. |
-| Atlas network access | **Needs production mapping** | A connected Atlas project reports a broad `0.0.0.0/0` entry; production cluster identity was not independently matched to that project, so do not change the allowlist blindly. Confirm the actual production cluster and Render egress first. |
+| 4 — Source triage | Owner-scoped review status, analyst notes, filters and counts for saved sources | Implemented; API tests pass |
+| 5 — Claim ledger | Claims linked to sources in the same workspace as supporting, challenging or contextual evidence; human assessment and rationale | Implemented; owner/source validation tests pass |
+| 6 — Research dossier | JSON and Markdown export with source metadata, notes, claims, limitations and a SHA-256 digest for the JSON payload | Implemented; browser export test passes. The digest is not a digital signature or trusted timestamp |
+| 7 — Coverage and gaps | Counts, distinct hostnames, providers, provider spread and missing metadata indicators | Implemented; browser test passes; no automated credibility score |
+| 8 — Source chronology | Separate publication, retrieval, workspace-save and recorded link-check times | Implemented; browser test passes |
+| 9 — Run history | Owner-scoped recent run records, deduplication and a bounded history | Implemented; API and browser checks pass |
+| 10 — Verification and usability | Browser coverage for the experience, triage, claims, export, coverage, chronology, run history, geospatial workflows and responsive layout | Implemented; 13 Playwright tests passed in 32.9 seconds on the latest run |
 
-## Known security boundaries
+The 3D relationship graph runtime was also stabilized by pinning Three.js to `0.187.0`, forcing one dependency version through npm overrides, and enabling Vite module deduplication. The geospatial browser test now explicitly fails if the previously observed `intersectsFrustum` renderer exception returns.
 
-- Public URL checks use private/special-use IP protections, DNS resolution checks, redirect refusal, bounded response reads, and timeouts. DNS rebinding and provider-specific edge cases remain residual risks.
-- A reachable URL is not proof that a site is safe, genuine, or trustworthy. The interface should present verification as evidence signals, not a guarantee.
-- Keep API keys, scheduler secrets, database credentials, session secrets, and email credentials in deployment secret stores.
-- Only monitor websites and systems that the user owns or is explicitly authorized to monitor.
+## Verified on the latest commit
+
+- Render frontend and API deployments are both marked `live` on commit `635d04f7bd99de29bfaaf93a542e0c6a362ba97a`.
+- The API liveness/readiness and public-search contract checks passed.
+- API syntax and regression tests passed, including the additional cross-account test for private evidence, alert actions and domain-monitoring assets.
+- Frontend TypeScript type-check and production build passed.
+- Playwright: **13 passed (32.9s)**; no flaky retry on this run.
+- Quality-gate workflow passed.
+- CodeQL and the production dependency audit passed.
+
+These automated checks provide evidence for the tested code paths. They are not a complete production certification, a live provider-availability guarantee, or an independent penetration test.
+
+## Release gates still open
+
+| Gate | Status | What is needed to close it |
+|---|---|---|
+| Deployment and health | **Passed** | Continue reviewing Render events/logs and readiness after changes |
+| Phase 4–10 functionality | **Implemented; latest checks passed** | Keep the same tests green on future commits and test with representative real research workspaces |
+| Authorization coverage | **Expanded; automated tests passed** | Independent review of every private resource family, tenant boundary, admin path and direct-object reference |
+| MongoDB backup | **Automation ready; not yet run/verified** | Repository owner must add the protected secrets `MONGODB_BACKUP_URI` and `BACKUP_ENCRYPTION_PASSPHRASE`, set Actions variable `ADVERSE_BACKUP_ENABLED=true`, confirm the target cluster, and run the backup workflow |
+| Restore and off-site recovery | **Not verified** | Complete an isolated restore drill, verify representative collections/records, and establish an independent protected backup destination. A temporary GitHub Actions artifact (up to 90 days) is not a durable off-site backup |
+| Brevo alert email | **Integration and mocked tests exist; live delivery not verified** | Configure production sender/recipient settings, run a controlled test to an approved inbox, and confirm delivery at the recipient. Mocked API responses do not prove inbox receipt |
+| Scheduled monitoring | **Workflow configured; continuing reliability not certified** | Confirm current scheduled workflow runs and delivery outcomes over time, including failure and retry handling |
+| Operational resilience | **Partial / not completed** | Run controlled provider-timeout, rate-limit, database-disconnect, process-restart and recovery tests; document impact and recovery results |
+| Atlas network access | **Needs production mapping** | Connected Atlas project shows a broad `0.0.0.0/0` access-list entry. The live Render service has no confirmed static egress address in the inspected configuration, and the production connection URI was not independently matched to this Atlas project. Confirm the actual production cluster and stable egress before narrowing the allowlist; changing it blindly could disconnect production |
+| Independent security review | **Not performed** | Have an independent reviewer assess the deployed application, threat model, authorization boundaries, data handling and operational configuration before broad launch |
+
+## Operational notes
+
+### Backup workflow
+
+The guarded workflow is `.github/workflows/database-backup.yml`. It is opt-in. Keep the MongoDB URI and encryption passphrase in GitHub Actions secrets only; never commit or paste them into chat or logs. The encryption passphrase must also be recoverable from a separate secure location. After enabling the workflow, verify a successful encrypted backup and isolated restore before treating recovery as operational.
+
+See [docs/OPERATIONS.md](OPERATIONS.md) for the runbook.
+
+### Alert delivery
+
+The API integrates with Brevo and has automated tests for successful/rejected API responses and missing configuration. Production delivery is not complete until an approved test recipient confirms a real message. Keep the Brevo key, sender and recipient settings in the appropriate secret/configuration stores.
+
+### Network access
+
+Do not narrow the Atlas access list until the production database cluster and Render egress are conclusively mapped. Production availability takes priority over an unverified allowlist edit; plan a controlled network change with rollback.
+
+## Known product boundaries
+
+- ADVERSE is an evidence-led public-source research workspace, not a truth detector or a guarantee that a reachable URL is safe, genuine or reliable.
+- A source/entity match is a research lead, not proof that the source supports a claim.
+- User assessments such as “supported” or “conflicting” remain human review labels, not automated verification.
+- Only monitor websites and systems the user owns or is explicitly authorized to monitor.
+- Keep API keys, database credentials, session secrets, scheduler secrets and email credentials in secret stores, not source code, commits or issue reports.
 
 ## Release decision
 
-**Current recommendation: deployed beta / controlled public testing.** The core engineering and smoke checks pass, but full production readiness is not established until backup restoration, broader authorization and resilience tests, and independent security review are completed.
+**Current recommendation: deployed beta / controlled testing.** Phases 4–10 are implemented and live, and the latest build, API, browser, quality and automated security workflows passed. Broad production readiness remains blocked on the operational and independent-review gates above.
 
-Do not advertise ADVERSE as “GPT-6 certified” or “OpenAI certified.” An accurate description is **“Built with GPT-6 assistance; verification evidence published in the repository.”**
+Do not describe ADVERSE as “GPT-6 certified” or “OpenAI certified.” A truthful description is: **“Built with GPT-6 assistance; verification evidence is published in the repository.”**
 
 ## Reproducible evidence
 
-1. [Current-main CI](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616692) — API tests, frontend build, browser smoke tests, and live API checks.
-2. [Render health-check configuration workflow](https://github.com/Ad3n1x/ADVERSE/actions/runs/39673616808) — updates and verifies the live service path.
-3. [Scheduled archive and cyber-monitoring run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39657523314).
-4. [Automated discovery run](https://github.com/Ad3n1x/ADVERSE/actions/runs/39671815718).
-5. [Render API service](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0).
-6. Operational recovery guidance: [docs/OPERATIONS.md](OPERATIONS.md).
+1. [CI — run 44802720991](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720991)
+2. [Quality gates — run 44802721007](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802721007)
+3. [CodeQL and dependency audit — run 44802720973](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720973)
+4. [Operations runbook](OPERATIONS.md)
+5. [Backup workflow](../.github/workflows/database-backup.yml)
+6. [Render API service](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0)
