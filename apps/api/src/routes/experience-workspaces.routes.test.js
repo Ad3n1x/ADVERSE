@@ -160,6 +160,19 @@ test('workspace source persistence rejects unsafe URL schemes and oversized coll
     body: { sources: Array.from({ length: 25 }, (_, index) => ({ url: 'https://example.org/' + index })) },
   });
   assert.equal(oversized.statusCode, 400);
+
+  const unsafeRedirect = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{
+      url: 'https://example.org/public',
+      linkCheck: {
+        status: 'reachable',
+        finalUrl: 'https://example.org/public',
+        redirects: [{ status: 302, from: 'https://example.org/public', to: 'http://127.0.0.1/private' }],
+      },
+    }] },
+  });
+  assert.equal(unsafeRedirect.statusCode, 400);
 });
 
 
