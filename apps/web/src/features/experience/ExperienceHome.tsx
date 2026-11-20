@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight, ArrowUpRight, Compass, FileSearch, Layers3, LogOut, Network,
-  Clock3, Plus, Search, Sparkles, Trash2, Workflow, X
+  Clock3, Plus, Search, Sparkles, Trash2, Workflow, X, Check
 } from 'lucide-react';
 import { request } from '../../lib/api';
 import ExperienceConstellation from './ExperienceConstellation';
@@ -9,7 +9,9 @@ import './experience-home.css';
 
 type IntentKind = 'research' | 'plan' | 'compare' | 'create' | 'explore';
 type SavedIntent = { id: string; intent: string; kind: IntentKind; createdAt: number };
-type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; providers?: string[]; sourceType?: string; publishedAt?: string | null; retrievedAt?: string | null; linkCheck?: { status?: 'reachable' | 'not_confirmed' | 'not_checked'; checkedAt?: string | null; note?: string } };
+type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
+type SourceReviewFilter = 'all' | SourceReviewStatus;
+type ExperienceSource = { title?: string; url: string; excerpt?: string; publisher?: string; provider?: string; providers?: string[]; sourceType?: string; publishedAt?: string | null; retrievedAt?: string | null; savedAt?: string; reviewStatus?: SourceReviewStatus; analystNote?: string; linkCheck?: { status?: 'reachable' | 'not_confirmed' | 'not_checked'; checkedAt?: string | null; note?: string } };
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number } };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
@@ -125,6 +127,12 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [history, setHistory] = useState<SavedIntent[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [sources, setSources] = useState<ExperienceSource[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState('');
+  const [sourceReviewFilter, setSourceReviewFilter] = useState<SourceReviewFilter>('all');
+  const [sourceNotes, setSourceNotes] = useState<Record<string, string>>({});
+  const [reviewSavingUrl, setReviewSavingUrl] = useState('');
+  const [reviewSaveNotice, setReviewSaveNotice] = useState('');
+  const sourceSaveSequence = useRef(0);
   const [isResolving, setIsResolving] = useState(false);
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
@@ -197,6 +205,10 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     const intentPlan = buildIntentPlan(trimmed);
     const workspaceId = existingWorkspaceId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
+    setActiveWorkspaceId(workspaceId);
+    setSourceReviewFilter('all');
+    setSourceNotes({});
+    setReviewSaveNotice('');
     setIntent(trimmed);
     setActiveIntent(trimmed);
     setShowDetails(true);
@@ -252,14 +264,28 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       }
       if (resolutionId !== resolutionSequence.current) return;
       const savedByUrl = new Map(savedSources.map(source => [source.url, source]));
+      const mergeReviewState = (source: ExperienceSource): ExperienceSource => {
+        const saved = savedByUrl.get(source.url);
+        return {
+          ...source,
+          reviewStatus: saved?.reviewStatus || 'unreviewed',
+          analystNote: saved?.analystNote || '',
+          ...(saved?.savedAt ? { savedAt: saved.savedAt } : {}),
+        };
+      };
       const mergedSources = freshSources.length
-        ? freshSources.map(source => ({ ...source, ...(savedByUrl.has(source.url) ? { savedAt: (savedByUrl.get(source.url) as ExperienceSource & { savedAt?: string }).savedAt } : {}) }))
-        : savedSources;
+        ? freshSources.map(mergeReviewState)
+        : savedSources.map(source => ({
+            ...source,
+            reviewStatus: source.reviewStatus || 'unreviewed',
+            analystNote: source.analystNote || '',
+          }));
       setSources(mergedSources);
+      setSourceNotes(Object.fromEntries(mergedSources.map(source => [source.url, source.analystNote || ''])));
       if (freshSources.length) {
         try {
           await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources', {
-            method: 'PUT', body: JSON.stringify({ sources: freshSources }),
+            method: 'PUT', body: JSON.stringify({ sources: mergedSources }),
           });
           if (resolutionId === resolutionSequence.current) setSourceSyncStatus('saved');
         } catch {
@@ -278,6 +304,50 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       if (resolutionId === resolutionSequence.current) setIsResolving(false);
     }
   }
+
+  async function updateSourceReview(url: string, patch: Partial<Pick<ExperienceSource, 'reviewStatus' | 'analystNote'>>) {
+    if (!activeWorkspaceId || reviewSavingUrl) return;
+    const sequence = ++sourceSaveSequence.current;
+    const nextSources = sources.map(source => source.url === url ? { ...source, ...patch } : source);
+    setSources(nextSources);
+    setReviewSavingUrl(url);
+    setReviewSaveNotice('');
+    try {
+      const saved = await request<{ data: ExperienceSource[] }>(
+        '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
+        { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
+      );
+      if (sequence === sourceSaveSequence.current && Array.isArray(saved.data)) {
+        setSources(saved.data.map(source => ({
+          ...source,
+          reviewStatus: source.reviewStatus || 'unreviewed',
+          analystNote: source.analystNote || '',
+        })));
+        setSourceSyncStatus('saved');
+        setReviewSaveNotice('Review saved to this workspace.');
+      }
+    } catch {
+      if (sequence === sourceSaveSequence.current) {
+        setSourceSyncStatus('local');
+        setReviewSaveNotice('Could not sync this review. Your current changes remain visible in this session.');
+      }
+    } finally {
+      if (sequence === sourceSaveSequence.current) setReviewSavingUrl('');
+    }
+  }
+
+  const reviewCounts = useMemo(() => ({
+    all: sources.length,
+    unreviewed: sources.filter(source => !source.reviewStatus || source.reviewStatus === 'unreviewed').length,
+    useful: sources.filter(source => source.reviewStatus === 'useful').length,
+    not_relevant: sources.filter(source => source.reviewStatus === 'not_relevant').length,
+  }), [sources]);
+  const filteredSources = useMemo(
+    () => sourceReviewFilter === 'all'
+      ? sources
+      : sources.filter(source => (source.reviewStatus || 'unreviewed') === sourceReviewFilter),
+    [sources, sourceReviewFilter],
+  );
 
   function removeIntent(id: string) {
     setHistory(current => current.filter(item => item.id !== id));
@@ -369,7 +439,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setIntent(''); setSources([]); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
@@ -407,18 +477,69 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
               {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
               {!isResolving && sources.length > 0 && <ExperienceConstellation intent={activeIntent} sources={sources} />}
-              {!isResolving && sources.length > 0 && <div className="experience-source-list">
-                {sources.map((source, index) => <article className="experience-source-card" key={source.url}>
-                  <div className="experience-source-index">{String(index + 1).padStart(2, '0')}</div>
-                  <div className="experience-source-content">
-                    <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
-                    <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
-                    {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
-                  </div>
-                </article>)}
-              </div>}
+              {!isResolving && sources.length > 0 && <>
+                <div className="experience-review-toolbar" role="group" aria-label="Filter sources by review state">
+                  {([
+                    ['all', 'All', reviewCounts.all],
+                    ['unreviewed', 'Unreviewed', reviewCounts.unreviewed],
+                    ['useful', 'Useful', reviewCounts.useful],
+                    ['not_relevant', 'Not relevant', reviewCounts.not_relevant],
+                  ] as Array<[SourceReviewFilter, string, number]>).map(([filter, label, count]) => (
+                    <button
+                      key={filter}
+                      type="button"
+                      className={sourceReviewFilter === filter ? 'active' : ''}
+                      aria-pressed={sourceReviewFilter === filter}
+                      onClick={() => setSourceReviewFilter(filter)}
+                    >
+                      {label}<span>{count}</span>
+                    </button>
+                  ))}
+                </div>
+                {filteredSources.length > 0 ? <div className="experience-source-list">
+                  {filteredSources.map((source) => {
+                    const reviewStatus = source.reviewStatus || 'unreviewed';
+                    const sourceSaving = reviewSavingUrl === source.url;
+                    const noteDraft = sourceNotes[source.url] ?? source.analystNote ?? '';
+                    return <article className="experience-source-card" key={source.url}>
+                      <div className="experience-source-index">{String(sources.findIndex(item => item.url === source.url) + 1).padStart(2, '0')}</div>
+                      <div className="experience-source-content">
+                        <div className="experience-source-title-row">
+                          <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
+                          <span className={'experience-review-status status-' + reviewStatus.replace('_', '-')}>{reviewStatus === 'not_relevant' ? 'NOT RELEVANT' : reviewStatus.toUpperCase()}</span>
+                        </div>
+                        <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
+                        {source.excerpt && <p>{source.excerpt.slice(0, 280)}</p>}
+                        <div className="experience-source-review-actions" aria-label={'Review source: ' + (source.title || source.url)}>
+                          <button type="button" className={reviewStatus === 'useful' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'useful' })}><Check size={13} /> Useful</button>
+                          <button type="button" className={reviewStatus === 'not_relevant' ? 'selected' : ''} disabled={Boolean(reviewSavingUrl)} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'not_relevant' })}><X size={13} /> Not relevant</button>
+                          <button type="button" className="reset" disabled={Boolean(reviewSavingUrl) || reviewStatus === 'unreviewed'} onClick={() => void updateSourceReview(source.url, { reviewStatus: 'unreviewed' })}>Reset</button>
+                          {sourceSaving && <span className="experience-review-saving">Saving…</span>}
+                        </div>
+                        <label className="experience-source-note">
+                          <span>ANALYST NOTE <small>Private to this workspace</small></span>
+                          <textarea
+                            value={noteDraft}
+                            maxLength={1000}
+                            rows={2}
+                            aria-label={'Analyst note for ' + (source.title || source.url)}
+                            placeholder="Record why this source matters or what still needs checking…"
+                            onChange={event => setSourceNotes(current => ({ ...current, [source.url]: event.target.value }))}
+                          />
+                          <button
+                            type="button"
+                            disabled={Boolean(reviewSavingUrl) || noteDraft === (source.analystNote || '')}
+                            onClick={() => void updateSourceReview(source.url, { analystNote: noteDraft.trim() })}
+                          >Save note</button>
+                        </label>
+                      </div>
+                    </article>;
+                  })}
+                </div> : <div className="experience-review-empty">No sources match this review filter.</div>}
+              </>}
               {sourceCoverage && <p className="experience-source-coverage">{sourceCoverage}</p>}
-              <p className="experience-source-disclaimer">Search results are leads, not verified facts. Open original sources and assess their context. ADVERSE does not execute purchases, bookings, messages, deployments, or other external actions from this preview.</p>
+              {reviewSaveNotice && <p className="experience-review-save-notice" role="status">{reviewSaveNotice}</p>}
+              <p className="experience-source-disclaimer">Review labels are your triage decisions, not factual verdicts or proof. Search results are leads, not verified facts. Open original sources and assess their context. ADVERSE does not execute purchases, bookings, messages, deployments, or other external actions from this preview.</p>
             </section>
           </section>
         )}
