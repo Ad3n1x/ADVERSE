@@ -13,7 +13,7 @@ type SourceNode = {
 type SourceLink = {
   source: string;
   target: string;
-  role: 'discovery' | 'supports' | 'challenges' | 'context';
+  role: 'discovery' | 'supports' | 'challenges' | 'context' | 'alternative';
 };
 type SourceGraph = { nodes: SourceNode[]; links: SourceLink[] };
 type Props = { intent: string; sources: ExperienceSource[]; claims?: ExperienceClaim[] };
@@ -32,6 +32,7 @@ const roleColors: Record<SourceLink['role'], string> = {
   supports: 'rgba(91, 224, 160, 0.78)',
   challenges: 'rgba(255, 142, 156, 0.78)',
   context: 'rgba(174, 190, 207, 0.58)',
+  alternative: 'rgba(230, 178, 107, 0.82)',
 };
 
 export default function ExperienceConstellation({ intent, sources, claims = [] }: Props) {
@@ -78,7 +79,7 @@ export default function ExperienceConstellation({ intent, sources, claims = [] }
       const alternativeId = sourceIds.get(source.url);
       const originalId = sourceIds.get(source.alternativeFor);
       if (alternativeId && originalId) {
-        links.push({ source: alternativeId, target: originalId, role: 'context' });
+        links.push({ source: alternativeId, target: originalId, role: 'alternative' });
       }
     }
 
@@ -134,7 +135,9 @@ export default function ExperienceConstellation({ intent, sources, claims = [] }
             linkColor={(link: object) => roleColors[(link as SourceLink).role] || roleColors.discovery}
             linkLabel={(link: object) => {
               const role = (link as SourceLink).role;
-              return role === 'discovery' ? 'Discovered from this intent' : 'Analyst-linked: ' + role;
+              if (role === 'discovery') return 'Discovered from this intent';
+              if (role === 'alternative') return 'Alternative candidate for this destination';
+              return 'Analyst-linked: ' + role;
             }}
             linkWidth={1.1}
             linkOpacity={0.72}
@@ -154,7 +157,7 @@ export default function ExperienceConstellation({ intent, sources, claims = [] }
         </Suspense>
       </div>
       <p className="experience-constellation-note">
-        Interactive WebGL view. Green, red and grey links reflect analyst-selected evidence roles, not verified truth. On smaller screens or when reduced motion is enabled, ADVERSE uses the source and claim lists instead.
+        Interactive WebGL view. Green, red and grey links show analyst-selected claim/evidence roles; amber links connect an alternative candidate to its original destination. These are review cues, not truth scores. On smaller screens or when reduced motion is enabled, ADVERSE uses the source and claim lists instead.
       </p>
     </div>
   );
