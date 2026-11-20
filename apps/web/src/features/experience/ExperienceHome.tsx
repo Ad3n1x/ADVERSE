@@ -459,12 +459,14 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     setReviewSaveNotice('');
     try {
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
-      const originalHost = new URL(source.url).hostname.toLowerCase().replace(/^www\\./, '');
+      const originalHostname = new URL(source.url).hostname.toLowerCase();
+      const originalHost = originalHostname.startsWith('www.') ? originalHostname.slice(4) : originalHostname;
       const existingUrls = new Set(sources.map(item => item.url));
       const candidates = (Array.isArray(response.data) ? response.data : []).filter(candidate => {
         try {
           const parsed = new URL(candidate.url);
-          const host = parsed.hostname.toLowerCase().replace(/^www\\./, '');
+          const candidateHostname = parsed.hostname.toLowerCase();
+          const host = candidateHostname.startsWith('www.') ? candidateHostname.slice(4) : candidateHostname;
           return candidate.url !== source.url && host !== originalHost && !existingUrls.has(candidate.url);
         } catch {
           return false;
