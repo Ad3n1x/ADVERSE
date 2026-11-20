@@ -24,6 +24,8 @@ const sourceSchema = z.object({
   provider: z.string().max(160).optional().default(''),
   providers: z.array(z.string().max(160)).max(8).optional().default([]),
   sourceType: z.string().max(40).optional().default('web'),
+  reviewStatus: z.enum(['unreviewed', 'useful', 'not_relevant']).optional(),
+  analystNote: z.string().max(1000).optional(),
   publishedAt: z.string().max(40).nullable().optional().default(null),
   retrievedAt: z.string().max(40).nullable().optional().default(null),
   linkCheck: z.object({
@@ -144,7 +146,12 @@ export function registerExperienceWorkspaceRoutes(app, {
       const previous = new Map((record.sources || []).map(item => [item.url, item]));
       const merged = sources.map(item => {
         const old = previous.get(item.url);
-        return { ...item, savedAt: old?.savedAt || new Date() };
+        return {
+          ...item,
+          reviewStatus: item.reviewStatus || old?.reviewStatus || 'unreviewed',
+          analystNote: item.analystNote ?? old?.analystNote ?? '',
+          savedAt: old?.savedAt || new Date(),
+        };
       });
       await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { sources: merged } });
       return res.json({ data: merged, meta: { saved: merged.length } });
@@ -153,6 +160,8 @@ export function registerExperienceWorkspaceRoutes(app, {
     if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
     record.sources = sources.map(item => ({
       ...item,
+      reviewStatus: item.reviewStatus || record.sources?.find(old => old.url === item.url)?.reviewStatus || 'unreviewed',
+      analystNote: item.analystNote ?? record.sources?.find(old => old.url === item.url)?.analystNote ?? '',
       savedAt: record.sources?.find(old => old.url === item.url)?.savedAt || new Date().toISOString(),
     }));
     return res.json({ data: record.sources, meta: { saved: record.sources.length } });
