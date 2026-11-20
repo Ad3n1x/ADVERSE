@@ -453,15 +453,19 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           setSourceSyncStatus('saved');
           setReviewSaveNotice('Destination check saved. Reachability describes access at check time, not factual trustworthiness.');
         } catch {
-          setSourceSyncStatus('local');
-          setReviewSaveNotice('Destination checked for this session, but the result could not be synced to the account.');
+          if (sequence === sourceSaveSequence.current) {
+            setSourceSyncStatus('local');
+            setReviewSaveNotice('Destination checked for this session, but the result could not be synced to the account.');
+          }
         }
       } else {
         setSourceSyncStatus('local');
         setReviewSaveNotice('Destination check is available in this session only.');
       }
     } catch {
-      setReviewSaveNotice('ADVERSE could not complete this link check. That does not prove the destination is dead.');
+      if (sequence === sourceSaveSequence.current) {
+        setReviewSaveNotice('ADVERSE could not complete this link check. That does not prove the destination is dead.');
+      }
     } finally {
       if (sequence === sourceSaveSequence.current) setCheckingUrl('');
     }
@@ -507,6 +511,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         analystNote: '',
       }));
       const nextSources = [...sources, ...additions].slice(0, 24);
+      let syncedToWorkspace = false;
       setSources(nextSources);
       try {
         const saved = await request<{ data: ExperienceSource[] }>(
@@ -516,6 +521,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         if (sequence !== sourceSaveSequence.current) return;
         setSources(Array.isArray(saved.data) ? saved.data : nextSources);
         setSourceSyncStatus('saved');
+        syncedToWorkspace = true;
       } catch {
         if (sequence === sourceSaveSequence.current) setSourceSyncStatus('local');
       }
@@ -535,10 +541,14 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         }).catch(() => undefined);
         setRunRefreshKey(value => value + 1);
       }
+      if (sequence !== sourceSaveSequence.current) return;
       const reachable = additions.filter(item => item.linkCheck?.status === 'reachable').length;
-      setReviewSaveNotice(`Added ${additions.length} alternative candidate(s); ${reachable} were reachable when checked. Candidates are not endorsements or fact verification.`);
+      const persistence = syncedToWorkspace ? 'saved to this workspace' : 'available in this session only';
+      setReviewSaveNotice(`Added ${additions.length} alternative candidate(s), ${persistence}; ${reachable} were reachable when checked. Candidates are not endorsements or fact verification.`);
     } catch {
-      setReviewSaveNotice('Alternative search is temporarily unavailable. The original source remains in your workspace.');
+      if (sequence === sourceSaveSequence.current) {
+        setReviewSaveNotice('Alternative search is temporarily unavailable. The original source remains in your workspace.');
+      }
     } finally {
       if (sequence === sourceSaveSequence.current) setAlternativeSearchingUrl('');
     }
