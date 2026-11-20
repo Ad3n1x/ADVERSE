@@ -143,3 +143,48 @@ test('workspace source persistence rejects unsafe URL schemes and oversized coll
   });
   assert.equal(oversized.statusCode, 400);
 });
+
+
+test('source review state and analyst notes persist across refreshes and stay owner-scoped', async () => {
+  const api = makeHarness();
+  const owner = 'experience-review-owner-' + randomUUID();
+  const other = 'experience-review-other-' + randomUUID();
+  const workspaceId = 'workspace-review-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Review public infrastructure sources', kind: 'research', createdAt: Date.now() },
+  });
+
+  const source = { url: 'https://example.org/infrastructure', title: 'Infrastructure report', excerpt: 'A report excerpt.' };
+  const reviewed = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ ...source, reviewStatus: 'useful', analystNote: 'Check the cited original dataset.' }] },
+  });
+  assert.equal(reviewed.statusCode, 200);
+  assert.equal(reviewed.body.data[0].reviewStatus, 'useful');
+  assert.equal(reviewed.body.data[0].analystNote, 'Check the cited original dataset.');
+
+  const refreshed = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ ...source, excerpt: 'Updated provider excerpt.' }] },
+  });
+  assert.equal(refreshed.body.data[0].reviewStatus, 'useful');
+  assert.equal(refreshed.body.data[0].analystNote, 'Check the cited original dataset.');
+
+  const denied = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(denied.statusCode, 404);
+
+  const invalidStatus = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ ...source, reviewStatus: 'verified' }] },
+  });
+  assert.equal(invalidStatus.statusCode, 400);
+
+  const oversizedNote = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ ...source, analystNote: 'x'.repeat(1001) }] },
+  });
+  assert.equal(oversizedNote.statusCode, 400);
+});
