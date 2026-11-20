@@ -519,7 +519,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </div>
               {isResolving && <div className="experience-source-loading"><span /> Querying available public search providers and checking result metadata.</div>}
               {!isResolving && resolveError && <p className="experience-source-error">{resolveError}</p>}
-              {!isResolving && sources.length > 0 && <ExperienceConstellation intent={activeIntent} sources={sources} />}
+              {!isResolving && sources.length > 0 && <ExperienceConstellation intent={activeIntent} sources={sources} claims={claims} />}
               {!isResolving && sources.length > 0 && <>
                 <div className="experience-review-toolbar" role="group" aria-label="Filter sources by review state">
                   {([
