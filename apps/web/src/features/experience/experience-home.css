@@ -235,3 +235,10 @@
   .experience-geospatial-launch .experience-extension-primary{width:100%}
   .experience-geospatial-view .geo-shell{min-height:460px}
 }
+
+
+.experience-source-alternative{padding:7px 9px;border-left:2px solid rgba(135,177,245,.55);background:rgba(69,104,151,.1);color:#a8c6eb;font:8px 'DM Mono',monospace;line-height:1.5;overflow-wrap:anywhere}
+.experience-source-alternative a,.experience-source-final-url a{color:#9fc7f2;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+.experience-source-final-url,.experience-source-link-note{margin:5px 0;color:#91aaa2;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
+.experience-source-link-note{color:#b4a98e}
+.experience-source-review-actions button:disabled{opacity:.45;cursor:wait}
