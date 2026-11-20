@@ -1,95 +1,30 @@
 import { expect, test } from '@playwright/test';
 
-const publicSearchResponse = {
-  data: [{
-    title: 'Example renewable energy research',
-    url: 'https://example.com/renewable-energy',
-    excerpt: 'A public-source excerpt used by the experience test.',
-    publisher: 'Example Research',
-    provider: 'Test provider',
-    linkCheck: { status: 'reachable', note: 'Reachable during test.' },
-  }],
-  meta: { coverage: 'Test search provider coverage.' },
-};
-
-test('intent workspace resolves public sources and renders evidence cards', async ({ page }) => {
-  await page.route('**/api/v1/experience/resolve', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ data: { plan: {
-      kind: 'research',
-      request: 'Research renewable energy storage',
-      focus: 'renewable energy storage',
-      outcome: 'An evidence-led review with practical next steps',
-      constraints: [],
-      steps: ['Define the research scope', 'Collect source material', 'Review the evidence'],
-      spaces: ['Sources', 'Findings', 'Questions'],
-      approvalRequired: false,
-    }, engine: { mode: 'deterministic', provider: 'Test planner', model: 'test-v1' } } }),
-  }));
-  await page.route('**/api/v1/public-search**', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify(publicSearchResponse),
-  }));
-
+test('anonymous visitors are shown the public landing page on the experience route', async ({ page }) => {
   await page.goto('/experience');
-  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible();
-  await page.getByLabel('What do you want to accomplish?').fill('Research renewable energy storage');
-  await page.getByRole('button', { name: /shape workspace/i }).click();
-
-  await expect(page.getByRole('heading', { name: 'Research workspace' })).toBeVisible();
-  await expect(page.getByText('Local structured planner')).toBeVisible();
-  await expect(page.getByText('Define the research scope')).toBeVisible();
-  await expect(page.getByText('renewable energy storage', { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: /example renewable energy research/i })).toHaveAttribute('href', 'https://example.com/renewable-energy');
-  await expect(page.getByText(/reachable when checked/i)).toBeVisible();
-  await expect(page.getByText('Test search provider coverage.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
+  await expect(page.getByText(/preparing your intelligence workspace/i)).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toHaveCount(0);
+  await expect(page.locator('.landing-nav-login')).toBeVisible();
 });
 
-test('workspace history survives reload and can be removed', async ({ page }) => {
-  await page.route('**/api/v1/experience/resolve', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({ data: { plan: {
-      kind: 'compare',
-      request: 'Compare solar and wind energy',
-      focus: 'solar and wind energy',
-      outcome: 'A structured comparison',
-      constraints: [],
-      steps: ['Identify options', 'Choose criteria', 'Compare trade-offs'],
-      spaces: ['Options', 'Criteria', 'Decision'],
-      approvalRequired: false,
-    }, engine: { mode: 'deterministic', provider: 'Test planner', model: 'test-v1' } } }),
-  }));
-  await page.route('**/api/v1/public-search**', route => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify(publicSearchResponse),
-  }));
-
-  await page.goto('/experience');
-  await page.getByLabel('What do you want to accomplish?').fill('Compare solar and wind energy');
-  await page.getByRole('button', { name: /shape workspace/i }).click();
-  await expect(page.getByRole('heading', { name: 'Comparison workspace' })).toBeVisible();
-  await page.getByRole('button', { name: /new intent/i }).click();
-  await page.reload();
-
-  await expect(page.getByText('RECENT WORKSPACES')).toBeVisible();
-  await expect(page.getByText('Compare solar and wind energy')).toBeVisible();
-  await page.getByRole('button', { name: 'Delete saved workspace: Compare solar and wind energy' }).click();
-  await expect(page.getByText('RECENT WORKSPACES')).toHaveCount(0);
+test('a newly registered user enters the intent-first intelligence experience', async ({ page }) => {
+  const email = 'adverse-experience-' + Date.now() + '@example.org';
+  await page.goto('/');
+  await page.locator('.landing-hero .landing-primary').click();
+  await page.getByLabel('Display name').fill('ADVERSE Experience Test');
+  await page.getByLabel('Email address').fill(email);
+  await page.getByLabel('Password').fill('adverse-experience-test-password-123');
+  await page.locator('button.auth-submit').click();
+  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel('What do you want to accomplish?')).toBeVisible();
 });
 
-test('experience layout remains usable without horizontal overflow on mobile', async ({ page }) => {
+test('experience route keeps the public landing visible without a workspace loading screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/experience');
-  await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible();
-
-  const dimensions = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    content: document.documentElement.scrollWidth,
-  }));
+  await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
+  const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
-  await expect(page.locator('.experience-constellation')).toHaveCount(0);
+  await expect(page.getByText(/preparing your intelligence workspace/i)).toHaveCount(0);
 });

@@ -4,11 +4,10 @@ import ConnectionStatus from './components/ConnectionStatus';
 import SharedLinkHandler from './components/SharedLinkHandler';
 import AndroidDownloadLink from './components/AndroidDownloadLink';
 import DownloadPage from './pages/DownloadPage';
-import ExperienceHome from './features/experience/ExperienceHome';
 import './android-download.css';
 
 export default function App() {
-  const isExperienceRoute = window.location.pathname === '/experience' || window.location.pathname === '/experience/';
+  const isClassicRoute = window.location.pathname === '/classic' || window.location.pathname === '/classic/';
   const isDownloadRoute =
     window.location.pathname === '/download' ||
     window.location.pathname === '/download/';
@@ -28,11 +27,10 @@ export default function App() {
   }
 
   if (isDownloadRoute) return <DownloadPage />;
-  if (isExperienceRoute) return <ExperienceHome />;
 
   return (
     <>
-      {isAdminRoute ? <AdminApp /> : <WorkspaceApp />}
+      {isAdminRoute ? <AdminApp /> : <WorkspaceApp showExperience={!isClassicRoute} />}
       <ConnectionStatus />
       <SharedLinkHandler />
       {!isAdminRoute && <AndroidDownloadLink />}

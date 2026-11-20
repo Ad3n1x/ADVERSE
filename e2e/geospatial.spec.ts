@@ -49,7 +49,7 @@ test('geospatial workspace combines public feeds, STAC discovery and evidence ca
   await page.route('https://tile.openstreetmap.org/**', route => route.abort());
 
   const email = 'adverse-geospatial-' + Date.now() + '@example.org';
-  await page.goto('/');
+  await page.goto('/classic');
   await page.locator('.landing-hero .landing-primary').click();
   await page.getByLabel('Display name').fill('ADVERSE Geospatial Test');
   await page.getByLabel('Email address').fill(email);
