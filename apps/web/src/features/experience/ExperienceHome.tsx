@@ -285,9 +285,20 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           ...(saved?.savedAt ? { savedAt: saved.savedAt } : {}),
         };
       };
+      const freshUrls = new Set(freshSources.map(source => source.url));
       const mergedSources = freshSources.length
-        ? freshSources.map(mergeReviewState)
-        : savedSources.map(source => ({
+        ? [
+            ...freshSources.map(mergeReviewState),
+            ...savedSources
+              .filter(source => !freshUrls.has(source.url))
+              .slice(0, 12)
+              .map(source => ({
+                ...source,
+                reviewStatus: source.reviewStatus || 'unreviewed',
+                analystNote: source.analystNote || '',
+              })),
+          ].slice(0, 24)
+        : savedSources.slice(0, 24).map(source => ({
             ...source,
             reviewStatus: source.reviewStatus || 'unreviewed',
             analystNote: source.analystNote || '',
@@ -385,10 +396,14 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   ): Promise<boolean> {
     if (!activeWorkspaceId || !url) return false;
     if (sources.some(source => source.url === url)) return true;
+    if (sources.length >= 24) {
+      setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace before saving more public event observations.');
+      return false;
+    }
     const source: ExperienceSource = {
       title: title.slice(0, 240),
       url,
-      excerpt: excerpt.slice(0, 4500),
+      excerpt: excerpt.slice(0, 2000),
       publisher: publisher.slice(0, 180),
       provider: publisher.slice(0, 120),
       sourceType,
