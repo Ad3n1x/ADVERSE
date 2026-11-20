@@ -2,9 +2,7 @@ import AdminApp from './features/admin/AdminApp';
 import WorkspaceApp from './app/WorkspaceApp';
 import ConnectionStatus from './components/ConnectionStatus';
 import SharedLinkHandler from './components/SharedLinkHandler';
-import AndroidDownloadLink from './components/AndroidDownloadLink';
 import DownloadPage from './pages/DownloadPage';
-import './android-download.css';
 
 export default function App() {
   const isLegacyRoute = window.location.pathname === '/classic' || window.location.pathname === '/classic/';
@@ -38,7 +36,6 @@ export default function App() {
       {isAdminRoute ? <AdminApp /> : <WorkspaceApp />}
       <ConnectionStatus />
       <SharedLinkHandler />
-      {!isAdminRoute && <AndroidDownloadLink />}
     </>
   );
 }
