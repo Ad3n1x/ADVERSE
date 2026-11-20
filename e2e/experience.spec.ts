@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('anonymous visitors are shown the public landing page on the experience route', async ({ page }) => {
   await page.goto('/experience');
-  await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find the right source/i })).toBeVisible();
   await expect(page.getByText(/preparing your intelligence workspace/i)).toHaveCount(0);
   await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toHaveCount(0);
   await expect(page.locator('.landing-nav-login')).toBeVisible();
@@ -23,7 +23,7 @@ test('a newly registered user enters the intent-first intelligence experience', 
 test('experience route keeps the public landing visible without a workspace loading screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/experience');
-  await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /find the right source/i })).toBeVisible();
   const dimensions = await page.evaluate(() => ({ viewport: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }));
   expect(dimensions.content).toBeLessThanOrEqual(dimensions.viewport + 1);
   await expect(page.getByText(/preparing your intelligence workspace/i)).toHaveCount(0);
@@ -126,7 +126,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
 
   await page.getByLabel('What do you want to accomplish?').fill('Research public energy storage');
   await page.getByRole('button', { name: /shape workspace/i }).click();
-  await expect(page.getByText('Public energy storage report')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText('Public energy storage report').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /what this result set covers/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /known source dates/i })).toBeVisible();
 
@@ -135,7 +135,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText('Review saved to this workspace.')).toBeVisible();
   await page.locator('.experience-review-toolbar button').filter({ hasText: 'Useful' }).click();
-  await expect(page.getByText('Public energy storage report')).toBeVisible();
+  await expect(page.getByText('Public energy storage report').first()).toBeVisible();
 
   await page.getByLabel('Statement to examine').fill('Grid-scale energy storage deployment increased during the reporting period.');
   await page.getByLabel('Link source: Public energy storage report').check();

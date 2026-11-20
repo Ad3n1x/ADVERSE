@@ -14,12 +14,10 @@ export default function App() {
     window.location.pathname === '/admin/' ||
     new URLSearchParams(window.location.search).get('admin') === '1';
 
-  if (isLegacyRoute) {
-    window.location.replace('/experience');
-    return null;
-  }
+  // Keep the former full workspace available as a compatibility route.
+  // The intent-first Experience workspace remains the default entry point.
 
-  if (isAdminRoute || window.location.pathname === '/experience') {
+  if (isAdminRoute || isLegacyRoute || window.location.pathname === '/experience') {
     let robots = document.head.querySelector('meta[name="robots"]');
     if (!robots) {
       robots = document.createElement('meta');
