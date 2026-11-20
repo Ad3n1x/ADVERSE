@@ -218,6 +218,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     sourceSaveSequence.current += 1;
     setCheckingUrl('');
     setAlternativeSearchingUrl('');
+    setReviewSavingUrl('');
     const intentPlan = buildIntentPlan(trimmed);
     const workspaceId = existingWorkspaceId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const createdAt = Date.now();
@@ -537,6 +538,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     sourceType: 'organization' | 'domain' | 'document',
   ): Promise<boolean> {
     if (!activeWorkspaceId || !url || checkingUrl || alternativeSearchingUrl || reviewSavingUrl) return false;
+    const sequence = ++sourceSaveSequence.current;
     if (sources.some(source => source.url === url)) return true;
     if (sources.length >= 24) {
       setReviewSaveNotice('This workspace has reached its 24-source limit. Start a new workspace before saving more public event observations.');
@@ -559,6 +561,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         '/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources',
         { method: 'PUT', body: JSON.stringify({ sources: nextSources }) },
       );
+      if (sequence !== sourceSaveSequence.current) return false;
       const normalized = Array.isArray(saved.data) ? saved.data : nextSources;
       setSources(normalized);
       setSourceNotes(Object.fromEntries(normalized.map(item => [item.url, item.analystNote || ''])));
@@ -566,8 +569,10 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       setReviewSaveNotice('Public event observation saved to this workspace.');
       return true;
     } catch {
-      setSourceSyncStatus('local');
-      setReviewSaveNotice('The event could not be synced. It has not been marked as saved.');
+      if (sequence === sourceSaveSequence.current) {
+        setSourceSyncStatus('local');
+        setReviewSaveNotice('The event could not be synced. It has not been marked as saved.');
+      }
       return false;
     }
   }
