@@ -355,3 +355,74 @@ test('provider credentials never leak between authenticated users',async()=>with
  }
 }));
 
+
+
+test('evidence, alerts, and authorized domain assets remain isolated between accounts', async () => withServer(async base => {
+ const owner = await register(base, 'resource-owner-' + Date.now() + '@example.org');
+ const outsider = await register(base, 'resource-outsider-' + Date.now() + '@example.org');
+ const created = await fetch(base + '/api/v1/investigations', {
+  method: 'POST', headers: { 'content-type': 'application/json', cookie: owner.cookie },
+  body: JSON.stringify({ title: 'Private resource ownership test' }),
+ });
+ assert.equal(created.status, 201);
+ const { data: investigation } = await created.json();
+
+ const savedEvidence = await fetch(base + '/api/v1/investigations/' + investigation.id + '/evidence', {
+  method: 'POST', headers: { 'content-type': 'application/json', cookie: owner.cookie },
+  body: JSON.stringify({ title: 'Private source', url: 'https://example.org/private-report', excerpt: 'Owner-only test evidence.' }),
+ });
+ assert.equal(savedEvidence.status, 201);
+ const { data: evidence } = await savedEvidence.json();
+ const evidenceId = String(evidence.id || evidence._id);
+
+ const privateReads = await Promise.all([
+  fetch(base + '/api/v1/investigations/' + investigation.id + '/evidence', { headers: { cookie: outsider.cookie } }),
+  fetch(base + '/api/v1/investigations/' + investigation.id + '/entities', { headers: { cookie: outsider.cookie } }),
+  fetch(base + '/api/v1/investigations/' + investigation.id + '/relationships', { headers: { cookie: outsider.cookie } }),
+  fetch(base + '/api/v1/evidence/' + evidenceId + '/review', {
+   method: 'PATCH', headers: { 'content-type': 'application/json', cookie: outsider.cookie },
+   body: JSON.stringify({ verificationStatus: 'supported' }),
+  }),
+  fetch(base + '/api/v1/evidence/' + evidenceId, { method: 'DELETE', headers: { cookie: outsider.cookie } }),
+ ]);
+ for (const response of privateReads) assert.equal(response.status, 404);
+
+ const store = globalThis.__ADVERSE_STORE__;
+ assert.ok(store?.alerts instanceof Map);
+ assert.ok(store?.cyberAssets instanceof Map);
+ const alertId = 'owner-alert-' + Date.now();
+ store.alerts.set(alertId, { id: alertId, investigationId: investigation.id, watchId: 'owner-watch', observedAt: new Date(), message: 'Test-only alert' });
+ const outsiderAlertActions = await Promise.all([
+  fetch(base + '/api/v1/alerts/' + alertId + '/acknowledge', {
+   method: 'POST', headers: { 'content-type': 'application/json', cookie: outsider.cookie }, body: JSON.stringify({}),
+  }),
+  fetch(base + '/api/v1/alerts/' + alertId, { method: 'DELETE', headers: { cookie: outsider.cookie } }),
+ ]);
+ for (const response of outsiderAlertActions) assert.equal(response.status, 404);
+ const ownerAcknowledgement = await fetch(base + '/api/v1/alerts/' + alertId + '/acknowledge', {
+  method: 'POST', headers: { 'content-type': 'application/json', cookie: owner.cookie }, body: JSON.stringify({}),
+ });
+ assert.equal(ownerAcknowledgement.status, 200);
+
+ const assetId = 'owner-cyber-asset-' + Date.now();
+ store.cyberAssets.set(assetId, {
+  id: assetId, investigationId: investigation.id, url: 'https://example.org', hostname: 'example.org',
+  verificationStatus: 'pending', verificationToken: 'test-only-token', enabled: false,
+ });
+ const outsiderAssetActions = await Promise.all([
+  fetch(base + '/api/v1/cyber-assets/' + assetId + '/verify-domain', {
+   method: 'POST', headers: { 'content-type': 'application/json', cookie: outsider.cookie }, body: JSON.stringify({}),
+  }),
+  fetch(base + '/api/v1/cyber-assets/' + assetId + '/verify-http', {
+   method: 'POST', headers: { 'content-type': 'application/json', cookie: outsider.cookie }, body: JSON.stringify({}),
+  }),
+  fetch(base + '/api/v1/cyber-assets/' + assetId + '/check', {
+   method: 'POST', headers: { 'content-type': 'application/json', cookie: outsider.cookie }, body: JSON.stringify({}),
+  }),
+  fetch(base + '/api/v1/cyber-assets/' + assetId, { method: 'DELETE', headers: { cookie: outsider.cookie } }),
+ ]);
+ for (const response of outsiderAssetActions) assert.equal(response.status, 404);
+ const ownerRemoval = await fetch(base + '/api/v1/cyber-assets/' + assetId, { method: 'DELETE', headers: { cookie: owner.cookie } });
+ assert.equal(ownerRemoval.status, 204);
+ store.alerts.delete(alertId);
+}));
