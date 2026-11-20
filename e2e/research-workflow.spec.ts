@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('a new account enters the authenticated ADVERSE research workspace', async ({ page }) => {
   const email = 'adverse-workspace-' + Date.now() + '@example.org';
-  await page.goto('/');
+  await page.goto('/classic');
   await expect(page.getByRole('heading', { name: /investigate the question/i })).toBeVisible();
   await page.locator('.landing-hero .landing-primary').click();
   await expect(page.getByRole('heading', { name: 'Create your ADVERSE account.' })).toBeVisible();
