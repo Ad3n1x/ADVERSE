@@ -10,6 +10,8 @@ const experienceSourceSchema = new Schema({
   provider: { type: String, default: '', maxlength: 160 },
   providers: { type: [String], default: [] },
   sourceType: { type: String, default: 'web', maxlength: 40 },
+  reviewStatus: { type: String, enum: ['unreviewed', 'useful', 'not_relevant'], default: 'unreviewed' },
+  analystNote: { type: String, default: '', maxlength: 1000 },
   publishedAt: { type: String, default: null, maxlength: 40 },
   retrievedAt: { type: String, default: null, maxlength: 40 },
   linkCheck: {
