@@ -5,7 +5,7 @@ import {
   scrypt as scryptCallback,
 } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { access, mkdir, open, rename, stat, unlink } from 'node:fs/promises';
+import { access, link, mkdir, open, stat, unlink } from 'node:fs/promises';
 import { dirname, basename, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
@@ -81,7 +81,8 @@ export async function encryptBackupFile(inputPath, outputPath, passphrase) {
     const outputStream = createWriteStream(finalTemp, { flags: 'wx', mode: 0o600 });
     if (!outputStream.write(header)) await once(outputStream, 'drain');
     await pipeline(createReadStream(encryptedTemp), outputStream);
-    await rename(finalTemp, output);
+    await link(finalTemp, output);
+    await removeIfPresent(finalTemp);
     return { output, algorithm: 'AES-256-GCM', authenticated: true };
   } finally {
     key.fill(0);
@@ -136,7 +137,8 @@ export async function decryptBackupFile(inputPath, outputPath, passphrase) {
       decipher,
       createWriteStream(finalTemp, { flags: 'wx', mode: 0o600 }),
     );
-    await rename(finalTemp, output);
+    await link(finalTemp, output);
+    await removeIfPresent(finalTemp);
     return { output, algorithm: 'AES-256-GCM', authenticated: true };
   } catch {
     throw new Error('Backup authentication failed: the passphrase is incorrect or the archive was altered.');
