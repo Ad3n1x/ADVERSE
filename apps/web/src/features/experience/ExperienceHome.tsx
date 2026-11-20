@@ -285,24 +285,21 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           ...(saved?.savedAt ? { savedAt: saved.savedAt } : {}),
         };
       };
-      const freshUrls = new Set(freshSources.map(source => source.url));
-      const mergedSources = freshSources.length
-        ? [
-            ...freshSources.map(mergeReviewState),
-            ...savedSources
-              .filter(source => !freshUrls.has(source.url))
-              .slice(0, 12)
-              .map(source => ({
-                ...source,
-                reviewStatus: source.reviewStatus || 'unreviewed',
-                analystNote: source.analystNote || '',
-              })),
-          ].slice(0, 24)
-        : savedSources.slice(0, 24).map(source => ({
-            ...source,
-            reviewStatus: source.reviewStatus || 'unreviewed',
-            analystNote: source.analystNote || '',
-          }));
+      const mergedByUrl = new Map(savedSources.slice(0, 24).map(source => [source.url, {
+        ...source,
+        reviewStatus: source.reviewStatus || 'unreviewed',
+        analystNote: source.analystNote || '',
+      }]));
+      for (const source of freshSources) {
+        const merged = mergeReviewState(source);
+        if (mergedByUrl.has(source.url) || mergedByUrl.size < 24) {
+          mergedByUrl.set(source.url, merged);
+        }
+      }
+      const mergedSources = [...mergedByUrl.values()].slice(0, 24);
+      if (mergedByUrl.size >= 24 && freshSources.some(source => !savedByUrl.has(source.url))) {
+        setReviewSaveNotice('This workspace has reached its 24-source limit. Existing evidence was preserved; create a new workspace to save additional results.');
+      }
       setSources(mergedSources);
       setSourceNotes(Object.fromEntries(mergedSources.map(source => [source.url, source.analystNote || ''])));
       if (freshSources.length) {
