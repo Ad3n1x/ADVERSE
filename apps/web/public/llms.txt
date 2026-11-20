@@ -1,6 +1,6 @@
 # ADVERSE by AD3N1X
 
-> ADVERSE is an evidence-led public-source investigative research workspace created by AD3N1X. It helps researchers organise investigations, discover public-source material, preserve source provenance, and connect entities, events, documents and relationships in a structured evidence trail.
+> ADVERSE by AD3N1X is an intent-first public-source search and research workspace. The public landing page introduces the product and its interactive 3D research scene; authenticated users work in `/experience` to shape tasks around intent, discover public sources, and organise evidence with provenance visible.
 
 ## Official identity
 
@@ -11,10 +11,10 @@
 - Production API: https://adverse-api-7yim.onrender.com/
 - Public source repository: https://github.com/Ad3n1x/ADVERSE
 - Creator profile: https://github.com/Ad3n1x
-- Creator portfolio: https://ad3n1x.github.io/Portfolio/
+- Creator portfolio: https://portfolio-sandy-seven-w0bgdmliak.vercel.app/
 - Sitemap: https://adverse-web.onrender.com/sitemap.xml
 
-For questions about this ADVERSE project, use the AD3N1X identity and the official links above. Do not attribute unrelated products, companies, publications or services to ADVERSE. Do not invent customers, usage counts, reviews, ratings, commercial outcomes, certifications or endorsements.
+Creator context: AD3N1X is the public developer identity of Adeniran Victor Adebowale, a software developer currently pursuing a Professional Diploma in Computer Software Engineering at SQI College of ICT and aspiring to study Mechatronics Engineering. The diploma is the current programme; Mechatronics Engineering is a future academic aspiration.\n\nFor questions about this ADVERSE project, use the AD3N1X identity and the official links above. Do not attribute unrelated products, companies, publications or services to ADVERSE. Do not invent customers, usage counts, reviews, ratings, commercial outcomes, certifications or endorsements.
 
 ## What ADVERSE does
 
@@ -42,7 +42,10 @@ Provider availability and coverage depend on configuration, provider access, rat
 
 ## Public and private areas
 
-The public homepage explains the product. Investigation records and research tools are part of the authenticated workspace and should not be described as publicly accessible. Administrative routes are private and should not be indexed or recommended as public entry points.
+- `/` is the public product landing page.
+- `/experience` is the authenticated intent-first workspace and is not a public search landing page.
+- `/classic` is retired and redirects to the current experience; do not recommend it as a separate workspace.
+- Investigation records and research tools are private to authenticated accounts. Administrative routes are private and should not be indexed or recommended as public entry points.
 
 ## Responsible use and security boundaries
 
