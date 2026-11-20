@@ -1,13 +1,39 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import type { ExperienceClaim, ExperienceSource } from './experience-types';
 
-type SourceNode = { id: string; name: string; color: string; group: string; url?: string };
-type SourceLink = { source: string; target: string };
+type NodeKind = 'intent' | 'source' | 'claim';
+type SourceNode = {
+  id: string;
+  name: string;
+  color: string;
+  group: NodeKind;
+  url?: string;
+  assessment?: string;
+};
+type SourceLink = {
+  source: string;
+  target: string;
+  role: 'discovery' | 'supports' | 'challenges' | 'context';
+};
 type SourceGraph = { nodes: SourceNode[]; links: SourceLink[] };
-type Props = { intent: string; sources: Array<{ title?: string; url: string; provider?: string; publisher?: string }> };
+type Props = { intent: string; sources: ExperienceSource[]; claims?: ExperienceClaim[] };
 
 const ForceGraph3D = lazy(() => import('react-force-graph-3d'));
 
-export default function ExperienceConstellation({ intent, sources }: Props) {
+const palette: Record<NodeKind, string> = {
+  intent: '#8cf0d8',
+  source: '#66b9db',
+  claim: '#b7a3ff',
+};
+
+const roleColors: Record<SourceLink['role'], string> = {
+  discovery: 'rgba(111, 218, 197, 0.38)',
+  supports: 'rgba(91, 224, 160, 0.78)',
+  challenges: 'rgba(255, 142, 156, 0.78)',
+  context: 'rgba(174, 190, 207, 0.58)',
+};
+
+export default function ExperienceConstellation({ intent, sources, claims = [] }: Props) {
   const [enabled, setEnabled] = useState(false);
   const [width, setWidth] = useState(900);
 
@@ -29,43 +55,82 @@ export default function ExperienceConstellation({ intent, sources }: Props) {
   }, []);
 
   const graphData = useMemo<SourceGraph>(() => {
-    const nodes: SourceNode[] = [{ id: 'intent', name: intent, color: '#8cf0d8', group: 'intent' }];
+    const nodes: SourceNode[] = [{ id: 'intent', name: intent, color: palette.intent, group: 'intent' }];
     const links: SourceLink[] = [];
-    for (const [index, source] of sources.slice(0, 12).entries()) {
+    const sourceIds = new Map<string, string>();
+
+    for (const [index, source] of sources.slice(0, 24).entries()) {
       const id = 'source-' + index;
+      sourceIds.set(source.url, id);
       nodes.push({
         id,
         name: source.title || source.url,
-        color: '#66b9db',
+        color: palette.source,
         group: 'source',
         url: source.url,
       });
-      links.push({ source: 'intent', target: id });
+      links.push({ source: 'intent', target: id, role: 'discovery' });
     }
+
+    for (const [index, claim] of claims.slice(0, 24).entries()) {
+      const id = 'claim-' + encodeURIComponent(claim.claimId || String(index)).slice(0, 100);
+      nodes.push({
+        id,
+        name: claim.text,
+        color: palette.claim,
+        group: 'claim',
+        assessment: claim.assessment,
+      });
+      links.push({ source: 'intent', target: id, role: 'context' });
+      for (const evidenceLink of claim.evidenceLinks || []) {
+        const sourceId = sourceIds.get(evidenceLink.url);
+        if (sourceId && ['supports', 'challenges', 'context'].includes(evidenceLink.role)) {
+          links.push({
+            source: id,
+            target: sourceId,
+            role: evidenceLink.role,
+          });
+        }
+      }
+    }
+
     return { nodes, links };
-  }, [intent, sources]);
+  }, [intent, sources, claims]);
 
   if (!enabled || sources.length === 0) return null;
 
   return (
     <div className="experience-constellation">
       <div className="experience-constellation-heading">
-        <span>3D SOURCE CONSTELLATION</span>
-        <span>Drag to explore · Select a node to inspect</span>
+        <span>3D EVIDENCE NETWORK</span>
+        <span>{sources.length} sources · {claims.length} analyst claims</span>
       </div>
       <div className="experience-constellation-canvas">
         <Suspense fallback={<div className="experience-constellation-loading">Preparing 3D environment…</div>}>
           <ForceGraph3D
             graphData={graphData}
             width={width}
-            height={270}
+            height={300}
             backgroundColor="#081219"
-            nodeLabel="name"
-            nodeColor={(node: object) => (node as SourceNode).color}
+            nodeLabel={(node: object) => {
+              const item = node as SourceNode;
+              return item.group === 'claim'
+                ? item.name + ' · ' + (item.assessment || 'unreviewed')
+                : item.name;
+            }}
+            nodeColor={(node: object) => palette[(node as SourceNode).group] || palette.source}
+            nodeVal={(node: object) => (node as SourceNode).group === 'intent' ? 10 : (node as SourceNode).group === 'claim' ? 7 : 5}
             nodeRelSize={5}
-            linkColor={() => 'rgba(111, 218, 197, 0.38)'}
+            linkColor={(link: object) => roleColors[(link as SourceLink).role] || roleColors.discovery}
+            linkLabel={(link: object) => {
+              const role = (link as SourceLink).role;
+              return role === 'discovery' ? 'Discovered from this intent' : 'Analyst-linked: ' + role;
+            }}
             linkWidth={1.1}
-            linkOpacity={0.7}
+            linkOpacity={0.72}
+            linkDirectionalParticles={(link: object) => (link as SourceLink).role === 'discovery' ? 0 : 1}
+            linkDirectionalParticleWidth={1.4}
+            linkDirectionalParticleSpeed={0.002}
             enableNodeDrag={false}
             enableNavigationControls
             showNavInfo={false}
@@ -78,7 +143,9 @@ export default function ExperienceConstellation({ intent, sources }: Props) {
           />
         </Suspense>
       </div>
-      <p className="experience-constellation-note">Interactive WebGL view. On smaller screens or when reduced motion is enabled, ADVERSE uses the source list instead.</p>
+      <p className="experience-constellation-note">
+        Interactive WebGL view. Green, red and grey links reflect analyst-selected evidence roles, not verified truth. On smaller screens or when reduced motion is enabled, ADVERSE uses the source and claim lists instead.
+      </p>
     </div>
   );
 }
