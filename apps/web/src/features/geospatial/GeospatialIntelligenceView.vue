@@ -513,4 +513,9 @@ onBeforeUnmount(() => {
 .geo-catalog-state{display:flex;align-items:center;gap:8px;padding:10px 0;color:#93a6b9;font-size:10px}
 .geo-catalog-state button{border:0;background:transparent;color:#9acbfa;font:inherit;text-decoration:underline;cursor:pointer}
 .geo-catalog-footer a{color:#8fbce0;text-decoration:none}.geo-catalog-footer{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #ffffff0c;color:#788da2;font-size:8px}
+
+.geo-map-fallback{position:absolute;z-index:4;inset:0;display:grid;align-content:center;justify-items:center;gap:12px;padding:clamp(20px,5vw,44px);text-align:center;background:radial-gradient(ellipse at 50% 45%,#16344a 0%,#0b1a2a 58%,#07111d 100%)}
+.geo-map-fallback strong{color:#e8f2fb;font-size:18px;letter-spacing:-.02em}
+.geo-map-fallback span{max-width:420px;color:#b2c3d4;font-size:12px;line-height:1.7}
+.geo-map-fallback small{max-width:420px;color:#87a1b8;font-size:10px;line-height:1.6}
 </style>
