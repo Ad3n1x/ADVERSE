@@ -210,3 +210,28 @@
   .experience-run-providers{grid-column:1/-1}
 }
 @media(prefers-reduced-motion:reduce){.experience-extension-primary,.experience-extension-save,.experience-dossier-buttons button{transition:none}}
+
+
+/* Optional 3D public-event globe in the primary intent workspace. */
+.experience-geospatial-launch{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  align-items:center;
+  gap:16px;
+  margin-top:14px;
+  padding:15px;
+  border:1px solid rgba(112,170,158,.2);
+  border-radius:10px;
+  background:linear-gradient(115deg,rgba(19,48,52,.64),rgba(12,27,34,.78));
+}
+.experience-geospatial-launch>div{display:grid;gap:6px;min-width:0}
+.experience-geospatial-launch h3{margin:0;color:#d5e9e0;font:600 14px 'Space Grotesk',sans-serif}
+.experience-geospatial-launch p{max-width:720px;margin:0;color:#8da99e;font-size:9px;line-height:1.6}
+.experience-geospatial-launch .experience-section-label{display:flex;align-items:center;gap:6px}
+.experience-geospatial-view{margin-top:12px;overflow:hidden;border:1px solid rgba(112,170,158,.2);border-radius:10px;background:#081219}
+.experience-geospatial-view .geo-shell{min-height:540px}
+@media(max-width:620px){
+  .experience-geospatial-launch{grid-template-columns:1fr}
+  .experience-geospatial-launch .experience-extension-primary{width:100%}
+  .experience-geospatial-view .geo-shell{min-height:460px}
+}
