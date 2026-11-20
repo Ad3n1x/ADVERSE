@@ -1,8 +1,8 @@
 # ADVERSE
 
-**ADVERSE — Investigate the question. Follow the evidence.**
+**ADVERSE — Find the right source. Follow the evidence.**
 
-ADVERSE is an evidence-led investigative research workspace built by AD3N1X. It helps researchers organise an investigation, gather and review public-source material, preserve provenance, and connect people, organisations, events, documents, and relationships into a structured evidence trail. The public landing page introduces the product; the investigation tools are available inside the secure workspace after sign-in. ADVERSE supports research and source organisation—it does not guarantee exhaustive coverage, establish truth automatically, or replace human judgement.
+ADVERSE is an intent-first public-source search and research workspace built by AD3N1X. Visitors start on the public landing page, which introduces the product and its interactive 3D research scene. After sign-in, users enter `/experience` to shape a task into a structured workflow, discover public sources, and organise evidence with provenance visible. The legacy `/classic` workspace has been retired. ADVERSE supports research and source organisation—it does not guarantee exhaustive coverage, establish truth automatically, or replace human judgement.
 
 ## Creator and official links
 
