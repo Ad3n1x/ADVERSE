@@ -529,7 +529,11 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                           <button
                             type="button"
                             disabled={Boolean(reviewSavingUrl) || noteDraft === (source.analystNote || '')}
-                            onClick={() => void updateSourceReview(source.url, { analystNote: noteDraft.trim() })}
+                            onClick={() => {
+                              const note = noteDraft.trim();
+                              setSourceNotes(current => ({ ...current, [source.url]: note }));
+                              void updateSourceReview(source.url, { analystNote: note });
+                            }}
                           >Save note</button>
                         </label>
                       </div>
