@@ -50,14 +50,16 @@ test('Brevo alert email returns success when provider accepts the message', asyn
   let request;
   globalThis.fetch = async (url, options) => {
     request = { url, options };
-    return new Response(null, { status: 204 });
+    return new Response(JSON.stringify({ messageId: 'smtp-id-123' }), {
+      status: 201, headers: { 'content-type': 'application/json' }
+    });
   };
   try {
     const result = await notifyAlertByEmail(
       { message: 'Review this archived source.' },
       { url: 'https://example.org/page', label: '<source & page>' }
     );
-    assert.deepEqual(result, { accepted: true, messageId: '', reason: '' });
+    assert.deepEqual(result, { accepted: true, messageId: 'smtp-id-123', reason: '' });
     assert.equal(request.url, 'https://api.brevo.com/v3/smtp/email');
     assert.equal(request.options.headers['api-key'], 'test-key');
     const body = JSON.parse(request.options.body);
