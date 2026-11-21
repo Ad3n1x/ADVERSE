@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, Plus, Save, ShieldCheck } from 'lucide-react';
 import { request } from '../../lib/api';
-import type { ExperienceClaim, ExperienceSource, ClaimAssessment, ClaimEvidenceRole } from './experience-types';
+import type { ExperienceClaim, ExperienceSource, ExperienceAnswerStatus, ClaimAssessment, ClaimEvidenceRole } from './experience-types';
 
 const assessments: Array<{ value: ClaimAssessment; label: string }> = [
   { value: 'unreviewed', label: 'Unreviewed' },
@@ -11,11 +11,12 @@ const assessments: Array<{ value: ClaimAssessment; label: string }> = [
 ];
 
 export default function ExperienceClaimsPanel({
-  workspaceId, sources, onClaimsChange, refreshKey = 0,
+  workspaceId, sources, onClaimsChange, onAnswerStatusChange, refreshKey = 0,
 }: {
   workspaceId: string;
   sources: ExperienceSource[];
   onClaimsChange: (claims: ExperienceClaim[]) => void;
+  onAnswerStatusChange?: (status: ExperienceAnswerStatus) => void;
   refreshKey?: number;
 }) {
   const [claims, setClaims] = useState<ExperienceClaim[]>([]);
@@ -54,13 +55,14 @@ export default function ExperienceClaimsPanel({
     setNotice('');
     setError('');
     try {
-      const response = await request<{ data: ExperienceClaim[] }>(
+      const response = await request<{ data: ExperienceClaim[]; meta?: { answerStatus?: ExperienceAnswerStatus } }>(
         '/experience/workspaces/' + encodeURIComponent(workspaceId) + '/claims',
         { method: 'PUT', body: JSON.stringify({ claims: next }) },
       );
       const saved = Array.isArray(response.data) ? response.data : next;
       setClaims(saved);
       onClaimsChange(saved);
+      if (response.meta?.answerStatus) onAnswerStatusChange?.(response.meta.answerStatus);
       setNotice('Claim ledger saved to this workspace.');
     } catch {
       setError('The claim changes could not be saved. Check the connection and try again.');
