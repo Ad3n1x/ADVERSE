@@ -1,10 +1,14 @@
 import { searchPublic } from './providers.js';
+import { normalizeSearchText } from './normalize-search-text.js';
 import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
 import { buildIntentQueryVariants, understandSearchIntent } from './intent-understanding.js';
 import { understandSearchIntentWithGroq } from './groq-intent.js';
 
-const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
+const clean = (value, max = 1200) => normalizeSearchText(
+  String(value || '').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>'),
+  max
+);
 
 const TRACKING_PARAMS = /^(utm_[^=]+|gclid|dclid|fbclid|msclkid|mc_cid|mc_eid|ref_src|igshid|yclid|vero_id)$/i;
 
