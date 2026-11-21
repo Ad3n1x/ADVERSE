@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { ExperienceResearchJob, ExperienceWorkspace } from '../../models.js';
 import { searchAllPublic } from '../search/global-search.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
+import { analyzeEvidenceClaims } from '../../claim-analysis.js';
 import { researchJobProgress, researchJobRetryDelayMs, RESEARCH_JOB_LEASE_MS } from './research-job-state.js';
 
 const workerId = (process.env.RENDER_INSTANCE_ID || os.hostname()) + ':' + process.pid + ':' + crypto.randomUUID().slice(0, 8);
@@ -123,6 +124,34 @@ async function saveJobResults(job, sources, live) {
     });
   }
   const mergedSources = [...existing.values()].slice(0, 24);
+  const evidenceForAnalysis = mergedSources.map(source => ({
+    id: source.url, title: source.title, url: source.url, publisher: source.publisher,
+    excerpt: source.excerpt, publishedAt: source.publishedAt, retrievedAt: source.retrievedAt,
+    verificationStatus: 'unverified',
+  }));
+  const extraction = analyzeEvidenceClaims(evidenceForAnalysis, 40);
+  const previousClaims = Array.isArray(workspace.claims) ? workspace.claims : [];
+  const claimsById = new Map(previousClaims.map(claim => [claim.claimId, claim]));
+  for (const candidate of extraction.claims || []) {
+    const evidenceLinks = (candidate.sources || []).slice(0, 12)
+      .filter(source => mergedSources.some(saved => saved.url === source.url))
+      .map(source => ({ url: source.url, role: 'context' }));
+    if (!evidenceLinks.length) continue;
+    const claimId = 'auto-' + crypto.createHash('sha256')
+      .update(String(candidate.claim || '') + '|' + evidenceLinks.map(link => link.url).sort().join('|'))
+      .digest('hex').slice(0, 32);
+    const previous = claimsById.get(claimId);
+    claimsById.set(claimId, previous || {
+      claimId,
+      text: clean(candidate.claim, 1000),
+      assessment: 'unreviewed',
+      rationale: clean('Automatically extracted from saved source excerpts. ' + candidate.assessment + ' This is a research lead, not a verified fact. Review the original sources before making a judgement.', 1000),
+      evidenceLinks,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+  const claims = [...claimsById.values()].slice(0, 50);
   const run = {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
@@ -134,9 +163,9 @@ async function saveJobResults(job, sources, live) {
   const researchRuns = [...(workspace.researchRuns || []).filter(item => item.runId !== job.jobId), run]
     .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()).slice(-20);
   await ExperienceWorkspace.updateOne({ ownerId: job.ownerId, workspaceId: job.workspaceId }, {
-    $set: { sources: mergedSources, researchRuns },
+    $set: { sources: mergedSources, claims, researchRuns },
   });
-  return { sourceCount: mergedSources.length, run };
+  return { sourceCount: mergedSources.length, claimCount: claims.length, run };
 }
 
 async function executeJob(job, getUserProviderKeys) {
