@@ -65,54 +65,65 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   const raw = clean(input, 200);
   if (!raw) return [];
   const intent = intentOverride || understandSearchIntent(raw);
+  const limit = Math.max(1, Math.min(12, Number(maxQueries) || 5));
   const queries = [];
   const seen = new Set();
   const add = (q, reason) => {
     q = clean(q, 240);
     const key = q.toLocaleLowerCase();
-    if (q.length >= 2 && !seen.has(key) && queries.length < maxQueries) {
+    if (q.length >= 2 && !seen.has(key) && queries.length < limit) {
       seen.add(key);
       queries.push({ query: q, reason });
     }
   };
+
+  const variants = buildIntentQueryVariants(raw, intent, 12);
+  const aiLeads = variants.filter(item => item.reason.startsWith('AI:'));
+  const secondaryLeads = variants.filter(item => item.reason.startsWith('secondary intent:'));
+  const intentLeads = variants.filter(item => item.reason.startsWith('intent:'));
+
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
-  if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) add(intent.searchQuery, 'intent-focused subject');
-  const intentVariants = buildIntentQueryVariants(raw, intent, 6);
-  for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
-  // AI-proposed leads are inserted before generic fallbacks so the bounded
-  // provider budget actually tests the model's interpretation.
-  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
-  // For applications, prioritize official admissions routes and requirements over
-  // generic keyword matches such as pages that merely contain the word "apply".
-  if (intent.type === 'application' && intent.searchQuery) {
+  if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) {
     add(intent.searchQuery, 'intent-focused subject');
-    add(intent.searchQuery + ' official admissions application portal', 'intent: application');
-    add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
-  for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
-  const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
-  const meaningful = words.filter(w => !STOP.has(w));
+
+  if (intent.type === 'application' && intent.searchQuery) {
+    add(intent.searchQuery + ' official admissions application portal', 'intent: application');
+    // Explicit user objectives outrank speculative AI suggestions.
+    if (secondaryLeads.length) {
+      for (const item of secondaryLeads) add(item.query, item.reason);
+    } else if (aiLeads.length) {
+      add(aiLeads[0].query, aiLeads[0].reason);
+    }
+    if (!secondaryLeads.length) add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
+    for (const item of aiLeads.slice(1)) add(item.query, item.reason);
+    for (const item of intentLeads) add(item.query, item.reason);
+  } else {
+    // AI-proposed leads are useful, but remain below the original request and subject.
+    for (const item of aiLeads) add(item.query, item.reason);
+    for (const item of secondaryLeads) add(item.query, item.reason);
+    for (const item of intentLeads) add(item.query, item.reason);
+  }
+
+  const words = [...new Set((raw.toLocaleLowerCase().match(/[\\p{L}\\p{N}][\\p{L}\\p{N}._+-]*/gu) || []))];
+  const meaningful = words.filter(word => !STOP.has(word));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
-  // Prefer useful related wording before broad OR queries and individual tokens.
   for (const word of words) {
-    if (queries.length >= maxQueries || queries.some(item => item.reason === 'related wording')) break;
-    const variants = SYNONYMS.get(word);
-    if (variants) {
-      const variant = variants[0];
+    if (queries.length >= limit || queries.some(item => item.reason === 'related wording')) break;
+    const related = SYNONYMS.get(word);
+    if (related) {
       const at = raw.toLocaleLowerCase().indexOf(word);
-      add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
+      add(at >= 0 ? raw.slice(0, at) + related[0] + raw.slice(at + word.length) : raw + ' ' + related[0], 'related wording');
     }
   }
   if (meaningful.length > 1) add(meaningful.join(' OR '), 'broad term match');
-  // Spend remaining query slots on individual input tokens.
   for (const word of words) {
-    if (queries.length >= maxQueries) break;
+    if (queries.length >= limit) break;
     if (word.length >= 2) add(word, 'individual keyword');
   }
-  return queries.slice(0, maxQueries);
+  return queries;
 }
-
 async function getJson(url, timeout = 9000) {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeout), headers: { 'user-agent': 'ADVERSE-Research/1.0 (public-interest source discovery)', accept: 'application/json' } });
   if (!response.ok) throw new Error('Provider returned HTTP ' + response.status);
@@ -349,7 +360,8 @@ function publicSearchCacheKey(input, context = '', intent = null) {
   const normalized = Array.isArray(input)
     ? JSON.stringify(input.slice(0, 5).map(item => typeof item === 'string' ? item : { query: item?.query, reason: item?.reason }))
     : clean(input, 200).normalize('NFKC').toLocaleLowerCase();
-  return normalized + ':' + clean(context, 1200).toLocaleLowerCase() + ':' + clean(intent?.type || '') + ':' + clean(intent?.searchQuery || '');
+  const secondary = Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents.slice(0, 3).join(',') : '';
+  return normalized + ':' + clean(context, 1200).toLocaleLowerCase() + ':' + clean(intent?.type || '') + ':' + clean(intent?.searchQuery || '') + ':' + secondary;
 }
 
 /**
