@@ -2,21 +2,27 @@
 
 **Release posture:** Deployed beta / controlled testing. Phases 4–10 are implemented and deployed; the latest automated release checks are green. A broad public launch is **not** cleared because the production backup/restore drill, live alert-email delivery, full resilience exercise, Atlas network restriction, and independent security review still require owner-controlled configuration or external verification.
 
-**Record updated:** 2026-11-20  
+**Record updated:** 2026-11-21  
 **Repository:** https://github.com/Ad3n1x/ADVERSE  
 **Production web:** https://adverse-web.onrender.com/  
 **Production API:** https://adverse-api-7yim.onrender.com/  
-**Latest source commit:** `635d04f7bd99de29bfaaf93a542e0c6a362ba97a` — Pin one Three.js runtime across the relationship graph
+**Latest source commit:** `3c831c1b395828463996ee8452559a1870c99816` — Complete ADVERSE research and production hardening
 
-**Render frontend deployment:** `dep-dc09vjt9el5s73fdqveg` — confirmed `live` on the latest commit.  
-**Render API deployment:** `dep-dc09vhre6fdc73c156b0` — confirmed `live` on the latest commit.  
-**CI:** [Run 44802720991 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720991)  
-**Quality gates:** [Run 44802721007 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802721007)  
-**Security:** [Run 44802720973 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720973), including CodeQL and the production dependency audit.
+**Render frontend deployment:** `dep-dc0keed9el5s73edm3c0` — confirmed `live` on commit `3c831c1b395828463996ee8452559a1870c99816`.  
+**Render API deployment:** `dep-dc0kecrrjlhs73a1rsc0` — confirmed `live` on commit `3c831c1b395828463996ee8452559a1870c99816`.  
+**CI:** [Run 44879870566 — successful, including post-deploy API check](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870566)  
+**Quality gates:** [Run 44879870551 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870551)  
+**Security:** [Run 44879870573 — successful](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870573), including CodeQL and the production dependency audit.
 
 ## What this record means
 
 This record summarizes repository changes and observed deployment/test evidence. It is not an OpenAI-issued certificate, endorsement, security audit, or guarantee of correctness. OpenAI has not independently reviewed or certified ADVERSE through this document.
+
+## Latest product milestone — deployed on Render
+
+The primary `/experience` workspace now includes the public-event 3D globe, the evidence/claim constellation, on-demand public destination checks with redirect history, and cross-domain alternative-source candidates. Saved evidence capacity is 24 sources per workspace, with existing review state preserved on refresh. The globe uses attributed USGS earthquake and NASA EONET natural-event feeds plus public STAC metadata; it has a usable event-list fallback when WebGL is unavailable. These additions are bounded public-source research tools, not truth verification or personal tracking.
+
+The backup workflow now uses streaming authenticated AES-256-GCM encryption and an isolated restore job. Brevo alert state distinguishes API acceptance from inbox delivery. These code-level changes do not mean a production backup/restore drill or real inbox delivery has been verified.
 
 ## Phases 4–10 — implemented and deployed
 
@@ -28,17 +34,17 @@ This record summarizes repository changes and observed deployment/test evidence.
 | 7 — Coverage and gaps | Counts, distinct hostnames, providers, provider spread and missing metadata indicators | Implemented; browser test passes; no automated credibility score |
 | 8 — Source chronology | Separate publication, retrieval, workspace-save and recorded link-check times | Implemented; browser test passes |
 | 9 — Run history | Owner-scoped recent run records, deduplication and a bounded history | Implemented; API and browser checks pass |
-| 10 — Verification and usability | Browser coverage for the experience, triage, claims, export, coverage, chronology, run history, geospatial workflows and responsive layout | Implemented; 13 Playwright tests passed in 32.9 seconds on the latest run |
+| 10 — Verification and usability | Browser coverage for the experience, triage, claims, export, coverage, chronology, run history, geospatial workflows and responsive layout | Implemented; 13 Playwright tests completed, with 12 passing on the first attempt and the geospatial test passing on its automatic retry; investigate the remaining timing flake |
 
 The 3D relationship graph runtime was also stabilized by pinning Three.js to `0.187.0`, forcing one dependency version through npm overrides, and enabling Vite module deduplication. The geospatial browser test now explicitly fails if the previously observed `intersectsFrustum` renderer exception returns.
 
 ## Verified on the latest commit
 
-- Render frontend and API deployments are both marked `live` on commit `635d04f7bd99de29bfaaf93a542e0c6a362ba97a`.
-- The API liveness/readiness and public-search contract checks passed.
+- Render frontend deployment `dep-dc0keed9el5s73edm3c0` and API deployment `dep-dc0kecrrjlhs73a1rsc0` are both marked `live` on commit `3c831c1b395828463996ee8452559a1870c99816`.
+- The API liveness/readiness, public-search contract, deployed fallback frontend and CORS checks passed after the new Render deployment.
 - API syntax and regression tests passed, including the additional cross-account test for private evidence, alert actions and domain-monitoring assets.
 - Frontend TypeScript type-check and production build passed.
-- Playwright: **13 passed (32.9s)**; no flaky retry on this run.
+- Playwright: 12 tests passed on the first attempt; the geospatial integration test exceeded its 30-second limit once, then passed on retry. The overall CI workflow passed, but the test remains a timing-flake follow-up.
 - Quality-gate workflow passed.
 - CodeQL and the production dependency audit passed.
 
@@ -91,9 +97,9 @@ Do not describe ADVERSE as “GPT-6 certified” or “OpenAI certified.” A tr
 
 ## Reproducible evidence
 
-1. [CI — run 44802720991](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720991)
-2. [Quality gates — run 44802721007](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802721007)
-3. [CodeQL and dependency audit — run 44802720973](https://github.com/Ad3n1x/ADVERSE/actions/runs/44802720973)
+1. [CI — run 44879870566](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870566)
+2. [Quality gates — run 44879870551](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870551)
+3. [CodeQL and dependency audit — run 44879870573](https://github.com/Ad3n1x/ADVERSE/actions/runs/44879870573)
 4. [Operations runbook](OPERATIONS.md)
 5. [Backup workflow](../.github/workflows/database-backup.yml)
 6. [Render API service](https://dashboard.render.com/web/srv-dbbqbq2fngtc73a716b0)
