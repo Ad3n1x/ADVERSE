@@ -6,6 +6,8 @@ const clean = value => String(value ?? '')
   .slice(0, 500);
 
 const RULES = [
+  // Application intent must be recognized before generic entity/how-to wording.
+  { type: 'application', label: 'Find the official application or admissions route', patterns: [/\\b(i\\s+want\\s+to\\s+apply|i\\s+would\\s+like\\s+to\\s+apply|want\\s+to\\s+apply|apply\\s+(?:to|for)|application\\s+(?:for|to)|admission(?:s)?\\s+(?:for|to)|how\\s+to\\s+apply)\\b/i], confidence: 0.94, sourcePreference: 'official' },
   { type: 'destination', label: 'Find an official or working destination', patterns: [/\b(official\s+(website|site|page)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download))\b/i], confidence: 0.91, sourcePreference: 'official' },
   { type: 'verification', label: 'Check a claim against evidence', patterns: [/\b(is\s+it\s+true|is\s+this\s+true|verify|verification|fact\s*check|fact-check|debunk|real\s+or\s+fake|truth\s+about|scam|fraud|legitimate|authenticity|did\s+.*\s+happen)\b/i], confidence: 0.88, sourcePreference: 'primary-and-independent' },
   { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|updates?|news|202[5-9])\b/i], confidence: 0.9, sourcePreference: 'recent' },
@@ -83,6 +85,7 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   };
 
   const suffixes = {
+    application: ['official admissions application portal', 'undergraduate admission requirements', 'application deadline and how to apply'],
     destination: ['official site domain'],
     verification: ['primary source evidence', 'independent fact check'],
     'current-events': ['latest reports official statement'],
