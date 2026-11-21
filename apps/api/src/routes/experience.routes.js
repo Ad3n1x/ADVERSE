@@ -64,21 +64,21 @@ function detectKind(value) {
 }
 
 function deterministicPlan(value, semantic = understandSearchIntent(value)) {
-  const request = value.trim().replace(/\\s+/g, ' ');
+  const request = value.trim().replace(/\s+/g, ' ');
   const semanticType = semantic?.type || 'general-research';
   const kind = semanticType === 'comparison' ? 'compare'
     : ['how-to', 'application'].includes(semanticType) ? 'plan'
-      : ['general-research'].includes(semanticType) ? detectKind(request)
+      : semanticType === 'general-research' ? detectKind(request)
         : 'research';
   const explicitConstraints = [
-    ...Array.from(request.matchAll(/\\b(?:under|below|within|before|after|by|between)\\s+[^,.;!?]+/gi), match => match[0].trim()),
-    ...Array.from(request.matchAll(/\\b(?:using|without)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between)\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\b(?:using|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ];
   const constraints = [...new Set([...(semantic?.constraints || []), ...explicitConstraints])].slice(0, 5);
   const focus = String(semantic?.subject || semantic?.searchQuery || '').trim() || request;
   const application = semanticType === 'application';
   const subgoals = Array.isArray(semantic?.subgoals) ? semantic.subgoals.filter(Boolean).slice(0, 5) : [];
-  const actionPattern = /\\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\\b|\\b(send|message|email|invite|share)\\b.{0,50}\\b(to|with|via|through)\\b/i;
+  const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
   return {
     kind, request, focus: focus.slice(0, 180),
     outcome: application
@@ -165,6 +165,7 @@ export function registerExperienceRoutes(app, {
     const providerNames = (interpretation?.providers || []).filter(item => item.status === 'success').map(item => item.name);
     const provider = providerNames.length > 1 ? providerNames.join(' + ')
       : providerNames[0] || (aiBacked ? interpretation.provider : 'ADVERSE local semantic planner');
+    plan.providerLabel = provider;
     return res.json({ data: { plan, engine: {
       mode: aiBacked ? 'ai' : 'deterministic',
       provider,
