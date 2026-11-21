@@ -49,7 +49,7 @@ export function resolveIntentEntities(query) {
   const normalized = normalizeSearchText(query, 500);
   const institution = matchEntry(normalized, INSTITUTIONS);
   const programme = matchEntry(normalized, PROGRAMMES);
-  const nigeria = Boolean(institution) || /\\b(?:nigeria|nigerian)\\b/i.test(normalized);
+  const nigeria = Boolean(institution) || /\b(?:nigeria|nigerian)\b/i.test(normalized);
   const entities = [];
 
   if (institution) entities.push({
