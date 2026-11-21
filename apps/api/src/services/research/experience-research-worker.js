@@ -200,6 +200,7 @@ async function saveJobResults(job, sources, live) {
   const workflow = finalizeResearchWorkflow(workflowSeed, {
     entities: live.meta?.resolvedIntent?.entities || [],
     sourceCount: mergedSources.length,
+    searchCompleted: true,
     checkedCount: mergedSources.filter(source => source.linkCheck?.checkedAt).length,
     claimCount: typedClaims.length,
     comparisonCount: 0,
