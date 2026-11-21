@@ -60,10 +60,10 @@ type GuidedTaskPlan = { title: string; summary: string; steps: GuidedTaskStep[];
 
 function buildGuidedTaskPlan(plan: IntentPlan, sources: ExperienceSource[], previous: GuidedTaskPlan | null = null): GuidedTaskPlan {
   const semantic = String(plan.semanticType || '').toLowerCase();
-  const application = semantic === 'application' || /\\b(apply|admission|application portal)\\b/i.test(plan.request);
-  const fees = semantic === 'fees-costs' || /\\b(price|fees?|tuition|cost)\\b/i.test(plan.request);
+  const application = semantic === 'application' || /\b(apply|admission|application portal)\b/i.test(plan.request);
+  const fees = semantic === 'fees-costs' || /\b(price|fees?|tuition|cost)\b/i.test(plan.request);
   const focus = plan.focus || plan.request;
-  const institution = /\\b(abuad|university|college|polytechnic|institute)\\b/i.test(focus);
+  const institution = /\b(abuad|university|college|polytechnic|institute)\b/i.test(focus);
   const definitions: Array<{ title: string; instruction: string; terms: string[] }> = application ? [
     { title: 'Find the official admissions destination', instruction: 'Open the institution’s official admissions page. Confirm that the page belongs to the institution before entering personal information.', terms: ['admission', 'admissions', 'application', 'portal'] },
     { title: 'Confirm the requested programme is offered', instruction: 'Check the exact programme name, award and study level. Do not assume a similar programme title is identical.', terms: ['mechatronics', 'programme', 'program', 'course', 'department'] },
@@ -82,7 +82,7 @@ function buildGuidedTaskPlan(plan: IntentPlan, sources: ExperienceSource[], prev
     instruction: index === 0
       ? 'Start with the most authoritative source linked to this step. Check that it directly addresses your requested outcome.'
       : 'Use the linked source to complete this part of the task. If the instructions differ from earlier findings, pause and re-check the original source.',
-    terms: title.toLowerCase().split(/\\s+/).filter(word => word.length > 3),
+    terms: title.toLowerCase().split(/\s+/).filter(word => word.length > 3),
   }));
   const prior = new Map((previous?.steps || []).map(step => [step.id, step]));
   const coreTerms = focus.toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 3 && !['degree','course','programme','program','price','fees','tuition','find','official','current'].includes(word));
@@ -92,7 +92,7 @@ function buildGuidedTaskPlan(plan: IntentPlan, sources: ExperienceSource[], prev
       const text = [item.title, item.publisher, item.url, item.excerpt].join(' ').toLowerCase();
       const matchedCore = coreTerms.filter(term => text.includes(term)).length;
       const matchedTask = definition.terms.filter(term => text.includes(term)).length;
-      const official = /\\.(edu\\.ng|edu|gov\\.ng|gov)(\\.|\\/|$)/i.test(item.url) ? 2 : 0;
+      const official = /\.(edu\.ng|edu|gov\.ng|gov)(\.|\/|$)/i.test(item.url) ? 2 : 0;
       return { item, score: matchedCore * 3 + matchedTask + official };
     }).sort((a, b) => b.score - a.score)[0];
     const matchedSource = source && source.score >= (institution ? 4 : 2) ? source.item : null;
