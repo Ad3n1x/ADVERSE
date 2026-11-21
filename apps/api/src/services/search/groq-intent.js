@@ -140,6 +140,24 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
     try {
       const parsed = await requestGroq(original, apiKey, model);
       const value = normalizeModelResult(parsed, original, fallback, model);
+      const needsSecondOpinion = original.length > 85 || /\\b(i want|i need|help me|and then|as well as|both|also|because|so that|in order to)\\b/i.test(original);
+      const hasGemini = Boolean(providerKeys.GEMINI_API_KEY || env.GEMINI_API_KEY);
+      if (needsSecondOpinion && hasGemini) {
+        const secondOpinion = await understandSearchIntentWithGemini(original, { env, providerKeys });
+        if (secondOpinion) {
+          const suggestions = [...value.suggestedQueries, ...secondOpinion.suggestedQueries]
+            .filter((item, index, rows) => rows.findIndex(other => other.query.toLowerCase() === item.query.toLowerCase()) === index)
+            .slice(0, 3);
+          const disagreements = secondOpinion.type !== value.type
+            ? ['Groq and Gemini interpreted the request differently: Groq identified ' + value.type + ', while Gemini identified ' + secondOpinion.type + '. The original request is preserved for search.']
+            : [];
+          value.suggestedQueries = suggestions;
+          value.ambiguities = [...value.ambiguities, ...secondOpinion.ambiguities, ...disagreements].slice(0, 3);
+          value.provider = 'groq+gemini';
+          value.model = model + ' + ' + secondOpinion.model;
+          if (disagreements.length) value.explanation += ' Gemini provided a second interpretation; the original request remains unchanged because the models disagreed.';
+        }
+      }
       while (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
       cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value });
       return value;
