@@ -76,7 +76,7 @@ async function planWithCompatibleProvider(base, key, model, prompt) {
   return parseLeadResponse(data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '');
 }
 
-export async function planAgentFollowUps({ question, results, providerKeys = {}, env = process.env }) {
+export async function planAgentFollowUps({ question, results, providerKeys = {}, env = process.env, context = '' }) {
   const groqKey = String(providerKeys.GROQ_API_KEY || env.GROQ_API_KEY || '').trim();
   const groqModel = String(env.GROQ_INTENT_MODEL || 'openai/gpt-oss-20b').trim();
   const geminiKey = String(providerKeys.GEMINI_API_KEY || env.GEMINI_API_KEY || '').trim();
@@ -90,7 +90,8 @@ export async function planAgentFollowUps({ question, results, providerKeys = {},
     return (index + 1) + '. Title: ' + clean(item.title, 180) + '\n   Source: ' + clean(host, 100) + '\n   Snippet: ' + clean(item.excerpt || item.description, 320);
   }).join('\n');
   if (!sourceContext) return { leads: [], mode: 'heuristic', provider: null };
-  const intent = await understandSearchIntentWithGroq(question, { providerKeys, env, context: sourceContext });
+  const intentContext = [clean(context, 900), sourceContext].filter(Boolean).join('\\n');
+  const intent = await understandSearchIntentWithGroq(question, { providerKeys, env, context: intentContext });
   const prompt = 'Investigation question: ' + clean(question, 500)
     + '\n\nDual-provider intent interpretation (planning context, not facts):'
     + '\nPrimary goal: ' + intent.type + ' — ' + clean(intent.goal || intent.label, 220)
