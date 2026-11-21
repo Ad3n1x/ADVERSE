@@ -64,6 +64,14 @@ test('authenticated experience supports source triage, claim links, chronology, 
     }
     await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ data: { id: 'workspace-e2e-review', intent: 'Research public energy storage', kind: 'research', createdAt: Date.now() } }) });
   });
+  // Force the direct-search fallback in this UI test; background-job behavior is covered separately.
+  await page.route('**/api/v1/experience/jobs', async route => {
+    await route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: { code: 'JOB_QUEUE_UNAVAILABLE', message: 'Use direct search fallback in this test.' } }),
+    });
+  });
   await page.route('**/api/v1/public-search?*', async route => {
     await route.fulfill({
       status: 200,
