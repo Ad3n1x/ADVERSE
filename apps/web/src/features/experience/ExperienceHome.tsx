@@ -908,13 +908,13 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 <GeospatialIntelligencePanel onSave={saveGeospatialSource} canSave={Boolean(activeWorkspaceId)} />
               </Suspense>
             </div>}
+            </details>
             {activeWorkspaceId && <details className="experience-progress-details"><summary>Claims, dossier, run history and access documents</summary>
               <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} refreshKey={runRefreshKey} />
               <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
               <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
               <WorkspaceAccessDocuments workspaceId={activeWorkspaceId} />
             </details>}
-            </details>
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
                 <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
