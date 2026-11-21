@@ -93,8 +93,9 @@ function buildGuidedTaskPlan(plan: IntentPlan, sources: ExperienceSource[], prev
       const matchedCore = coreTerms.filter(term => text.includes(term)).length;
       const matchedTask = definition.terms.filter(term => text.includes(term)).length;
       const official = /\.(edu\.ng|edu|gov\.ng|gov)(\.|\/|$)/i.test(item.url) ? 2 : 0;
-      return { item, score: matchedCore * 3 + matchedTask + official };
-    }).sort((a, b) => b.score - a.score)[0];
+      return { item, score: matchedCore * 3 + matchedTask + official, matchedCore, matchedTask };
+    }).filter(candidate => candidate.matchedCore > 0 && candidate.matchedTask > 0)
+      .sort((a, b) => b.score - a.score)[0];
     const matchedSource = source && source.score >= (institution ? 4 : 2) ? source.item : null;
     const old = prior.get(id);
     return {
