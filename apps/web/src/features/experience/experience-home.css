@@ -280,3 +280,14 @@
 .experience-job-control-notice{margin:6px 0 10px;color:#9db9ad;font-size:10px;line-height:1.55}
 
 .experience-claim-auto-label{display:inline-flex;align-items:center;padding:3px 6px;border:1px solid rgba(128,183,157,.24);border-radius:4px;color:#9ccab3;font:8px 'DM Mono',monospace;letter-spacing:.07em}
+
+/* Keep the primary investigation readable; specialist tools stay available on demand. */
+.experience-advanced-tools{margin:18px 0;border:1px solid rgba(113,160,157,.16);border-radius:10px;background:rgba(10,22,29,.52)}
+.experience-advanced-tools>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;color:#b8d5ca;font-size:11px;font-weight:600;cursor:pointer;list-style:none}
+.experience-advanced-tools>summary::-webkit-details-marker{display:none}
+.experience-advanced-tools>summary:after{content:"+";color:#8fe0c5;font:16px 'DM Mono',monospace}
+.experience-advanced-tools[open]>summary:after{content:"−"}
+.experience-advanced-tools>summary span{margin-left:auto;color:#78958b;font:8px 'DM Mono',monospace;text-align:right}
+.experience-advanced-tools-content{display:grid;gap:15px;padding:0 14px 14px;border-top:1px solid rgba(113,160,157,.1)}
+.experience-advanced-tools-content>.experience-workspace-grid{margin-top:14px}
+@media(max-width:620px){.experience-advanced-tools>summary{align-items:flex-start;flex-wrap:wrap}.experience-advanced-tools>summary span{width:100%;margin-left:0;text-align:left}}
