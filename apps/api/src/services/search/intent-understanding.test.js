@@ -14,6 +14,7 @@ test('understands university application intent and isolates the institution', (
     const intent = understandSearchIntent(query);
     assert.equal(intent.type, 'application');
     assert.equal(intent.searchQuery, 'ABUAD');
+    assert.deepEqual(intent.secondaryIntents, []);
     const variants = buildIntentQueryVariants(query, intent, 5);
     assert.ok(variants.some(item => /official admissions application portal/i.test(item.query)));
     assert.ok(variants.some(item => /admission requirements eligibility/i.test(item.query)));
@@ -98,4 +99,16 @@ test('preserves institution-name words when extracting application targets', () 
     assert.equal(intent.type, 'application');
     assert.equal(intent.searchQuery, expected);
   }
+});
+
+
+test('extracts multiple objectives without swallowing the institution name', () => {
+  const query = 'I want to apply to ABUAD and find tuition fees and the admission deadline';
+  const intent = understandSearchIntent(query);
+  assert.equal(intent.type, 'application');
+  assert.equal(intent.searchQuery, 'ABUAD');
+  assert.deepEqual(intent.secondaryIntents, ['fees-costs', 'deadline']);
+  const variants = buildIntentQueryVariants(query, intent, 12);
+  assert.ok(variants.some(item => item.reason === 'secondary intent: fees-costs'));
+  assert.ok(variants.some(item => item.reason === 'secondary intent: deadline'));
 });
