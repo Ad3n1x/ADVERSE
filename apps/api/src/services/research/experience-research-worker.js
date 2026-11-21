@@ -7,6 +7,7 @@ import { understandSearchIntent } from '../search/intent-understanding.js';
 import { evaluateAnswerStatus } from './answer-status.js';
 import { ResolvedIntentSchema, TypedClaimSchema } from './research-contracts.js';
 import { buildResearchWorkflow, finalizeResearchWorkflow } from './workflow-engine.js';
+import { buildTypedClaim } from './typed-claim-extraction.js';
 import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
@@ -171,17 +172,9 @@ async function saveJobResults(job, sources, live) {
       .filter(url => mergedSources.some(saved => saved.url === url)))].slice(0, 12);
     if (!statement || !sourceIds.length) continue;
     const claimId = 'typed-' + crypto.createHash('sha256').update(statement.toLocaleLowerCase()).digest('hex').slice(0, 32);
-    const parsed = TypedClaimSchema.safeParse({
-      claimId,
-      type: 'general-fact',
-      statement,
-      value: { amount: null, currency: null, unit: null, text: statement },
-      entityId: null,
-      academicSession: null,
-      sourceIds,
-      assessment: 'unreviewed',
-      confidence: 0
-    });
+    const typedCandidate = buildTypedClaim(candidate, sourceIds, claimId);
+    if (!typedCandidate) continue;
+    const parsed = TypedClaimSchema.safeParse(typedCandidate);
     if (parsed.success) typedClaimsById.set(claimId, parsed.data);
   }
   const typedClaims = [...typedClaimsById.values()].slice(0, 80);
