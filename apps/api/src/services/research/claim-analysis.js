@@ -65,14 +65,14 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
   const records = (Array.isArray(evidence)?evidence:[]).slice(0,100).map(e=>({
     id:idOf(e), title:clean(e.title,240), url:clean(e.url,2048), publisher:clean(e.publisher||hostOf(e.url),200),
     host:hostOf(e.url), publishedAt:e.publishedAt||null, retrievedAt:e.retrievedAt||e.createdAt||null,
-    verificationStatus:e.verificationStatus||'unverified', excerptLength:clean(e.excerpt,5000).length, sourceTypeSignal:sourceTypeSignal({title:e.title,url:e.url,publisher:e.publisher||hostOf(e.url)}), text:[e.title,e.excerpt].filter(Boolean).join('. ')
+    verificationStatus:e.verificationStatus||'unverified', excerpt:clean(e.excerpt,5000), excerptLength:clean(e.excerpt,5000).length, sourceTypeSignal:sourceTypeSignal({title:e.title,url:e.url,publisher:e.publisher||hostOf(e.url)}), text:[e.title,e.excerpt].filter(Boolean).join('. ')
   }));
   const candidates=[];
   for(const source of records) {
     for(const sentence of splitSentences(source.text)) {
       if(!ASSERTION.test(sentence)&&numbers(sentence).length===0) continue;
       if(/^(?:click here|read more|subscribe|cookie policy|privacy policy)\b/i.test(sentence))continue;
-      const claim={text:sentence,normalized:normalize(sentence),sourceId:source.id,sourceTitle:source.title,url:source.url,publisher:source.publisher,host:source.host,publishedAt:source.publishedAt,retrievedAt:source.retrievedAt,verificationStatus:source.verificationStatus,excerptLength:source.excerptLength,sourceTypeSignal:source.sourceTypeSignal,numbers:numbers(sentence)};
+      const claim={text:sentence,normalized:normalize(sentence),sourceId:source.id,sourceTitle:source.title,url:source.url,publisher:source.publisher,host:source.host,publishedAt:source.publishedAt,retrievedAt:source.retrievedAt,verificationStatus:source.verificationStatus,excerptLength:source.excerptLength,sourceText:source.excerpt,sourceTypeSignal:source.sourceTypeSignal,numbers:numbers(sentence)};
       if(candidates.some(c=>c.sourceId===claim.sourceId&&similarity(c.text,claim.text)>.9))continue;
       candidates.push(claim);
       if(candidates.length>=limit)break;
@@ -93,6 +93,16 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
     const sources=[...new Map(group.claims.map(c=>[sourceUrlKey(c.url)||c.sourceId,c])).values()];
     const domains=[...new Set(sources.map(s=>s.host))];
     const pairs=[];
+    const possibleSyndicationSignals=[];
+    for(let i=0;i<sources.length;i++)for(let j=i+1;j<sources.length;j++){
+      const a=sources[i],b=sources[j];
+      if(a.host===b.host||a.excerptLength<100||b.excerptLength<100)continue;
+      const passageSimilarity=similarity(a.sourceText,b.sourceText);
+      if(passageSimilarity>=0.82)possibleSyndicationSignals.push({
+        sourceA:a.sourceId, sourceB:b.sourceId, lexicalSimilarity:Number(passageSimilarity.toFixed(2)),
+        note:'These excerpts are unusually similar across different hostnames. They may share a press release, wire story, copied passage, or common source; do not count them as independent corroboration without tracing provenance.'
+      });
+    }
     for(let i=0;i<group.claims.length;i++)for(let j=i+1;j<group.claims.length;j++){
       const a=group.claims[i],b=group.claims[j];
       const urlA=sourceUrlKey(a.url),urlB=sourceUrlKey(b.url);
@@ -103,7 +113,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
       if(numericConflict||polarityConflict)pairs.push({sourceA:a.sourceId,sourceB:b.sourceId,kind:numericConflict?'different_numeric_details':'possible_polarity_conflict',detail:numericConflict?'Similar statements contain different numeric/date tokens. Check units, dates, context, and source quality.':'Similar statements differ in negation or denial language. Confirm they discuss the same proposition and timeframe.'});
     }
     const independentSources=domains.filter(d=>d!=='unknown source').length;
-    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,distinctSourceHosts:independentSources,sourceDiversity:diversitySignal(sources),sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,...s})=>s),status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
+    return {id:group.id,claim:group.canonicalText,sourceCount:sources.length,distinctPublisherDomains:independentSources,distinctSourceHosts:independentSources,sourceDiversity:diversitySignal(sources),sourceIds:sources.map(s=>s.sourceId),sources:sources.map(({text,excerpt,sourceText,...s})=>s),possibleSyndicationSignals,status:pairs.length?'needs_review':sources.length>1?'repeated_claim':'single_source',possibleConflicts:pairs,assessment:sources.length>1?'Repeated wording/topic across records; independence and actual support have not been established.':'Single-source claim candidate; seek independent corroboration.'};
   });
   output.sort((a,b)=>(b.possibleConflicts.length-a.possibleConflicts.length)||(b.sourceCount-a.sourceCount));
   const provenanceClusters=new Map();
@@ -120,7 +130,7 @@ export function analyzeEvidenceClaims(evidence, limit=120) {
     limitations:[
       'This is a triage aid, not a fact-checker. It does not determine whether a claim is true, false, or legally significant.',
       'Lexical similarity can miss paraphrases and can group unrelated statements. Numeric differences can be legitimate due to units, dates, definitions, or context.',
-      'Different publisher domains do not prove independent reporting; shared ownership, wire services, press releases, and citation chains must be inspected.',
+      'Different publisher domains do not prove independent reporting; shared ownership, wire services, press releases, copied passages, and citation chains must be inspected. Similar stored excerpts are only a syndication lead, not proof of copying.',
       'Only stored titles and excerpts are analyzed, not necessarily the full linked pages. Every candidate needs human review.'
     ]
   };
