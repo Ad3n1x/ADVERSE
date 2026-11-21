@@ -11,6 +11,36 @@ const clean = (value, max = 1200) => normalizeSearchText(
   max
 );
 
+const PUBLIC_PROVIDER_NAMES = [
+  'Wikipedia / Crossref / OpenAlex',
+  'GDELT Global News',
+  'Google News',
+  'Wikidata Knowledge Graph',
+  'Purili Web Search',
+  'Truegle Web Search'
+];
+
+/** Select provider families by task; this controls discovery, not the final relevance decision. */
+export function getPublicProviderPolicy(intent = {}) {
+  const type = String(intent?.type || 'general-research');
+  const primaryWebTasks = new Set([
+    'application', 'eligibility', 'fees-costs', 'programme-availability',
+    'deadline', 'scholarship-funding'
+  ]);
+  if (primaryWebTasks.has(type)) {
+    return PUBLIC_PROVIDER_NAMES.filter(name => name !== 'Wikipedia / Crossref / OpenAlex');
+  }
+  if (type === 'destination') {
+    return PUBLIC_PROVIDER_NAMES.filter(name =>
+      !['Wikipedia / Crossref / OpenAlex', 'GDELT Global News', 'Google News'].includes(name)
+    );
+  }
+  if (type === 'how-to') {
+    return PUBLIC_PROVIDER_NAMES.filter(name => !['GDELT Global News', 'Google News'].includes(name));
+  }
+  return [...PUBLIC_PROVIDER_NAMES];
+}
+
 const TRACKING_PARAMS = /^(utm_[^=]+|gclid|dclid|fbclid|msclkid|mc_cid|mc_eid|ref_src|igshid|yclid|vero_id)$/i;
 
 /** Normalize URLs for deduplication without lowercasing case-sensitive paths or dropping meaningful query parameters. */
@@ -267,7 +297,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input, 6, intent);
-  const publicProviders = [
+  const allPublicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
     ['Google News', searchGoogleNews],
@@ -275,6 +305,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
     ['Purili Web Search', searchPurili],
     ['Truegle Web Search', searchTruegle]
   ];
+  const allowedProviders = new Set(getPublicProviderPolicy(intent));
+  const publicProviders = allPublicProviders.filter(([name]) => allowedProviders.has(name));
   // Public indexes get bounded query variants; user-connected API keys are only
   // called once per search to avoid multiplying quota usage by every variant.
   const publicSettledPromise = Promise.all(queryPlan.flatMap(plan => publicProviders.map(async ([name, run]) => {
@@ -345,8 +377,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
         rejectedCount: relevance.rejected.length,
         gate: 'subject-and-intent-metadata-v1'
       },
-      providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
-      coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
+      providerRequestStrategy: 'Intent-routed public providers receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
+      coverage: 'Bounded, intent-routed query expansion across selected public web, reference, news, knowledge-graph and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
   };
 }
