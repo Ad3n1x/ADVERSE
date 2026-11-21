@@ -280,3 +280,37 @@
 .experience-job-control-notice{margin:6px 0 10px;color:#9db9ad;font-size:10px;line-height:1.55}
 
 .experience-claim-auto-label{display:inline-flex;align-items:center;padding:3px 6px;border:1px solid rgba(128,183,157,.24);border-radius:4px;color:#9ccab3;font:8px 'DM Mono',monospace;letter-spacing:.07em}
+
+/* Keep the primary investigation readable; specialist tools stay available on demand. */
+.experience-advanced-tools{margin:18px 0;border:1px solid rgba(113,160,157,.16);border-radius:10px;background:rgba(10,22,29,.52)}
+.experience-advanced-tools>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;color:#b8d5ca;font-size:11px;font-weight:600;cursor:pointer;list-style:none}
+.experience-advanced-tools>summary::-webkit-details-marker{display:none}
+.experience-advanced-tools>summary:after{content:"+";color:#8fe0c5;font:16px 'DM Mono',monospace}
+.experience-advanced-tools[open]>summary:after{content:"−"}
+.experience-advanced-tools>summary span{margin-left:auto;color:#78958b;font:8px 'DM Mono',monospace;text-align:right}
+.experience-advanced-tools-content{display:grid;gap:15px;padding:0 14px 14px;border-top:1px solid rgba(113,160,157,.1)}
+.experience-advanced-tools-content>.experience-workspace-grid{margin-top:14px}
+@media(max-width:620px){.experience-advanced-tools>summary{align-items:flex-start;flex-wrap:wrap}.experience-advanced-tools>summary span{width:100%;margin-left:0;text-align:left}}
+
+/* Guided task: keep the next useful action more prominent than research metadata. */
+.experience-task-guide{margin:18px 0;padding:18px;border:1px solid rgba(105,209,184,.25);border-radius:13px;background:linear-gradient(145deg,rgba(19,48,46,.72),rgba(12,28,36,.92))}
+.experience-task-guide-head{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.experience-task-guide-head h3{margin:7px 0 0;color:#eff8f4;font:600 20px 'Space Grotesk',sans-serif}
+.experience-task-guide-head>span{flex:0 0 auto;padding:6px 9px;border:1px solid rgba(118,217,188,.2);border-radius:20px;color:#a6e6d1;font:9px 'DM Mono',monospace}
+.experience-task-guide>p{max-width:760px;margin:9px 0 15px;color:#9eb8b0;font-size:11px;line-height:1.65}
+.experience-task-steps{display:grid;gap:9px;margin:0;padding:0;list-style:none}
+.experience-task-steps>li{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:start;gap:12px;padding:12px;border:1px solid rgba(119,165,154,.13);border-radius:9px;background:rgba(5,17,24,.44)}
+.experience-task-steps>li.is-current{border-color:rgba(112,221,193,.42);background:rgba(21,56,49,.32)}
+.experience-task-steps>li.is-done{opacity:.72}
+.experience-task-step-number{display:grid;place-items:center;width:28px;height:28px;border:1px solid #315c55;border-radius:8px;background:#15332e;color:#86e2cb;font:9px 'DM Mono',monospace}
+.experience-task-step-body{min-width:0}
+.experience-task-step-body>strong{color:#e2f1eb;font-size:11px;font-weight:600}
+.experience-task-step-body>p{margin:5px 0 7px;color:#94aaa4;font-size:10px;line-height:1.6}
+.experience-task-step-body>a{display:inline-flex;align-items:center;gap:5px;color:#8fe6d0;font-size:10px;text-decoration:none;overflow-wrap:anywhere}
+.experience-task-step-body>a:hover{text-decoration:underline}
+.experience-task-no-source{display:block;color:#c5a879;font-size:9px;line-height:1.5}
+.experience-task-step-actions{display:flex;flex-direction:column;gap:6px}
+.experience-task-step-actions button{padding:7px 9px;border:1px solid rgba(110,210,186,.3);border-radius:6px;background:rgba(34,83,71,.4);color:#aeead6;font-size:9px;white-space:nowrap;cursor:pointer}
+.experience-task-step-actions button.experience-task-complete{border-color:rgba(132,160,153,.18);background:rgba(120,145,139,.07);color:#9eb6ad}
+.experience-task-save-notice{display:block;margin-top:10px;color:#7fa99b;font:9px 'DM Mono',monospace}
+@media(max-width:620px){.experience-task-guide{padding:13px}.experience-task-steps>li{grid-template-columns:28px minmax(0,1fr)}.experience-task-step-actions{grid-column:2;flex-direction:row;flex-wrap:wrap}.experience-task-guide-head h3{font-size:17px}}

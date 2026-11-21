@@ -34,6 +34,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
   let savedSources: any[] = [];
   let savedClaims: any[] = [];
   let savedRuns: any[] = [];
+  let savedTask: any = null;
 
   await page.route('**/api/v1/experience/resolve', async route => {
     await route.fulfill({
@@ -97,6 +98,14 @@ test('authenticated experience supports source triage, claim links, chronology, 
     }));
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedSources, meta: { saved: savedSources.length } }) });
   });
+  await page.route('**/api/v1/experience/workspaces/*/task', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedTask }) });
+      return;
+    }
+    savedTask = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedTask }) });
+  });
   await page.route('**/api/v1/experience/workspaces/*/claims', async route => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedClaims }) });
@@ -126,16 +135,21 @@ test('authenticated experience supports source triage, claim links, chronology, 
 
   await page.getByLabel('What do you want to accomplish?').fill('Research public energy storage');
   await page.getByRole('button', { name: /start investigation/i }).click();
-  await expect(page.getByText('Public energy storage report').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.experience-source-card').getByText('Public energy storage report').first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: /your guided task/i })).toBeVisible();
+  await expect(page.getByText('Gather relevant sources').first()).toBeVisible();
+  await page.locator('.experience-advanced-tools > summary').click();
   await expect(page.getByRole('heading', { name: /what this result set covers/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /known source dates/i })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Mark done' }).first().click();
+  await expect.poll(() => savedTask?.steps?.[0]?.status).toBe('completed');
   await page.locator('.experience-source-review-actions button').filter({ hasText: 'Useful' }).click();
   await page.getByLabel('Analyst note for Public energy storage report').fill('Compare this with an independent deployment dataset.');
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText('Review saved to this workspace.')).toBeVisible();
   await page.locator('.experience-review-toolbar button').filter({ hasText: 'Useful' }).click();
-  await expect(page.getByText('Public energy storage report').first()).toBeVisible();
+  await expect(page.locator('.experience-source-card').getByText('Public energy storage report').first()).toBeVisible();
 
   await page.getByLabel('Statement to examine').fill('Grid-scale energy storage deployment increased during the reporting period.');
   await page.getByLabel('Link source: Public energy storage report').check();

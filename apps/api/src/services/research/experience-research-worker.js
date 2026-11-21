@@ -1,7 +1,9 @@
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { ExperienceResearchJob, ExperienceWorkspace } from '../../models.js';
-import { searchAllPublic } from '../search/global-search.js';
+import { searchAllPublic, rankPublicResults } from '../search/global-search.js';
+import { understandSearchIntentWithGroq } from '../search/groq-intent.js';
+import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
 import { researchJobProgress, researchJobRetryDelayMs, RESEARCH_JOB_LEASE_MS } from './research-job-state.js';
@@ -180,21 +182,49 @@ async function executeJob(job, getUserProviderKeys) {
     await appendEvent(job.jobId, 'planning', 'Preparing your request and provider configuration.', researchJobProgress('planning'));
     if (await finishRequested(job)) return;
     const providerKeys = await getUserProviderKeys(job.ownerId).catch(() => ({}));
-    await appendEvent(job.jobId, 'searching', 'Searching public sources against your complete request.', researchJobProgress('searching'));
-    const live = await searchAllPublic(job.query, providerKeys || {});
-    if (await finishRequested(job)) return;
-    if (!(live.results || []).length && Number(live.meta?.failedSearches || 0) > 0) {
-      throw new Error('Public search providers are temporarily unavailable.');
+    await appendEvent(job.jobId, 'planning', 'Analysing the complete sentence and expanding it into focused sub-questions.', researchJobProgress('planning'));
+    let semantic = null;
+    try {
+      semantic = await understandSearchIntentWithGroq(job.query, { providerKeys: providerKeys || {} });
+    } catch {
+      // Deterministic intent rules remain available if Groq and Gemini are unavailable.
     }
+    const queries = buildResearchQueryPlan(job.query, semantic || {});
+    await appendEvent(job.jobId, 'searching', 'Searching the original request and ' + Math.max(0, queries.length - 1) + ' focused sub-questions.', researchJobProgress('searching'));
+    const outcomes = await Promise.allSettled(queries.map(query => searchAllPublic(query, providerKeys || {})));
+    if (await finishRequested(job)) return;
+    const completedSearches = outcomes.filter(item => item.status === 'fulfilled').map(item => item.value);
+    if (!completedSearches.length) throw new Error('Public search providers are temporarily unavailable.');
+    const combined = new Map();
+    for (const result of completedSearches.flatMap(item => Array.isArray(item.results) ? item.results : [])) {
+      const rawUrl = String(result.url || '').trim();
+      if (!rawUrl) continue;
+      const key = rawUrl.toLowerCase().split('#')[0];
+      if (!combined.has(key)) combined.set(key, result);
+      else {
+        const previous = combined.get(key);
+        combined.set(key, {
+          ...previous,
+          providers: [...new Set([...(previous.providers || []), ...(result.providers || []), ...(previous.provider ? [previous.provider] : []), ...(result.provider ? [result.provider] : [])])].slice(0, 8),
+        });
+      }
+    }
+    const rankedResults = rankPublicResults([...combined.values()], semantic?.searchQuery || job.query, semantic || {});
+    const liveResults = rankedResults.slice(0, 16);
     candidateSources = [];
-    for (const item of (Array.isArray(live.results) ? live.results : []).slice(0, 16)) {
+    for (const item of liveResults) {
       try { candidateSources.push(toWorkspaceSource(item)); } catch {}
     }
+    const successfulSearches = completedSearches.reduce((sum, item) => sum + Number(item.meta?.successfulSearches || 0), 0);
+    const failedSearches = outcomes.reduce((sum, item) => sum + (item.status === 'rejected' ? 1 : Number(item.value?.meta?.failedSearches || 0)), 0);
     searchMeta = {
-      successfulSearches: Number(live.meta?.successfulSearches || 0),
-      failedSearches: Number(live.meta?.failedSearches || 0),
+      successfulSearches,
+      failedSearches,
+      queries,
+      semanticType: semantic?.type || 'general-research',
+      intentProvider: semantic?.provider || 'rules-fallback',
       providerNames: [...new Set(candidateSources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
-      coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
+      coverage: 'Bounded public-source discovery across ' + queries.length + ' intent-focused searches. Provider indexes are not exhaustive.',
     };
     const checkpoint = await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
       $set: { candidateSources, searchMeta, searchCompleted: true, successfulSearches: searchMeta.successfulSearches, providerNames: searchMeta.providerNames, coverage: searchMeta.coverage },

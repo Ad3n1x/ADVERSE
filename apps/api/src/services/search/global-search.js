@@ -170,7 +170,7 @@ export function rankPublicResults(items, query, intent = null) {
   const tokens = value => normalize(value).split(/\s+/).filter(Boolean);
   const normalizedQuery = normalize(query);
   const allTerms = [...new Set(tokens(query))];
-  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app','i','want','would','like','apply','application','admission','admissions']);
+  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app','i','want','would','like','apply','application','admission','admissions','degree','degrees','programme','program','course','courses','price','prices','fee','fees','tuition']);
   const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
   const phrase = value => normalizedQuery.length >= 3 && (' ' + normalize(value) + ' ').includes(' ' + normalizedQuery + ' ');
   const hasTerm = (field, term) => (' ' + normalize(field) + ' ').includes(' ' + term + ' ');
@@ -210,7 +210,7 @@ export function rankPublicResults(items, query, intent = null) {
     const taskTerms = {
       application: ['admission','admissions','application','apply','applicant','portal','undergraduate','postgraduate','direct entry','registration'],
       eligibility: ['eligibility','entry requirements','admission requirements','qualifications','cut off','criteria'],
-      'fees-costs': ['tuition','school fees','fee schedule','acceptance fee','cost','charges'],
+      'fees-costs': ['tuition','tuition fees','school fees','fee schedule','programme fees','program fees','undergraduate fees','acceptance fee','cost','price','charges','accommodation'],
       'programme-availability': ['programme','program','course','degree','department','faculty','offered'],
       deadline: ['deadline','closing date','application closes','registration closes','important dates'],
       'scholarship-funding': ['scholarship','financial aid','bursary','funding','grant'],
