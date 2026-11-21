@@ -137,7 +137,7 @@ async function saveJobResults(job, sources, live) {
       .filter(source => mergedSources.some(saved => saved.url === source.url))
       .map(source => ({ url: source.url, role: 'context' }));
     if (!evidenceLinks.length) continue;
-    const normalizedClaim = clean(candidate.claim, 1000).toLocaleLowerCase().replace(/\\s+/g, ' ');
+    const normalizedClaim = clean(candidate.claim, 1000).toLocaleLowerCase().replace(/\s+/g, ' ');
     const claimId = 'auto-' + crypto.createHash('sha256').update(normalizedClaim).digest('hex').slice(0, 32);
     const previous = claimsById.get(claimId);
     if (previous) {
