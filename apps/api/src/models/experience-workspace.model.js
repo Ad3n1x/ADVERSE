@@ -70,6 +70,22 @@ const experienceDocumentSchema = new Schema({
   uploadedAt: { type: Date, required: true, default: Date.now },
 }, { _id: false });
 
+const experienceMemberSchema = new Schema({
+  userId: { type: String, required: true, maxlength: 100 },
+  email: { type: String, required: true, maxlength: 254 },
+  role: { type: String, enum: ['viewer'], default: 'viewer' },
+  addedBy: { type: String, required: true, maxlength: 100 },
+  addedAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
+const sharingEventSchema = new Schema({
+  userId: { type: String, required: true, maxlength: 100 },
+  email: { type: String, required: true, maxlength: 254 },
+  action: { type: String, enum: ['shared', 'revoked'], required: true },
+  actorId: { type: String, required: true, maxlength: 100 },
+  occurredAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
 const experienceWorkspaceSchema = new Schema({
   workspaceId: { type: String, required: true, maxlength: 100 },
   ownerId: { type: String, required: true, index: true },
@@ -79,6 +95,8 @@ const experienceWorkspaceSchema = new Schema({
   claims: { type: [experienceClaimSchema], default: [] },
   researchRuns: { type: [experienceRunSchema], default: [] },
   documents: { type: [experienceDocumentSchema], default: [] },
+  members: { type: [experienceMemberSchema], default: [] },
+  sharingEvents: { type: [sharingEventSchema], default: [] },
   createdAt: { type: Date, required: true, default: Date.now },
 }, { timestamps: true, versionKey: false });
 
