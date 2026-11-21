@@ -185,7 +185,9 @@ test('continues with the available AI provider when the other provider fails', a
       env: { GROQ_API_KEY: 'groq-test-key', GEMINI_API_KEY: 'gemini-test-key' }
     });
     assert.equal(intent.provider, 'gemini');
-    assert.equal(intent.providers.length, 1);
+    assert.equal(intent.providers.length, 2);
+    assert.equal(intent.providers.find(provider => provider.name === 'Gemini')?.status, 'success');
+    assert.equal(intent.providers.find(provider => provider.name === 'Groq')?.status, 'unavailable');
     assert.equal(intent.type, 'general-research');
   } finally {
     globalThis.fetch = originalFetch;
