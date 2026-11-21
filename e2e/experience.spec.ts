@@ -33,7 +33,7 @@ test('experience route keeps the public landing visible without a workspace load
 test('authenticated experience supports source triage, claim links, chronology, and dossier export', async ({ page }) => {
   let savedSources: any[] = [];
   let savedClaims: any[] = [];
-  let savedRuns: any[] = [];
+  let savedRuns: any[] = [];\n  let savedTask: any = null;
 
   await page.route('**/api/v1/experience/resolve', async route => {
     await route.fulfill({
@@ -97,6 +97,14 @@ test('authenticated experience supports source triage, claim links, chronology, 
     }));
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedSources, meta: { saved: savedSources.length } }) });
   });
+  await page.route('**/api/v1/experience/workspaces/*/task', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedTask }) });
+      return;
+    }
+    savedTask = route.request().postDataJSON();
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedTask }) });
+  });
   await page.route('**/api/v1/experience/workspaces/*/claims', async route => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: savedClaims }) });
@@ -130,7 +138,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
   await expect(page.getByRole('heading', { name: /what this result set covers/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /known source dates/i })).toBeVisible();
 
-  await page.locator('.experience-source-review-actions button').filter({ hasText: 'Useful' }).click();
+  await page.getByRole('button', { name: 'Mark done' }).first().click();\n  await expect.poll(() => savedTask?.steps?.[0]?.status).toBe('completed');\n  await page.locator('.experience-source-review-actions button').filter({ hasText: 'Useful' }).click();
   await page.getByLabel('Analyst note for Public energy storage report').fill('Compare this with an independent deployment dataset.');
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText('Review saved to this workspace.')).toBeVisible();
