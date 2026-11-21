@@ -448,10 +448,38 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       const result = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(researchJob.id) + '/' + action, {
         method: 'POST', body: JSON.stringify({}),
       });
-      setResearchJob(result.data);
-      setJobControlNotice(action === 'pause' ? 'ADVERSE will pause at the next safe checkpoint.' : action === 'resume' ? 'Research has been queued to resume.' : 'ADVERSE will stop at the next safe checkpoint.');
+      let current = result.data;
+      setResearchJob(current);
+      if (action === 'resume') {
+        setIsResolving(true);
+        setJobControlNotice('Research resumed from its latest saved checkpoint.');
+        let polls = 0;
+        while (!['completed', 'failed', 'cancelled', 'paused'].includes(current.status) && polls < 240) {
+          await new Promise(resolve => window.setTimeout(resolve, 4000));
+          const latest = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(current.id));
+          current = latest.data;
+          setResearchJob(current);
+          polls += 1;
+        }
+        if (current.status === 'completed' && activeWorkspaceId) {
+          const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources');
+          const nextSources = Array.isArray(saved.data) ? saved.data : [];
+          setSources(nextSources);
+          setSourceNotes(Object.fromEntries(nextSources.map(item => [item.url, item.analystNote || ''])));
+          setSourceSyncStatus('saved');
+          setSourceCoverage(current.coverage || '');
+          setRunRefreshKey(value => value + 1);
+          setJobControlNotice('Research completed. Sources are saved in this workspace.');
+        } else {
+          setJobControlNotice(current.errorMessage || (current.status === 'paused' ? 'Research is paused.' : 'Research did not complete.'));
+        }
+      } else {
+        setJobControlNotice(action === 'pause' ? 'ADVERSE will pause at the next safe checkpoint.' : 'ADVERSE will stop at the next safe checkpoint.');
+      }
     } catch (error) {
       setJobControlNotice(error instanceof Error ? error.message : 'The research control could not be applied.');
+    } finally {
+      if (action === 'resume') setIsResolving(false);
     }
   }
 
@@ -808,8 +836,19 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
             <section className="experience-journey" aria-labelledby="experience-journey-title" aria-live="polite">
               <div className="experience-journey-heading">
                 <div><span className="experience-section-label">YOUR INVESTIGATION</span><h3 id="experience-journey-title">Progress at a glance</h3></div>
-                <span className="experience-journey-state">{isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete' : 'Ready to begin'}</span>
+                <span className="experience-journey-state">{researchJob?.status === 'completed' ? 'Research complete' : researchJob?.status === 'paused' ? 'Paused' : researchJob?.status === 'failed' ? 'Needs attention' : isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete' : 'Ready to begin'}</span>
               </div>
+              {researchJob && <div className="experience-job-progress">
+                <div className="experience-job-progress-label"><span>{researchJob.stage === 'queued' ? 'Waiting for a research worker' : researchJob.stage === 'completed' ? 'Research saved to workspace' : researchJob.stage === 'failed' ? 'Research stopped' : researchJob.stage === 'paused' ? 'Research paused' : 'ADVERSE · ' + researchJob.stage}</span><strong>{researchJob.progress}%</strong></div>
+                <div className="experience-job-progress-track"><span style={{ width: researchJob.progress + '%' }} /></div>
+                <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} saved sources · {researchJob.attempts || 0} attempt(s)</small>
+              </div>}
+              {researchJob && <div className="experience-job-controls">
+                {['queued', 'running'].includes(researchJob.status) && <button type="button" onClick={() => void controlResearchJob('pause')}>Pause research</button>}
+                {researchJob.status === 'paused' && <button type="button" onClick={() => void controlResearchJob('resume')}>Resume research</button>}
+                {['queued', 'running', 'paused'].includes(researchJob.status) && <button type="button" onClick={() => void controlResearchJob('cancel')}>Cancel</button>}
+              </div>}
+              {jobControlNotice && <p className="experience-job-control-notice" role="status">{jobControlNotice}</p>}
               <ol className="experience-journey-steps">
                 <li className="is-complete">
                   <span className="experience-journey-marker">1</span>
@@ -818,7 +857,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 </li>
                 <li className={isResolving ? 'is-active' : resolveError ? 'is-error' : sources.length ? 'is-complete' : 'is-pending'}>
                   <span className="experience-journey-marker">2</span>
-                  <div><strong>Discover public sources</strong><small>{isResolving ? 'Searching connected public providers…' : resolveError ? 'Search needs another attempt' : sources.length ? sources.length + ' source candidates collected' : 'Waiting to search'}</small></div>
+                  <div><strong>Discover public sources</strong><small>{researchJob ? researchJob.stage + ' · ' + researchJob.progress + '% complete' : isResolving ? 'Searching connected public providers…' : resolveError ? 'Search needs another attempt' : sources.length ? sources.length + ' source candidates collected' : 'Waiting to search'}</small></div>
                   <span className="experience-journey-status">{isResolving ? 'IN PROGRESS' : resolveError ? 'RETRY' : sources.length ? 'DONE' : 'NEXT'}</span>
                 </li>
                 <li className={sources.length && reviewCounts.unreviewed === 0 ? 'is-complete' : sources.length ? 'is-active' : 'is-pending'}>
