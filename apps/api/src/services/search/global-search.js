@@ -272,14 +272,14 @@ export function filterOutcomeScopedResults(items, intent) {
   if (!intent?.institution) return items;
   return (Array.isArray(items) ? items : []).filter(item => {
     let host = '';
-    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
     const text = [item.title, item.url, item.excerpt, item.publisher].join(' ').toLocaleLowerCase();
     const institutionMatch = host === intent.institution.domain
       || host.endsWith('.' + intent.institution.domain)
-      || /\\babuad\\b|afe\\s+babalola\\s+university/i.test(text);
-    const programmeMatch = /\\bmechatronics\\b/i.test(text);
+      || /\babuad\b|afe\s+babalola\s+university/i.test(text);
+    const programmeMatch = /\bmechatronics\b/i.test(text);
     const taskMatch = intent.type === 'fees-costs'
-      ? /\\b(tuition|school\\s+fees?|fee\\s+schedule|charges?|cost|payment|undergraduate\\s+fees?)\\b/i.test(text)
+      ? /\b(tuition|school\s+fees?|fee\s+schedule|charges?|cost|payment|undergraduate\s+fees?)\b/i.test(text)
       : true;
     return institutionMatch && (programmeMatch || taskMatch);
   });
