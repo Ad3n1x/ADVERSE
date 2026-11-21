@@ -32,7 +32,7 @@ export function createAuthController({
     if (!isDb()) memory.users.set(user.id, user);
 
     const safeUser = { id: String(user.id || user._id), email: user.email, displayName: user.displayName };
-    setSession(res, tokenFor(safeUser));
+    setSession(res, tokenFor({ ...safeUser, authVersion: Number(user.authVersion || 0) }));
     return res.status(201).json({ data: safeUser });
   }
 
@@ -57,7 +57,7 @@ export function createAuthController({
       id: String(user.id || user._id), email: user.email,
       displayName: user.displayName, role: user.role || 'user',
     };
-    setSession(res, tokenFor(safeUser));
+    setSession(res, tokenFor({ ...safeUser, authVersion: Number(user.authVersion || 0) }));
     return res.json({ data: safeUser });
   }
 
