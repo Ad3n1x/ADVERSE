@@ -11,7 +11,7 @@ import ExperienceDossierActions from './ExperienceDossierActions';
 import ExperienceRunHistoryPanel from './ExperienceRunHistoryPanel';
 import WorkspaceAccessDocuments from './WorkspaceAccessDocuments';
 import ExperienceSourceTimeline from './ExperienceSourceTimeline';
-import type { ExperienceClaim, ExperienceSource } from './experience-types';
+import type { ExperienceClaim, ExperienceSource, ExperienceAnswerStatus } from './experience-types';
 import './experience-home.css';
 
 const GeospatialIntelligencePanel = lazy(() => import('../geospatial/GeospatialIntelligencePanel'));
@@ -22,13 +22,7 @@ type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
 
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number; providers?: string[] } };
-type AnswerStatusSnapshot = {
-  status: 'answered' | 'partially_answered' | 'not_found' | 'conflicting' | 'insufficient_evidence' | 'needs_clarification';
-  completionRatio: number;
-  unresolvedQuestions: string[];
-  conflictCount: number;
-  explanation: string;
-};
+type AnswerStatusSnapshot = ExperienceAnswerStatus;
 type ResearchJobSnapshot = {
   id: string; workspaceId: string;
   status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
@@ -1168,7 +1162,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </Suspense>
             </div>}
             {activeWorkspaceId && <>
-              <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} refreshKey={runRefreshKey} />
+              <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} onAnswerStatusChange={status => setResearchJob(current => current ? { ...current, answerStatus: status } : current)} refreshKey={runRefreshKey} />
               <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
               <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
               <WorkspaceAccessDocuments workspaceId={activeWorkspaceId} />
