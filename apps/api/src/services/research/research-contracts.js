@@ -97,7 +97,7 @@ export const TypedClaimSchema = z.object({
     amount: z.number().finite().nullable().default(null),
     currency: z.string().max(8).nullable().default(null),
     unit: z.string().max(80).nullable().default(null),
-    text: z.string().max(500).nullable().default(null)
+    text: z.string().max(1500).nullable().default(null)
   }).default({ amount: null, currency: null, unit: null, text: null }),
   entityId: id.nullable().default(null),
   academicSession: z.string().max(40).nullable().default(null),
