@@ -6,6 +6,7 @@ import { registerInvestigationRoutes } from './routes/investigations.routes.js';
 import { registerPublicSearchRoutes } from './routes/public-search.routes.js';
 import { registerExperienceRoutes } from './routes/experience.routes.js';
 import { registerExperienceWorkspaceRoutes } from './routes/experience-workspaces.routes.js';
+import { registerExperienceResearchJobRoutes } from './routes/experience-jobs.routes.js';
 import { registerSearchRoutes } from './routes/search.routes.js';
 import { registerResearchRoutes } from './routes/research.routes.js';
 import { registerUtilityRoutes } from './routes/utility.routes.js';
@@ -21,7 +22,7 @@ import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import { timingSafeEqual, createHmac, scryptSync } from 'node:crypto';
 import { z } from 'zod';
-import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent, AdminAuditEvent, SearchMetric, PlatformConfig, Incident, JobRun, LinkCheck, ExperienceWorkspace } from './models.js';
+import { Investigation, Evidence, Entity, Relationship, User, Watch, Alert, CyberAsset, CyberEvent, AdminAuditEvent, SearchMetric, PlatformConfig, Incident, JobRun, LinkCheck, ExperienceWorkspace, ExperienceResearchJob } from './models.js';
 import { scrapePublicPage, waybackCaptures, publicDns, validatePublicUrl, compareArchivedText, searchOrganizations, validatePublicUrlResolution } from './providers.js';
 import { searchAllPublic, rankPublicResults, diversifyPublicResults, normalizeResultUrl } from './global-search.js';
 import { searchImages, searchVideos, searchPeople } from './media-search.js';
@@ -76,7 +77,7 @@ const aiCredentialNames=['GROQ_API_KEY','GROQ_INTENT_MODEL','GEMINI_API_KEY','GE
 function providerEncryptionKey(){const secret=jwtSecret();if(!secret)throw new Error('JWT_SECRET must be configured before saving provider credentials.');return crypto.createHash('sha256').update('ADVERSE-provider-credentials-v1:'+secret).digest();}
 function encryptProviderKeys(keys){const iv=crypto.randomBytes(12);const cipher=crypto.createCipheriv('aes-256-gcm',providerEncryptionKey(),iv);const encrypted=Buffer.concat([cipher.update(JSON.stringify(keys),'utf8'),cipher.final()]);return [iv.toString('base64'),cipher.getAuthTag().toString('base64'),encrypted.toString('base64')].join('.');}
 function decryptProviderKeys(value){if(!value)return {};try{const [iv,tag,data]=String(value).split('.');const decipher=crypto.createDecipheriv('aes-256-gcm',providerEncryptionKey(),Buffer.from(iv,'base64'));decipher.setAuthTag(Buffer.from(tag,'base64'));return JSON.parse(Buffer.concat([decipher.update(Buffer.from(data,'base64')),decipher.final()]).toString('utf8'));}catch{return {};}}
-async function getUserProviderKeys(userId){const user=isDb()?await User.findById(userId).select('providerCredentialsEncrypted').lean():memory.users.get(userId);return decryptProviderKeys(user?.providerCredentialsEncrypted||'');}
+export async function getUserProviderKeys(userId){const user=isDb()?await User.findById(userId).select('providerCredentialsEncrypted').lean():memory.users.get(userId);return decryptProviderKeys(user?.providerCredentialsEncrypted||'');}
 function requireAuth(req,res,next){
   const cookie = cookieToken(req);
   const unsafeMethod = !['GET','HEAD','OPTIONS'].includes(req.method.toUpperCase());
@@ -202,6 +203,9 @@ registerExperienceRoutes(app, {
 });
 registerExperienceWorkspaceRoutes(app, {
   requireAuth, wrap, sendError, isDb, ExperienceWorkspace, User,
+});
+registerExperienceResearchJobRoutes(app, {
+  requireAuth, wrap, sendError, isDb, ExperienceWorkspace, ExperienceResearchJob,
 });
 registerSearchRoutes(app, {
   requireAuth, limitProvider, wrap, sendError, isDb, User, memory,

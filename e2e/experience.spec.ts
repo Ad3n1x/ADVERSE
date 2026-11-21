@@ -125,7 +125,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
   await expect(page.getByRole('heading', { name: /stop searching for pages/i })).toBeVisible({ timeout: 30_000 });
 
   await page.getByLabel('What do you want to accomplish?').fill('Research public energy storage');
-  await page.getByRole('button', { name: /shape workspace/i }).click();
+  await page.getByRole('button', { name: /start investigation/i }).click();
   await expect(page.getByText('Public energy storage report').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole('heading', { name: /what this result set covers/i })).toBeVisible();
   await expect(page.getByRole('heading', { name: /known source dates/i })).toBeVisible();
