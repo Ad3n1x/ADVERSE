@@ -43,6 +43,11 @@ async function finishRequested(job) {
 
 async function claimNextJob() {
   const now = new Date();
+  await ExperienceResearchJob.updateMany({ status: 'running', leaseExpiresAt: { $lte: now }, attempts: { $gte: 3 } }, {
+    $set: { status: 'failed', stage: 'failed', progress: 100, finishedAt: now, leaseOwner: '', leaseExpiresAt: null, errorCode: 'WORKER_INTERRUPTED', errorMessage: 'The worker stopped repeatedly before this job could finish.' },
+    $unset: { activeKey: 1 },
+    $push: { events: { $each: [{ stage: 'failed', message: 'The worker stopped repeatedly. Start a new research run; saved evidence remains available.', progress: 100, at: now }], $slice: -30 } },
+  });
   return ExperienceResearchJob.findOneAndUpdate({
     attempts: { $lt: 3 },
     $or: [
@@ -122,45 +127,70 @@ async function saveJobResults(job, sources, live) {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
     successfulSearches: Number(live.meta?.successfulSearches || 0),
-    providerNames: [...new Set(sources.flatMap(source => source.providers || []).filter(Boolean))].slice(0, 8),
+    providerNames: [...new Set([...(live.meta?.providerNames || []), ...sources.flatMap(source => source.providers || [])].filter(Boolean))].slice(0, 8),
     coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
     recordedAt: new Date(),
   };
+  const researchRuns = [...(workspace.researchRuns || []).filter(item => item.runId !== job.jobId), run]
+    .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()).slice(-20);
   await ExperienceWorkspace.updateOne({ ownerId: job.ownerId, workspaceId: job.workspaceId }, {
-    $set: { sources: mergedSources },
-    $push: { researchRuns: { $each: [run], $slice: -20 } },
+    $set: { sources: mergedSources, researchRuns },
   });
   return { sourceCount: mergedSources.length, run };
 }
 
 async function executeJob(job, getUserProviderKeys) {
-  await appendEvent(job.jobId, 'planning', 'Preparing your request and provider configuration.', researchJobProgress('planning'));
-  if (await finishRequested(job)) return;
-  const providerKeys = await getUserProviderKeys(job.ownerId).catch(() => ({}));
-  await appendEvent(job.jobId, 'searching', 'Searching public sources against your complete request.', researchJobProgress('searching'));
-  const live = await searchAllPublic(job.query, providerKeys || {});
-  if (await finishRequested(job)) return;
-  const candidates = (Array.isArray(live.results) ? live.results : []).slice(0, 16);
-  const baseSources = [];
-  for (const item of candidates) {
-    try { baseSources.push(toWorkspaceSource(item)); } catch {}
+  let candidateSources = Array.isArray(job.candidateSources) ? job.candidateSources : [];
+  let searchMeta = job.searchMeta || {};
+  if (!job.searchCompleted) {
+    await appendEvent(job.jobId, 'planning', 'Preparing your request and provider configuration.', researchJobProgress('planning'));
+    if (await finishRequested(job)) return;
+    const providerKeys = await getUserProviderKeys(job.ownerId).catch(() => ({}));
+    await appendEvent(job.jobId, 'searching', 'Searching public sources against your complete request.', researchJobProgress('searching'));
+    const live = await searchAllPublic(job.query, providerKeys || {});
+    if (await finishRequested(job)) return;
+    if (!(live.results || []).length && Number(live.meta?.failedSearches || 0) > 0) {
+      throw new Error('Public search providers are temporarily unavailable.');
+    }
+    candidateSources = [];
+    for (const item of (Array.isArray(live.results) ? live.results : []).slice(0, 16)) {
+      try { candidateSources.push(toWorkspaceSource(item)); } catch {}
+    }
+    searchMeta = {
+      successfulSearches: Number(live.meta?.successfulSearches || 0),
+      failedSearches: Number(live.meta?.failedSearches || 0),
+      providerNames: [...new Set([...(live.meta?.providerNames || []), ...candidateSources.flatMap(source => source.providers || [])].filter(Boolean))].slice(0, 8),
+      coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
+    };
+    const checkpoint = await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
+      $set: { candidateSources, searchMeta, searchCompleted: true, successfulSearches: searchMeta.successfulSearches, providerNames: searchMeta.providerNames, coverage: searchMeta.coverage },
+    });
+    if (!checkpoint.matchedCount) return;
+  } else {
+    await appendEvent(job.jobId, 'checking', 'Resuming from the saved source-discovery checkpoint.', researchJobProgress('checking'));
   }
-  await appendEvent(job.jobId, 'checking', 'Checking the first source destinations and organizing the remaining results.', researchJobProgress('checking'), {
-    successfulSearches: Number(live.meta?.successfulSearches || 0),
-    providerNames: [...new Set(baseSources.flatMap(source => source.providers || []).filter(Boolean))].slice(0, 8),
-    coverage: clean(live.meta?.coverage || '', 500),
-  });
-  const checked = await checkTopSources(baseSources.slice(0, 8));
-  const checkedByUrl = new Map(checked.map(source => [source.url, source]));
-  const finalSources = baseSources.map(source => checkedByUrl.get(source.url) || source).slice(0, 16);
+  if (await finishRequested(job)) return;
+
+  let finalSources = Array.isArray(job.checkedSources) ? job.checkedSources : [];
+  if (!job.checksCompleted) {
+    await appendEvent(job.jobId, 'checking', 'Checking source destinations and organizing the remaining results.', researchJobProgress('checking'));
+    const checked = await checkTopSources(candidateSources.slice(0, 8));
+    const checkedByUrl = new Map(checked.map(source => [source.url, source]));
+    finalSources = candidateSources.map(source => checkedByUrl.get(source.url) || source).slice(0, 16);
+    const checkpoint = await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
+      $set: { checkedSources: finalSources, checksCompleted: true },
+    });
+    if (!checkpoint.matchedCount) return;
+  }
   if (await finishRequested(job)) return;
   await appendEvent(job.jobId, 'saving', 'Saving sources and the research run to your workspace.', researchJobProgress('saving'));
+  const live = { meta: searchMeta };
   const saved = await saveJobResults(job, finalSources, live);
   await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
     $set: {
       status: 'completed', stage: 'completed', progress: 100,
       sourceCount: saved.sourceCount,
-      successfulSearches: Number(live.meta?.successfulSearches || 0),
+      successfulSearches: Number(searchMeta.successfulSearches || 0),
       providerNames: saved.run.providerNames, coverage: saved.run.coverage,
       finishedAt: new Date(), leaseOwner: '', leaseExpiresAt: null,
       errorCode: '', errorMessage: '',
@@ -169,7 +199,6 @@ async function executeJob(job, getUserProviderKeys) {
     $push: { events: { $each: [{ stage: 'completed', message: saved.sourceCount + ' sources are now saved in your workspace.', progress: 100, at: new Date() }], $slice: -30 } },
   });
 }
-
 async function failJob(job, error) {
   const latest = await ExperienceResearchJob.findOne({ jobId: job.jobId, leaseOwner: workerId }).lean();
   if (!latest) return;
@@ -206,11 +235,20 @@ export async function processNextExperienceResearchJob({ getUserProviderKeys = a
   try {
     const job = await claimNextJob();
     if (!job) return false;
+    const heartbeat = setInterval(() => {
+      const now = new Date();
+      void ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId, status: 'running' }, {
+        $set: { heartbeatAt: now, leaseExpiresAt: new Date(now.getTime() + RESEARCH_JOB_LEASE_MS) },
+      }).catch(() => {});
+    }, 30_000);
+    heartbeat.unref?.();
     try {
       await executeJob(job, getUserProviderKeys);
     } catch (error) {
       console.warn('ADVERSE experience research job failed:', clean(error?.message || 'unknown error', 180));
       await failJob(job, error);
+    } finally {
+      clearInterval(heartbeat);
     }
     return true;
   } finally {
