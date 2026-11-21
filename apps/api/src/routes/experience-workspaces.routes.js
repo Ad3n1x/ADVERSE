@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import crypto from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
 
 const workspaceRateLimit = rateLimit({
@@ -199,7 +200,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const previous = records.get(item.workspaceId);
     records.set(item.workspaceId, {
       id: item.workspaceId, intent: item.intent, kind: item.kind,
-      createdAt: createdAt.getTime(), sources: previous?.sources || [], claims: previous?.claims || [], researchRuns: previous?.researchRuns || [],
+      createdAt: createdAt.getTime(), sources: previous?.sources || [], claims: previous?.claims || [], researchRuns: previous?.researchRuns || [], documents: previous?.documents || [],
     });
     const sorted = [...records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
     store.set(req.user.id, new Map(sorted.map(row => [row.id, row])));
@@ -320,6 +321,94 @@ export function registerExperienceWorkspaceRoutes(app, {
     else record.researchRuns = runs.map(item => ({ ...item, recordedAt: new Date(item.recordedAt).toISOString() }));
     const data = isDb() ? runs.map(item => ({ ...item, recordedAt: new Date(item.recordedAt).toISOString() })) : record.researchRuns;
     return res.status(201).json({ data, meta: { saved: data.length } });
+  }));
+
+
+  // Deliberately accept plain text only. This avoids executing or parsing untrusted
+  // office/PDF formats in the API process; richer parsers require isolated workers.
+  app.get('/api/v1/experience/workspaces/:workspaceId/documents', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('documents').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const documents = (record.documents || []).map(({ text, ...metadata }) => metadata);
+    return res.json({ data: documents });
+  }));
+
+  app.post('/api/v1/experience/workspaces/:workspaceId/documents', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
+    const parsed = z.object({
+      filename: z.string().trim().min(1).max(180),
+      mediaType: z.literal('text/plain').default('text/plain'),
+      text: z.string().min(1).max(50000),
+    }).safeParse(req.body || {});
+    if (!parsed.success) return sendError(res, 400, 'INVALID_DOCUMENT', 'Only plain-text documents up to 50 KB are accepted.');
+    const filename = parsed.data.filename.replace(/[\\/\\0-\\x1f\\x7f]/g, '_').slice(0, 180);
+    const normalizedText = parsed.data.text.replace(/\\r\\n?/g, '\\n');
+    if (!normalizedText.trim() || /[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(normalizedText)) {
+      return sendError(res, 400, 'INVALID_DOCUMENT_TEXT', 'Document text is empty or contains unsupported control characters.');
+    }
+    const byteLength = Buffer.byteLength(normalizedText, 'utf8');
+    if (byteLength > 50000) return sendError(res, 413, 'DOCUMENT_TOO_LARGE', 'Plain-text documents are limited to 50 KB.');
+    const contentHash = crypto.createHash('sha256').update(normalizedText, 'utf8').digest('hex');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('documents').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const existing = (record.documents || []).find(item => item.contentHash === contentHash);
+    if (existing) return res.status(200).json({ data: { documentId: existing.documentId, filename: existing.filename, mediaType: existing.mediaType, byteLength: existing.byteLength, contentHash: existing.contentHash, uploadedAt: existing.uploadedAt }, meta: { duplicate: true } });
+    if ((record.documents || []).length >= 10) return sendError(res, 409, 'DOCUMENT_LIMIT_REACHED', 'A workspace can contain at most 10 text documents.');
+    const document = {
+      documentId: crypto.randomUUID(),
+      filename,
+      mediaType: 'text/plain',
+      text: normalizedText,
+      byteLength,
+      contentHash,
+      hashAlgorithm: 'sha256',
+      uploadedAt: new Date(),
+    };
+    if (isDb()) {
+      await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $push: { documents: document } });
+    } else {
+      record.documents ||= [];
+      record.documents.push(document);
+    }
+    return res.status(201).json({ data: { documentId: document.documentId, filename, mediaType: document.mediaType, byteLength, contentHash, uploadedAt: document.uploadedAt }, meta: { duplicate: false } });
+  }));
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/documents/:documentId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const documentId = String(req.params.documentId || '').slice(0, 100);
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('documents').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const document = (record.documents || []).find(item => item.documentId === documentId);
+    if (!document) return sendError(res, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.');
+    return res.json({ data: document });
+  }));
+
+  app.delete('/api/v1/experience/workspaces/:workspaceId/documents/:documentId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const documentId = String(req.params.documentId || '').slice(0, 100);
+    if (isDb()) {
+      const result = await ExperienceWorkspace.updateOne(
+        { ownerId: req.user.id, workspaceId, 'documents.documentId': documentId },
+        { $pull: { documents: { documentId } } },
+      );
+      if (!result.modifiedCount) return sendError(res, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.');
+      return res.status(204).end();
+    }
+    const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const previousLength = (record.documents || []).length;
+    record.documents = (record.documents || []).filter(item => item.documentId !== documentId);
+    if (record.documents.length === previousLength) return sendError(res, 404, 'DOCUMENT_NOT_FOUND', 'Document not found.');
+    return res.status(204).end();
   }));
 
   app.delete('/api/v1/experience/workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
