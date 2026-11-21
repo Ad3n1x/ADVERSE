@@ -98,7 +98,7 @@ export const TypedClaimSchema = z.object({
   }).default({ amount: null, currency: null, unit: null, text: null }),
   entityId: id.nullable().default(null),
   academicSession: z.string().max(40).nullable().default(null),
-  sourceIds: z.array(id).min(1).max(20),
+  sourceIds: z.array(z.string().trim().min(1).max(2048)).min(1).max(20),
   assessment: z.enum(['unreviewed', 'supported', 'conflicting', 'insufficient']).default('unreviewed'),
   confidence: z.number().min(0).max(1).default(0)
 }).strict();
