@@ -97,6 +97,7 @@ const experienceWorkspaceSchema = new Schema({
   documents: { type: [experienceDocumentSchema], default: [] },
   members: { type: [experienceMemberSchema], default: [] },
   sharingEvents: { type: [sharingEventSchema], default: [] },
+  taskPlan: { type: Schema.Types.Mixed, default: null },
   createdAt: { type: Date, required: true, default: Date.now },
 }, { timestamps: true, versionKey: false });
 
