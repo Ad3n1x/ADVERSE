@@ -306,7 +306,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           ...(saved?.savedAt ? { savedAt: saved.savedAt } : {}),
         };
       };
-      const mergedByUrl = new Map(savedSources.slice(0, 24).map(source => [source.url, {
+      const mergedByUrl = new Map<string, ExperienceSource>(savedSources.slice(0, 24).map(source => [source.url, {
         ...source,
         reviewStatus: source.reviewStatus || 'unreviewed',
         analystNote: source.analystNote || '',
