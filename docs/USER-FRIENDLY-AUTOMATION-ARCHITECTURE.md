@@ -119,6 +119,8 @@ A feature is not complete because it compiles. Verify:
 - mobile layouts remain usable at narrow widths;
 - Render production health and authenticated end-to-end behavior pass for the deployed commit.
 
-## Current boundary
+## Implemented in this delivery
 
-The current Experience flow resolves intent, performs public search, stores sources and run history, and offers source review, claims, dossier and monitoring-related tools. The current research-job/worker/checkpoint system described above is a target architecture, not yet an implemented production queue. The visible progress journey is a UI aid over the current synchronous flow; it must not be mistaken for durable background execution.
+The Experience flow now has a MongoDB-backed research-job collection, authenticated create/status/list/pause/resume/cancel endpoints, an API-started background worker, atomic job claiming, worker leases and heartbeats, bounded automatic retries, and persisted discovery/checking checkpoints. The worker reuses ADVERSE's existing public search providers and the user's encrypted provider credentials, checks a bounded set of public destinations, and saves sources plus a deduplicated research-run record into the owner-scoped workspace. The UI queues signed-in investigations, polls progress, and exposes pause/resume/cancel controls. Guests or environments without persistent database storage retain the existing direct-search fallback.
+
+A worker restart can reclaim an expired lease and continue from saved candidate/checking checkpoints. A failure before a checkpoint may repeat the current stage; source writes and research-run IDs are idempotent. This is not a distributed workflow engine with provider-level cursor continuation, and the worker is hosted in the existing Render API service rather than a separately scaled worker service. Search coverage remains bounded by configured providers. AI-extracted claims and reports still require their own evidence-grounding and review workflow; this worker does not automatically certify facts or perform external account actions.
