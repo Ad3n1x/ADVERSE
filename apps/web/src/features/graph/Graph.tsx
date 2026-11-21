@@ -234,6 +234,39 @@ export default function Graph({ entities, evidence, relationships, onSelect, sel
         <div className="adverse-3d-hud"><span>3D SCENE ACTIVE</span><span>ENTITY / SOURCE FIELD</span><span>ORBIT CAMERA</span></div>
       </div>
     </div>
+    <details className="adverse-3d-accessible" aria-label="Accessible text alternative to the 3D evidence graph">
+      <summary>Browse graph as a text list ({visibleEntities.length} entities, {visibleEvidence.length} sources, {visibleRelations.length} relationships)</summary>
+      <div className="adverse-3d-accessible-grid">
+        <section aria-labelledby="graph-entities-heading">
+          <h4 id="graph-entities-heading">Entities</h4>
+          <ul>{visibleEntities.map(entity => {
+            const entityId = String(key(entity) || entity.name);
+            return <li key={entityId}>
+              <button type="button" aria-pressed={activeEntityId === entityId} onClick={() => {
+                setActiveEntityId(entityId);
+                setSelectedRelationshipId('');
+                onSelect(entity);
+              }}>{entity.name}</button>
+              <span>{entity.type || 'Entity'}{entity.description ? ' — ' + entity.description : ''}</span>
+            </li>;
+          })}</ul>
+        </section>
+        <section aria-labelledby="graph-sources-heading">
+          <h4 id="graph-sources-heading">Saved sources</h4>
+          <ul>{visibleEvidence.map((item, index) => <li key={String(key(item) || index)}>
+            {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title || item.publisher || item.url}</a> : <span>{item.title || 'Saved source'}</span>}
+            <span>{item.publisher || item.excerpt || 'No source description recorded.'}</span>
+          </li>)}</ul>
+        </section>
+        <section aria-labelledby="graph-relationships-heading">
+          <h4 id="graph-relationships-heading">Relationships</h4>
+          <ul>{visibleRelations.map(relation => <li key={relationshipKey(relation)}>
+            <span>{visibleEntities.find(entity => String(key(entity) || entity.name) === String(relation.fromEntityId))?.name || 'Unknown entity'} — <strong>{relation.type}</strong> — {visibleEntities.find(entity => String(key(entity) || entity.name) === String(relation.toEntityId))?.name || 'Unknown entity'}</span>
+            <span>{verificationLabel(relation.verificationStatus)} · {(relation.evidenceIds || []).length} evidence links</span>
+          </li>)}</ul>
+        </section>
+      </div>
+    </details>
     <div className="adverse-3d-legend">
       <span><i className="entity" /> Entities</span><span><i className="source" /> Saved sources</span>
       <span><i className="verified" /> Verified label</span><span><i className="disputed" /> Disputed label</span>
