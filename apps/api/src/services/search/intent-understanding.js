@@ -1,3 +1,4 @@
+import { buildOutcomeSearchQueries, enrichOutcomeIntent } from './outcome-intelligence.js';
 const clean = value => String(value ?? '')
   .normalize('NFKC')
   .replace(/<[^>]*>/g, ' ')
@@ -66,7 +67,7 @@ export function understandSearchIntent(input) {
   };
   const subject = extractSubject(originalQuery, selected.type);
   const matchedSignals = rule ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 120)) : [];
-  return {
+  const baseIntent = {
     type: selected.type,
     label: selected.label,
     confidence: rule ? 0.88 : 0.58,
@@ -85,6 +86,7 @@ export function understandSearchIntent(input) {
       ? 'The wording indicates a likely goal. ADVERSE preserves the complete request and builds bounded research tasks around it.'
       : 'No single strong goal marker was detected. ADVERSE preserves the wording and avoids guessing a narrower task.',
   };
+  return enrichOutcomeIntent(originalQuery, baseIntent);
 }
 
 /** Generate bounded research leads that directly support the user's intended outcome. */
@@ -114,6 +116,7 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'public-entity': ['official records profile background'],
     'general-research': ['authoritative background evidence'],
   };
+  for (const item of buildOutcomeSearchQueries(intent)) add(item.query, item.reason);
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
   const primarySuffixes = suffixes[intent?.type] || suffixes['general-research'];
   const secondaryTypes = (Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents : []).slice(0, 3);
