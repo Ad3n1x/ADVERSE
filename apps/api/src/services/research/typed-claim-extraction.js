@@ -1,3 +1,4 @@
+import { normalizeSearchText } from '../search/normalize-search-text.js';
 const CURRENCY_PATTERNS = [
   { currency: 'NGN', pattern: /₦\s*([\d,]+(?:\.\d+)?)/i },
   { currency: 'NGN', pattern: /\bNGN\s*([\d,]+(?:\.\d+)?)/i },
@@ -39,7 +40,7 @@ function extractValue(statement) {
 }
 
 export function buildTypedClaim(candidate, sourceIds, claimId) {
-  const statement = String(candidate?.claim || candidate?.text || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+  const statement = normalizeSearchText(candidate?.claim || candidate?.text || '', 1500);
   if (!statement || !Array.isArray(sourceIds) || !sourceIds.length) return null;
   const session = statement.match(/\b(20\d{2})\s*[/-]\s*(20\d{2})\b/);
   const value = extractValue(statement);
