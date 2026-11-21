@@ -80,6 +80,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   const intentVariants = buildIntentQueryVariants(raw, intent, 5);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
