@@ -81,7 +81,7 @@ export const SourceSchema = z.object({
     accepted: z.boolean(),
     rejectionReasons: z.array(z.string().max(200)).max(10).default([])
   }),
-  sourceType: z.enum(['official', 'primary', 'academic', 'news', 'reference', 'community', 'unknown']).default('unknown'),
+  sourceType: z.enum(['web', 'official', 'primary', 'academic', 'news', 'reference', 'community', 'unknown']).default('unknown'),
   verificationStatus: z.enum(['unverified', 'reachable', 'not-confirmed']).default('unverified')
 }).strict();
 
