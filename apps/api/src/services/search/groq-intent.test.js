@@ -9,6 +9,27 @@ test('uses deterministic intent when the Groq key is not configured', async () =
   assert.match(intent.aiNote, /not configured/);
 });
 
+test('keeps deterministic university application intent when Groq returns a broad classification', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      type: 'general-research', label: 'Research ABUAD', subject: 'ABUAD',
+      search_query: 'I want to apply for ABUAD', source_preference: 'balanced',
+      confidence: 0.55, explanation: 'Broad research', ambiguities: [], suggested_queries: []
+    }) } }] })
+  });
+  try {
+    const intent = await understandSearchIntentWithGroq('I want to apply for ABUAD', {
+      env: { GROQ_API_KEY: 'test-key', GROQ_INTENT_MODEL: 'openai/gpt-oss-20b' }
+    });
+    assert.equal(intent.type, 'application');
+    assert.equal(intent.searchQuery, 'ABUAD');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('uses Groq structured intent and returns bounded query suggestions', async () => {
   const originalFetch = globalThis.fetch;
   let requestBody;
