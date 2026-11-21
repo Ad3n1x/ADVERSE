@@ -96,7 +96,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
   const groundedText = (original + ' ' + clean(context, 1200)).toLocaleLowerCase();
   const grounded = value => {
     const candidate = clean(value, 140).toLocaleLowerCase();
-    return Boolean(candidate) && (groundedText.includes(candidate) || candidate.split(/\\s+/).filter(Boolean).every(token => groundedText.includes(token)));
+    return Boolean(candidate) && (groundedText.includes(candidate) || candidate.split(/\s+/).filter(Boolean).every(token => groundedText.includes(token)));
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
