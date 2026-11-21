@@ -27,7 +27,7 @@ const clean = (value, max = 220) => String(value ?? '')
 const outputSchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['type','label','goal','subject','search_query','source_preference','confidence','explanation','subgoals','entities','constraints','ambiguities','clarification_needed','suggested_queries'],
+  required: ['type','label','goal','subject','search_query','source_preference','confidence','explanation','subgoals','secondary_intents','entities','constraints','ambiguities','clarification_needed','suggested_queries'],
   properties: {
     type: { type: 'string', enum: [...TYPES] },
     label: { type: 'string' },
@@ -38,6 +38,7 @@ const outputSchema = {
     confidence: { type: 'number' },
     explanation: { type: 'string' },
     subgoals: { type: 'array', items: { type: 'string' } },
+    secondary_intents: { type: 'array', items: { type: 'string', enum: [...TYPES] } },
     entities: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['text','kind','role'], properties: { text: { type: 'string' }, kind: { type: 'string' }, role: { type: 'string' } } } },
     constraints: { type: 'array', items: { type: 'string' } },
     ambiguities: { type: 'array', items: { type: 'string' } },
@@ -58,6 +59,7 @@ const geminiSchema = {
     confidence: { type: 'NUMBER' },
     explanation: { type: 'STRING' },
     subgoals: { type: 'ARRAY', items: { type: 'STRING' } },
+    secondary_intents: { type: 'ARRAY', items: { type: 'STRING', enum: [...TYPES] } },
     entities: { type: 'ARRAY', items: { type: 'OBJECT', properties: { text: { type: 'STRING' }, kind: { type: 'STRING' }, role: { type: 'STRING' } }, required: ['text','kind','role'] } },
     constraints: { type: 'ARRAY', items: { type: 'STRING' } },
     ambiguities: { type: 'ARRAY', items: { type: 'STRING' } },
@@ -70,8 +72,9 @@ const geminiSchema = {
 const SYSTEM_PROMPT = [
   'You are the semantic intent and task planner for ADVERSE, a public-source intelligence and destination-discovery engine.',
   'Understand the complete outcome the user is trying to achieve, not merely the nouns or keywords in their sentence.',
-  'Classify the primary task: application, eligibility, fees-costs, programme-availability, deadline, scholarship-funding, destination, verification, current-events, historical, comparison, how-to, public-entity, or general-research.',
+  'Classify the primary task and identify up to three distinct secondary task types when the user asks for multiple outcomes. Do not collapse a multi-part request into only its first verb.',
   'Resolve conversational wording, shorthand, misspellings, implied questions, multi-part requests, follow-up context when provided, entities, locations, dates, qualifications, budgets, and other explicit constraints.',
+  'Return secondary_intents as an array of supported intent types only when separately requested or clearly implied. Keep the primary subject separate from action phrases; for example, in “apply to ABUAD and check tuition”, the subject is ABUAD and the secondary task is fees-costs.',
   'Separate the primary subject from the desired outcome. Extract named entities and label their roles (institution, programme, person, place, product, date, qualification, etc.) without inventing entities.',
   'For a goal such as “I want to apply for ABUAD”, identify ABUAD as the target institution and infer useful sub-tasks: official application portal, programme availability, eligibility and entry requirements, deadlines, fees, required documents, and application steps. Do not assume every sub-task is relevant if the request narrows the scope.',
   'For eligibility questions, compare only user-provided qualifications against published criteria and explicitly mark missing information; never fabricate grades or eligibility.',
@@ -133,6 +136,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (SOURCE_PREFERENCES.has(parsed?.source_preference) ? parsed.source_preference : fallback.sourcePreference),
     matchedSignals: fallback.matchedSignals || [],
     subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
+    secondaryIntents: [...new Set([...(fallback.secondaryIntents || []), ...(Array.isArray(parsed?.secondary_intents) ? parsed.secondary_intents : []).filter(type => TYPES.has(type))])].filter(intentType => intentType !== type).slice(0, 3),
     entities,
     constraints: list(parsed?.constraints, 8, 140).filter(grounded),
     ambiguities: list(parsed?.ambiguities, 4, 140),
@@ -199,6 +203,7 @@ function combineInterpretations(rows, original, fallback) {
   const suggestedQueries = union('suggestedQueries', 3);
   const entities = union('entities', 8);
   const subgoals = union('subgoals', 6);
+  const secondaryIntents = [...new Set([...union('secondaryIntents', 3), ...(fallback.secondaryIntents || [])])].filter(type => type !== selected.value.type).slice(0, 3);
   const constraints = union('constraints', 8);
   const ambiguities = union('ambiguities', 4);
   const providerNames = rows.map(row => row.name.toLowerCase());
@@ -214,6 +219,7 @@ function combineInterpretations(rows, original, fallback) {
     searchQuery: searchQuery || original,
     goal: base.goal || fallback.goal,
     subgoals: subgoals.length ? subgoals : (fallback.subgoals || []),
+    secondaryIntents,
     entities: entities.length ? entities : (fallback.entities || []),
     constraints,
     ambiguities,
