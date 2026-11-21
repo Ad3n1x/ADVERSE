@@ -102,8 +102,16 @@ test('workspace sources persist, deduplicate, and remain private to their owner'
     publisher: 'Example Research',
     provider: 'Public Search',
     providers: ['Public Search', 'Secondary Search'],
-    sourceType: 'web',
-    linkCheck: { status: 'reachable', checkedAt: new Date().toISOString(), note: 'Readable when checked.' },
+    sourceType: 'alternative',
+    alternativeFor: 'https://example.net/original-report',
+    linkCheck: {
+      status: 'reachable',
+      checkedAt: new Date().toISOString(),
+      httpStatus: 200,
+      finalUrl: 'https://www.example.org/report',
+      redirects: [{ status: 301, from: 'https://example.org/report', to: 'https://www.example.org/report' }],
+      note: 'Readable after one redirect.',
+    },
   };
   const saved = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
     user: { id: owner }, params: { workspaceId }, body: { sources: [source, { ...source, url: 'https://example.org/report#duplicate' }] },
@@ -111,6 +119,10 @@ test('workspace sources persist, deduplicate, and remain private to their owner'
   assert.equal(saved.statusCode, 200);
   assert.equal(saved.body.data.length, 1);
   assert.equal(saved.body.data[0].url, 'https://example.org/report');
+  assert.equal(saved.body.data[0].alternativeFor, 'https://example.net/original-report');
+  assert.equal(saved.body.data[0].linkCheck.httpStatus, 200);
+  assert.equal(saved.body.data[0].linkCheck.finalUrl, 'https://www.example.org/report');
+  assert.equal(saved.body.data[0].linkCheck.redirects.length, 1);
 
   const loaded = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/sources', {
     user: { id: owner }, params: { workspaceId },
@@ -137,11 +149,39 @@ test('workspace source persistence rejects unsafe URL schemes and oversized coll
     body: { sources: [{ url: 'javascript:alert(1)', title: 'Unsafe' }] },
   });
   assert.equal(invalid.statusCode, 400);
+  const withinLimit = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: Array.from({ length: 24 }, (_, index) => ({ url: 'https://example.org/valid/' + index })) },
+  });
+  assert.equal(withinLimit.statusCode, 200);
+  assert.equal(withinLimit.body.data.length, 24);
   const oversized = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
     user: { id: owner }, params: { workspaceId },
-    body: { sources: Array.from({ length: 13 }, (_, index) => ({ url: 'https://example.org/' + index })) },
+    body: { sources: Array.from({ length: 25 }, (_, index) => ({ url: 'https://example.org/' + index })) },
   });
   assert.equal(oversized.statusCode, 400);
+
+  const unsafeRedirect = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{
+      url: 'https://example.org/public',
+      linkCheck: {
+        status: 'reachable',
+        finalUrl: 'https://example.org/public',
+        redirects: [{ status: 302, from: 'https://example.org/public', to: 'http://127.0.0.1/private' }],
+      },
+    }] },
+  });
+  assert.equal(unsafeRedirect.statusCode, 400);
+
+  const unsafeAlternative = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{
+      url: 'https://example.org/alternative',
+      alternativeFor: 'javascript:alert(1)',
+    }] },
+  });
+  assert.equal(unsafeAlternative.statusCode, 400);
 });
 
 

@@ -82,12 +82,29 @@ function isPrivateIPv6(ip) {
   if((a&0xfe00)===0xfc00||(a&0xffc0)===0xfe80||(a&0xff00)===0xff00)return true;
   if(a===0x0100&&b===0)return true; // 100::/64
   if(a===0x0064&&b===0xff9b)return true; // 64:ff9b::/96 NAT64
+  if(a===0x0064&&b===0xff9b&&c===0x0001)return true; // 64:ff9b:1::/48 local-use NAT64
+  if(a===0x2001&&b===0x0000)return true; // Teredo can embed an IPv4 destination
   if(a===0x2002)return true; // 6to4 can embed an IPv4 destination
   if(a===0x2001&&b===0x0db8)return true; // documentation
   if(a===0x2001&&b===0x0010)return true; // ORCHID
   if(a===0x2001&&b===0x0020)return true; // ORCHIDv2
   return false;
 }
+/**
+ * Validate every A/AAAA answer as a set. Mixed public/private answers are
+ * rejected so a hostname cannot pass validation through only its public record.
+ */
+export function assertPublicAddressSet(records, message = 'Private network destinations are blocked.') {
+  if (!Array.isArray(records) || records.length === 0) throw new Error(message);
+  for (const record of records) {
+    const address = String(record?.address || '');
+    const family = net.isIP(address);
+    if (!family || (record?.family != null && Number(record.family) !== family)) throw new Error(message);
+    if (family === 4 ? isPrivateIPv4(address) : isPrivateIPv6(address)) throw new Error(message);
+  }
+  return records;
+}
+
 export function validatePublicUrl(input) {
   let u; try { u=new URL(input); } catch { throw new Error('Enter a valid public URL.'); }
   if (!['http:','https:'].includes(u.protocol)) throw new Error('Only HTTP(S) URLs are permitted.');
@@ -116,17 +133,13 @@ export async function validatePublicUrlResolution(input) {
   } catch {
     throw new Error('The public domain could not be resolved.');
   }
-  if (!addresses.length || addresses.some(record =>
-    net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address)
-  )) {
-    throw new Error('Private network destinations are blocked.');
-  }
+  assertPublicAddressSet(addresses);
   return url;
 }
 export async function publicDns(inputUrl) {
   const u=validatePublicUrl(inputUrl); let records;
   try { records=await lookup(u.hostname,{all:true,verbatim:true}); } catch { throw new Error('The domain could not be resolved.'); }
-  if (!records.length || records.some(r=>net.isIP(r.address)===4?isPrivateIPv4(r.address):isPrivateIPv6(r.address))) throw new Error('The domain resolves to a private or restricted network address.');
+  assertPublicAddressSet(records, 'The domain resolves to a private or restricted network address.');
   const query=async(type)=>{const endpoint=`https://dns.google/resolve?name=${encodeURIComponent(u.hostname)}&type=${type}`;const data=await(await timeoutFetch(endpoint,{headers:{accept:'application/dns-json'}})).json();return(data.Answer||[]).map(a=>({type:a.type,ttl:a.TTL,data:a.data}));};
   const certificates=(async()=>{const endpoint=new URL('https://crt.sh/');endpoint.searchParams.set('q','%25.'+u.hostname);endpoint.searchParams.set('output','json');const response=await timeoutFetch(endpoint,{headers:{accept:'application/json'},timeout:12000});const data=await response.json();const seen=new Set();return (Array.isArray(data)?data:[]).filter(item=>{const k=String(item.id||item.entry_timestamp||'')+'|'+String(item.name_value||'');if(seen.has(k))return false;seen.add(k);return true;}).slice(0,40).map(item=>({id:item.id,commonName:item.common_name||'',names:String(item.name_value||'').split(/\\n/).slice(0,8),issuer:item.issuer_name||'',notBefore:item.not_before||null,notAfter:item.not_after||null,loggedAt:item.entry_timestamp||null}));})();
   const [a,aaaa,mx,txt,ct]=await Promise.allSettled([query('A'),query('AAAA'),query('MX'),query('TXT'),certificates]);
@@ -164,10 +177,12 @@ function resolvePublicAddresses(hostname) {
     }
     lookup(hostname, { all: true, verbatim: true })
       .then(records => {
-        if (!records.length || records.some(record =>
-          net.isIP(record.address) === 4 ? isPrivateIPv4(record.address) : isPrivateIPv6(record.address)
-        )) return reject(new Error('The source or redirect resolves to a private or restricted network address.'));
-        resolve(records);
+        try {
+          assertPublicAddressSet(records, 'The source or redirect resolves to a private or restricted network address.');
+          resolve(records);
+        } catch (error) {
+          reject(error);
+        }
       })
       .catch(() => reject(new Error('The source domain could not be resolved.')));
   });

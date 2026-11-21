@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
           echo "Submitting bounded discovery to the configured production API."
-          status="$(curl --fail-with-body --silent --show-error --max-time 30 \
+          status="$(curl --fail-with-body --silent --show-error --max-time 120 \
             --request POST "${API_URL%/}/api/v1/internal/discovery/run" \
             --header "x-discovery-secret: ${DISCOVERY_CRON_SECRET}" \
             --header "accept: application/json" \

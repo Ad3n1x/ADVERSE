@@ -24,6 +24,7 @@ const sourceSchema = z.object({
   provider: z.string().max(160).optional().default(''),
   providers: z.array(z.string().max(160)).max(8).optional().default([]),
   sourceType: z.string().max(40).optional().default('web'),
+  alternativeFor: z.string().url().max(2048).optional().nullable().default(null),
   reviewStatus: z.enum(['unreviewed', 'useful', 'not_relevant']).optional(),
   analystNote: z.string().max(1000).optional(),
   publishedAt: z.string().max(40).nullable().optional().default(null),
@@ -31,6 +32,13 @@ const sourceSchema = z.object({
   linkCheck: z.object({
     status: z.enum(['reachable', 'not_confirmed', 'not_checked']).optional().default('not_checked'),
     checkedAt: z.string().max(40).nullable().optional().default(null),
+    httpStatus: z.number().int().min(100).max(599).nullable().optional().default(null),
+    finalUrl: z.string().url().max(2048).nullable().optional().default(null),
+    redirects: z.array(z.object({
+      status: z.number().int().min(300).max(399),
+      from: z.string().url().max(2048),
+      to: z.string().url().max(2048),
+    })).max(5).optional().default([]),
     note: z.string().max(500).optional().default(''),
   }).optional().default({}),
 });
@@ -83,7 +91,7 @@ function normalizeClaims(input, allowedSourceUrls) {
 }
 
 function normalizeSources(input) {
-  const parsed = z.array(sourceSchema).max(12).safeParse(input);
+  const parsed = z.array(sourceSchema).max(24).safeParse(input);
   if (!parsed.success) return null;
   const seen = new Set();
   const sources = [];
@@ -95,10 +103,39 @@ function normalizeSources(input) {
       const canonicalUrl = url.toString();
       if (seen.has(canonicalUrl)) continue;
       seen.add(canonicalUrl);
+
+      const alternativeFor = item.alternativeFor ? canonicalSourceUrl(item.alternativeFor) : null;
+      if (item.alternativeFor && !alternativeFor) return null;
+
+      const linkCheck = item.linkCheck || {};
+      const rawRedirects = Array.isArray(linkCheck.redirects) ? linkCheck.redirects : [];
+      const finalUrl = linkCheck.finalUrl ? canonicalSourceUrl(linkCheck.finalUrl) : null;
+      if (linkCheck.finalUrl && !finalUrl) return null;
+      const redirects = [];
+      let expectedFrom = canonicalUrl;
+      for (const redirect of rawRedirects) {
+        const from = canonicalSourceUrl(redirect.from);
+        const to = canonicalSourceUrl(redirect.to);
+        if (!from || !to || from !== expectedFrom) return null;
+        redirects.push({ status: redirect.status, from, to });
+        expectedFrom = to;
+      }
+      if (finalUrl && redirects.length && expectedFrom !== finalUrl) return null;
+      if (finalUrl && !redirects.length && finalUrl !== canonicalUrl) return null;
+
       sources.push({
         ...item,
         url: canonicalUrl,
-        providers: [...new Set(item.providers.map(value => value.trim()).filter(Boolean))].slice(0, 8),
+        alternativeFor,
+        linkCheck: {
+          status: linkCheck.status || 'not_checked',
+          checkedAt: linkCheck.checkedAt || null,
+          httpStatus: linkCheck.httpStatus ?? null,
+          finalUrl,
+          redirects,
+          note: linkCheck.note || '',
+        },
+        providers: [...new Set((item.providers || []).map(value => value.trim()).filter(Boolean))].slice(0, 8),
       });
     } catch {
       return null;
@@ -186,7 +223,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
     const sources = normalizeSources(req.body?.sources);
-    if (!sources) return sendError(res, 400, 'INVALID_SOURCES', 'Provide up to 12 unique public HTTP(S) sources with valid metadata.');
+    if (!sources) return sendError(res, 400, 'INVALID_SOURCES', 'Provide up to 24 unique public HTTP(S) sources with valid metadata.');
     if (isDb()) {
       const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('sources').lean();
       if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');

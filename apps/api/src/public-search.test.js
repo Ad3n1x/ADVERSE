@@ -65,6 +65,16 @@ test('public search rejects short queries without calling external providers', a
   assert.equal((await response.json()).error.code, 'QUERY_REQUIRED');
 }));
 
+test('public link checks reject loopback and private network destinations', async () => withServer(async base => {
+  const response = await fetch(base + '/api/v1/public-search/check-link', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ url: 'http://127.0.0.1:8080/private' }),
+  });
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, 'INVALID_PUBLIC_URL');
+}));
+
 test('public media search rejects unsupported media types', async () => withServer(async base => {
   const response = await fetch(base + '/api/v1/public-search/media?q=weather&type=podcasts');
   assert.equal(response.status, 400);

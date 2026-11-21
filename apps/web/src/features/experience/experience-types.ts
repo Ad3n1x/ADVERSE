@@ -7,6 +7,7 @@ export type ExperienceSource = {
   provider?: string;
   providers?: string[];
   sourceType?: string;
+  alternativeFor?: string | null;
   publishedAt?: string | null;
   retrievedAt?: string | null;
   savedAt?: string;
@@ -15,6 +16,9 @@ export type ExperienceSource = {
   linkCheck?: {
     status?: 'reachable' | 'not_confirmed' | 'not_checked';
     checkedAt?: string | null;
+    httpStatus?: number | null;
+    finalUrl?: string | null;
+    redirects?: Array<{ status: number; from: string; to: string }>;
     note?: string;
   };
 };

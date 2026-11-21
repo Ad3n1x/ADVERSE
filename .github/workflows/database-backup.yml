@@ -19,6 +19,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.2
+
       - name: Require backup secrets
         env:
           MONGODB_BACKUP_URI: ${{ secrets.MONGODB_BACKUP_URI }}
@@ -27,6 +32,7 @@ jobs:
           set -euo pipefail
           test -n "$MONGODB_BACKUP_URI" || { echo "::error::Set repository secret MONGODB_BACKUP_URI to the production MongoDB URI."; exit 1; }
           test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::Set repository secret BACKUP_ENCRYPTION_PASSPHRASE to a strong unique passphrase."; exit 1; }
+          test "${#BACKUP_ENCRYPTION_PASSPHRASE}" -ge 20 || { echo "::error::BACKUP_ENCRYPTION_PASSPHRASE must contain at least 20 characters."; exit 1; }
 
       - name: Install MongoDB Database Tools
         run: |
@@ -43,10 +49,10 @@ jobs:
           set -euo pipefail
           umask 077
           mongodump --uri="$MONGODB_BACKUP_URI" --db=adverse --archive="$RUNNER_TEMP/adverse-backup.archive.gz" --gzip
-          openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/adverse-backup.archive.gz" -out "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          node apps/api/scripts/backup-crypto.mjs encrypt "$RUNNER_TEMP/adverse-backup.archive.gz" "$RUNNER_TEMP/adverse-backup.archive.gz.enc"
           test -s "$RUNNER_TEMP/adverse-backup.archive.gz.enc"
           rm -f "$RUNNER_TEMP/adverse-backup.archive.gz" "$RUNNER_TEMP/mongodb-tools.tgz"
-          openssl enc -d -aes-256-cbc -pbkdf2 -in "$RUNNER_TEMP/adverse-backup.archive.gz.enc" -out "$RUNNER_TEMP/backup-verification.archive.gz" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          node apps/api/scripts/backup-crypto.mjs decrypt "$RUNNER_TEMP/adverse-backup.archive.gz.enc" "$RUNNER_TEMP/backup-verification.archive.gz"
           gzip -t "$RUNNER_TEMP/backup-verification.archive.gz"
           rm -f "$RUNNER_TEMP/backup-verification.archive.gz"
           echo "Encrypted backup archive created and verified without printing secrets."
@@ -67,7 +73,7 @@ jobs:
     timeout-minutes: 30
     services:
       mongodb:
-        image: mongo:7
+        image: mongo:8.0
         ports:
           - 27017:27017
         options: >-
@@ -76,12 +82,18 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.2
+
       - name: Require backup encryption secret
         env:
           BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: |
           set -euo pipefail
           test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::Missing BACKUP_ENCRYPTION_PASSPHRASE."; exit 1; }
+          test "${#BACKUP_ENCRYPTION_PASSPHRASE}" -ge 20 || { echo "::error::BACKUP_ENCRYPTION_PASSPHRASE must contain at least 20 characters."; exit 1; }
 
       - name: Download encrypted backup artifact
         uses: actions/download-artifact@v4
@@ -107,7 +119,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          openssl enc -d -aes-256-cbc -pbkdf2 -in "$ENCRYPTED_ARCHIVE" -out "$DECRYPTED_ARCHIVE" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          node apps/api/scripts/backup-crypto.mjs decrypt "$ENCRYPTED_ARCHIVE" "$DECRYPTED_ARCHIVE"
           gzip -t "$DECRYPTED_ARCHIVE"
           python <<'PY'
           import os

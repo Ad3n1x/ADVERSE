@@ -66,7 +66,7 @@ const emailConfig = () => ({
 
 export async function notifyAlertByEmail(alert, watch) {
   const { apiKey, from, to } = emailConfig();
-  if (!apiKey || !from || !to) return { sent: false, reason: 'Brevo email configuration is incomplete.' };
+  if (!apiKey || !from || !to) return { accepted: false, messageId: '', reason: 'Brevo email configuration is incomplete.' };
   const url = String(watch.url || '');
   const label = String(watch.label || url);
   const body = {
@@ -85,13 +85,18 @@ export async function notifyAlertByEmail(alert, watch) {
     if (!response.ok) {
       const reason = 'Brevo rejected the email with HTTP ' + response.status + '.';
       console.warn('ADVERSE ' + reason);
-      return { sent: false, reason };
+      return { accepted: false, messageId: '', reason };
     }
-    return { sent: true, reason: '' };
+    const providerResult = await response.json().catch(() => ({}));
+    return {
+      accepted: true,
+      messageId: String(providerResult?.messageId || '').slice(0, 240),
+      reason: ''
+    };
   } catch (error) {
     const reason = String(error?.message || 'Network error').slice(0, 250);
     console.warn('ADVERSE Brevo email alert delivery failed:', reason);
-    return { sent: false, reason };
+    return { accepted: false, messageId: '', reason };
   }
 }
 
@@ -104,12 +109,15 @@ async function deliverAndRecord(alert, watch) {
   const attempts = Number(alert.emailAttempts || 0) + 1;
   const delayMinutes = Math.min(60, 5 * (2 ** Math.min(attempts - 1, 4)));
   const update = {
-    emailStatus: result.sent ? 'sent' : 'pending',
+    emailStatus: result.accepted ? 'accepted' : 'pending',
     emailLastError: result.reason,
     emailAttempts: attempts,
-    emailNextAttemptAt: result.sent ? null : new Date(Date.now() + delayMinutes * 60 * 1000)
+    emailNextAttemptAt: result.accepted ? null : new Date(Date.now() + delayMinutes * 60 * 1000)
   };
-  if (result.sent) update.emailSentAt = new Date();
+  if (result.accepted) {
+    update.emailAcceptedAt = new Date();
+    update.emailMessageId = result.messageId || '';
+  }
   await Alert.updateOne({ _id: alert._id }, { $set: update });
 }
 

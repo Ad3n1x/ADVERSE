@@ -36,6 +36,8 @@ const stacCollections = ref<StacCollection[]>([]);
 const stacLoading = ref(true);
 const stacError = ref('');
 const stacUpdatedAt = ref('');
+const mapUnavailable = ref(false);
+const globeError = ref('');
 const stacEndpoint = 'https://earth-search.aws.element84.com/v1/collections';
 const savingEventId = ref('');
 const savedEventIds = ref<string[]>([]);
@@ -88,7 +90,7 @@ async function refreshEarthquakes() {
     const response = await fetch(usgsUrl, { headers: { Accept: 'application/geo+json' } });
     if (!response.ok) throw new Error(`USGS feed returned HTTP ${response.status}`);
     const payload = await response.json();
-    if (disposed || !viewer) return;
+    if (disposed) return;
     const features = Array.isArray(payload.features) ? payload.features : [];
     const parsed: Quake[] = features.map((feature: any) => {
       const coordinates = feature.geometry?.coordinates ?? [];
@@ -102,13 +104,15 @@ async function refreshEarthquakes() {
         url: String(feature.properties?.url ?? 'https://earthquake.usgs.gov/earthquakes/'),
       };
     }).filter((event: Quake) => Number.isFinite(event.longitude) && Number.isFinite(event.latitude));
-    if (quakeLayer) await viewer.dataSources.remove(quakeLayer, true);
-    quakeLayer = await Cesium.GeoJsonDataSource.load(payload, {
-      clampToGround: false, markerColor: Cesium.Color.fromCssColorString('#f3ad55'),
-      markerSize: 9, markerSymbol: 'circle',
-    });
-    if (disposed) { quakeLayer = null; return; }
-    await viewer.dataSources.add(quakeLayer);
+    if (viewer) {
+      if (quakeLayer) await viewer.dataSources.remove(quakeLayer, true);
+      quakeLayer = await Cesium.GeoJsonDataSource.load(payload, {
+        clampToGround: false, markerColor: Cesium.Color.fromCssColorString('#f3ad55'),
+        markerSize: 9, markerSymbol: 'circle',
+      });
+      if (disposed) { quakeLayer = null; return; }
+      await viewer.dataSources.add(quakeLayer);
+    }
     earthquakes.value = parsed.slice(0, 10);
     quakeCount.value = parsed.length;
     quakeUpdatedAt.value = new Date(Number(payload.metadata?.generated) || Date.now()).toLocaleString();
@@ -126,7 +130,7 @@ async function refreshNaturalEvents() {
     const response = await fetch(eonetUrl, { headers: { Accept: 'application/json' } });
     if (!response.ok) throw new Error(`NASA EONET returned HTTP ${response.status}`);
     const payload = await response.json();
-    if (disposed || !viewer) return;
+    if (disposed) return;
     const sourceEvents = Array.isArray(payload.events) ? payload.events : [];
     const parsed: NaturalEvent[] = sourceEvents.map((event: any) => {
       const latestGeometry = [...(event.geometry ?? [])].reverse().find((item: any) => representativeCoordinate(item));
@@ -152,13 +156,15 @@ async function refreshNaturalEvents() {
         properties: { title: event.title, category: event.category, date: event.occurredAt, url: event.url },
       })),
     };
-    if (naturalLayer) await viewer.dataSources.remove(naturalLayer, true);
-    naturalLayer = await Cesium.GeoJsonDataSource.load(geoJson as any, {
-      clampToGround: false, markerColor: Cesium.Color.fromCssColorString('#69c8d7'),
-      markerSize: 11, markerSymbol: 'circle',
-    });
-    if (disposed) { naturalLayer = null; return; }
-    await viewer.dataSources.add(naturalLayer);
+    if (viewer) {
+      if (naturalLayer) await viewer.dataSources.remove(naturalLayer, true);
+      naturalLayer = await Cesium.GeoJsonDataSource.load(geoJson as any, {
+        clampToGround: false, markerColor: Cesium.Color.fromCssColorString('#69c8d7'),
+        markerSize: 11, markerSymbol: 'circle',
+      });
+      if (disposed) { naturalLayer = null; return; }
+      await viewer.dataSources.add(naturalLayer);
+    }
     naturalEvents.value = parsed.slice(0, 10);
     naturalCount.value = parsed.length;
     naturalUpdatedAt.value = new Date().toLocaleString();
@@ -266,12 +272,12 @@ onMounted(async () => {
       destination: Cesium.Cartesian3.fromDegrees(8, 12, 23000000),
       orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
     });
-    await refreshAll();
   } catch (cause) {
-    quakeError.value = cause instanceof Error ? cause.message : 'The 3D globe could not be started.';
-    loadingQuakes.value = false;
-    loadingNatural.value = false;
+    mapUnavailable.value = true;
+    globeError.value = cause instanceof Error ? cause.message : 'The 3D globe could not be started.';
   }
+  // Public event lists and provenance remain available even when WebGL is disabled.
+  await refreshAll();
 });
 
 onBeforeUnmount(() => {
@@ -317,7 +323,12 @@ onBeforeUnmount(() => {
 
     <div class="geo-workspace">
       <div class="geo-map-card">
-        <div ref="mapHost" class="geo-map" role="img" aria-label="Interactive 3D globe showing public earthquake and natural event markers"></div>
+        <div ref="mapHost" class="geo-map" role="img" :aria-label="mapUnavailable ? '3D globe unavailable; public event observations are listed beside this panel' : 'Interactive 3D globe showing public earthquake and natural event markers'"></div>
+        <div v-if="mapUnavailable" class="geo-map-fallback" role="status">
+          <strong>3D globe unavailable</strong>
+          <span>{{ globeError || 'Your browser or device could not start WebGL. The public event lists and source links remain available.' }}</span>
+          <small>Use the event explorer to review the attributed observations without the map.</small>
+        </div>
         <div ref="creditHost" class="geo-credits"></div>
         <div class="geo-map-topline">
           <div class="geo-map-label"><span class="geo-live-pulse"></span> GLOBAL EVENT VIEW</div>
@@ -350,7 +361,7 @@ onBeforeUnmount(() => {
             <div v-else-if="activeError" class="geo-state geo-state-error">{{ activeError }} <button type="button" @click="activeFeed === 'earthquakes' ? refreshEarthquakes() : refreshNaturalEvents()">Retry</button></div>
             <div v-else-if="!activeEvents.length" class="geo-state">No events are currently available from this feed.</div>
             <div v-for="event in activeEvents" :key="event.id" class="geo-event">
-              <button class="geo-event-focus" type="button" @click="focusEvent(event)" :aria-label="'Focus globe on ' + ('place' in event ? event.place : event.title)">
+              <button class="geo-event-focus" type="button" @click="focusEvent(event)" :aria-label="'Focus globe on ' + ('place' in event ? event.place : event.title)" :disabled="mapUnavailable" :title="mapUnavailable ? 'Globe unavailable; review the event in the list' : 'Focus globe on this event'">
                 <span v-if="'magnitude' in event" class="geo-event-mark geo-event-mark-quake">{{ event.magnitude === null ? '—' : event.magnitude.toFixed(1) }}</span>
                 <span v-else class="geo-event-mark geo-event-mark-natural">✳</span>
                 <span class="geo-event-copy">
@@ -502,4 +513,9 @@ onBeforeUnmount(() => {
 .geo-catalog-state{display:flex;align-items:center;gap:8px;padding:10px 0;color:#93a6b9;font-size:10px}
 .geo-catalog-state button{border:0;background:transparent;color:#9acbfa;font:inherit;text-decoration:underline;cursor:pointer}
 .geo-catalog-footer a{color:#8fbce0;text-decoration:none}.geo-catalog-footer{display:flex;justify-content:space-between;gap:8px;margin-top:11px;padding-top:9px;border-top:1px solid #ffffff0c;color:#788da2;font-size:8px}
+
+.geo-map-fallback{position:absolute;z-index:4;inset:0;display:grid;align-content:center;justify-items:center;gap:12px;padding:clamp(20px,5vw,44px);text-align:center;background:radial-gradient(ellipse at 50% 45%,#16344a 0%,#0b1a2a 58%,#07111d 100%)}
+.geo-map-fallback strong{color:#e8f2fb;font-size:18px;letter-spacing:-.02em}
+.geo-map-fallback span{max-width:420px;color:#b2c3d4;font-size:12px;line-height:1.7}
+.geo-map-fallback small{max-width:420px;color:#87a1b8;font-size:10px;line-height:1.6}
 </style>

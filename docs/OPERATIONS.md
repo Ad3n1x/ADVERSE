@@ -29,7 +29,7 @@ A healthy liveness response means the process responds. A successful readiness r
 
 ## 4. MongoDB backup and recovery — required before broad launch
 
-A guarded encrypted-backup workflow is now available at `.github/workflows/database-backup.yml`. It is deliberately opt-in; it will not connect to a database until the repository owner configures all required settings.
+A guarded encrypted-backup workflow is available at `.github/workflows/database-backup.yml`. It is deliberately opt-in; it will not connect to a database until the repository owner configures all required settings. It now streams the dump through authenticated AES-256-GCM encryption, authenticates its metadata, and verifies decryption before storing the artifact. Automated tests cover round-trip recovery, wrong passphrases, altered ciphertext, and overwrite protection.
 
 1. In GitHub repository Settings → Secrets and variables → Actions, add secret `MONGODB_BACKUP_URI` pointing to the confirmed production database (never paste it into chat or commit it).
 2. Add secret `BACKUP_ENCRYPTION_PASSPHRASE` with a strong, unique passphrase. Store that passphrase securely outside GitHub; losing it makes the encrypted archive unrecoverable.
