@@ -25,7 +25,7 @@ const RULES = [
 const PREFIXES = [
   /^(?:i\s+(?:want|would\s+like)\s+to\s+apply\s+(?:to|for)|want\s+to\s+apply\s+(?:to|for)|apply\s+(?:to|for)|application\s+(?:for|to)|admissions?\s+(?:for|to))\s+/i,
   /^(?:please\s+)?(?:find|search\s+for|look\s+up|research|investigate|show\s+me|tell\s+me\s+about|explain|check)\s+/i,
-  /^(?:what\s+is|what\s+are|who\s+is|who\s+are|where\s+is|when\s+did|why\s+did|how\s+does|how\s+do\s+i)\s+/i,
+  /^(?:what\s+is|what\s+are|who\s+is|who\s+are|where\s+is|when\s+did|when\s+is|why\s+did|how\s+does|how\s+do\s+i|how\s+much\s+(?:is|are))\s+/i,
   /^(?:is\s+it\s+true\s+that|is\s+this\s+true\s+that|build\s+a\s+timeline\s+of|create\s+a\s+timeline\s+of|compare)\s+/i,
   /^(?:the\s+)?(?:official\s+)?(?:website|web\s*site|site|homepage)\s+(?:for|of)\s+/i,
 ];
@@ -34,10 +34,10 @@ function extractSubject(query, type) {
   let subject = query;
   for (const pattern of PREFIXES) subject = subject.replace(pattern, '');
   if (type === 'application') {
-    subject = subject.replace(/\b(?:i|want|would|like|to|apply|application|admission|admissions|for|at|into|the|university|college)\b/gi, ' ');
+    subject = subject.replace(/\b(?:i|want|would|like|to|apply|application|admission|admissions|for|at|into|the|university|college|how|much|is|are|does|do|offer|offers|offering|have|has|available|what|when|deadline|closing|date|tuition|fees|fee|cost|programme|program|course|courses)\b/gi, ' ');
   } else {
     subject = subject
-      .replace(/\b(please|i|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+      .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
       .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ');
   }
   return subject.replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim() || query;
