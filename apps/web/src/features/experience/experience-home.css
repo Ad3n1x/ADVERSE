@@ -310,3 +310,17 @@
 .experience-live-sources{margin-top:14px;padding:14px;background:rgba(7,17,23,.42)}
 .experience-source-card{background:rgba(13,27,34,.62)}
 @media(max-width:680px){.experience-hero{padding:52px 17px 30px}.experience-hero h1{font-size:clamp(34px,9vw,48px)}.experience-workspace{padding:13px}.experience-progress-details>summary{font-size:10px}}
+
+
+.experience-outcome-task-panel{margin:16px 0;padding:16px 18px;border:1px solid var(--line,rgba(130,150,180,.22));border-radius:14px;background:linear-gradient(135deg,rgba(74,117,190,.08),rgba(74,117,190,.025));}
+.experience-outcome-task-heading{display:flex;flex-direction:column;gap:5px}
+.experience-outcome-task-heading>span{font-size:10px;letter-spacing:.14em;font-weight:800;color:var(--muted,#8794a8)}
+.experience-outcome-task-heading>strong{font-size:14px;line-height:1.5}
+.experience-outcome-task-panel>p{margin:9px 0 12px;color:var(--muted,#8794a8);font-size:13px;line-height:1.6}
+.experience-outcome-task-panel ol{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.experience-outcome-task-panel li{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line,rgba(130,150,180,.16))}
+.experience-outcome-task-panel li>span{font-size:11px;font-weight:800;color:var(--accent,#6ea5f5);padding-top:2px}
+.experience-outcome-task-panel li div{display:grid;gap:3px}
+.experience-outcome-task-panel li strong{font-size:12px;font-weight:650}
+.experience-outcome-task-panel li small{font-size:10px;color:var(--muted,#8794a8)}
+@media(max-width:640px){.experience-outcome-task-panel{padding:13px}.experience-outcome-task-heading>strong{font-size:13px}}
