@@ -106,11 +106,11 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
-  const subject = (fallback.confidence >= 0.86 && fallback.type === 'application' && fallback.subject)
+  const subject = (fallback.confidence >= 0.86 && fallback.subject)
     ? fallback.subject
     : (grounded(parsed?.subject) ? clean(parsed?.subject, 180) : (fallback.subject || original));
-  const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application'
-    ? (fallback.searchQuery || subject || original)
+  const searchQuery = fallback.confidence >= 0.86 && fallback.searchQuery
+    ? fallback.searchQuery
     : (grounded(parsed?.search_query) ? clean(parsed?.search_query, 220) : (subject || original));
   const list = (value, maxItems, maxLength) => (Array.isArray(value) ? value : [])
     .map(item => clean(item, maxLength)).filter(Boolean).filter((item, index, rows) => rows.findIndex(other => other.toLowerCase() === item.toLowerCase()) === index).slice(0, maxItems);
@@ -119,9 +119,15 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     .filter(item => item.query.length >= 4 && item.reason.length >= 3)
     .filter((item, index, rows) => rows.findIndex(other => other.query.toLowerCase() === item.query.toLowerCase()) === index)
     .slice(0, 3);
-  const entities = (Array.isArray(parsed?.entities) ? parsed.entities : [])
+  const modelEntities = (Array.isArray(parsed?.entities) ? parsed.entities : [])
     .map(item => ({ text: clean(item?.text, 120), kind: clean(item?.kind, 40) || 'unknown', role: clean(item?.role, 50) || 'context' }))
-    .filter(item => item.text.length >= 2 && grounded(item.text)).slice(0, 8);
+    .filter(item => item.text.length >= 2 && grounded(item.text));
+  const entityMap = new Map();
+  for (const item of [...(fallback.entities || []), ...modelEntities]) {
+    const key = String(item.kind || 'unknown').toLowerCase() + ':' + String(item.text || '').toLowerCase();
+    if (item.text && !entityMap.has(key)) entityMap.set(key, item);
+  }
+  const entities = [...entityMap.values()].slice(0, 8);
   if (subject && !entities.some(item => item.text.toLowerCase() === subject.toLowerCase())) entities.unshift({ text: subject, kind: 'unknown', role: 'primary-subject' });
   return {
     type,
@@ -131,6 +137,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     subject,
     searchQuery,
     sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (SOURCE_PREFERENCES.has(parsed?.source_preference) ? parsed.source_preference : fallback.sourcePreference),
+    preferences: { ...(fallback.preferences || {}), sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (SOURCE_PREFERENCES.has(parsed?.source_preference) ? parsed.source_preference : fallback.sourcePreference) },
     matchedSignals: fallback.matchedSignals || [],
     subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
     entities,
@@ -197,7 +204,13 @@ function combineInterpretations(rows, original, fallback) {
     return [value.toLowerCase(), item];
   })).values()].slice(0, max);
   const suggestedQueries = union('suggestedQueries', 3);
-  const entities = union('entities', 8);
+  const modelEntities = union('entities', 8);
+  const entitiesByKey = new Map();
+  for (const item of [...(fallback.entities || []), ...modelEntities]) {
+    const key = String(item?.kind || 'unknown').toLowerCase() + ':' + String(item?.text || '').toLowerCase();
+    if (item?.text && !entitiesByKey.has(key)) entitiesByKey.set(key, item);
+  }
+  const entities = [...entitiesByKey.values()].slice(0, 8);
   const subgoals = union('subgoals', 6);
   const constraints = union('constraints', 8);
   const ambiguities = union('ambiguities', 4);
@@ -205,8 +218,8 @@ function combineInterpretations(rows, original, fallback) {
   const provider = providerNames.length > 1
     ? (agreed ? 'groq+gemini-consensus' : 'groq+gemini-arbitrated')
     : base.provider;
-  const subject = fallback.confidence >= 0.86 && fallback.type === 'application' ? fallback.subject : (base.subject || fallback.subject);
-  const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application' ? fallback.searchQuery : (base.searchQuery || subject || original);
+  const subject = fallback.confidence >= 0.86 && fallback.subject ? fallback.subject : (base.subject || fallback.subject);
+  const searchQuery = fallback.confidence >= 0.86 && fallback.searchQuery ? fallback.searchQuery : (base.searchQuery || subject || original);
   return {
     ...base,
     type: fallback.confidence >= 0.86 ? fallback.type : base.type,
@@ -215,6 +228,7 @@ function combineInterpretations(rows, original, fallback) {
     goal: base.goal || fallback.goal,
     subgoals: subgoals.length ? subgoals : (fallback.subgoals || []),
     entities: entities.length ? entities : (fallback.entities || []),
+    preferences: { ...(fallback.preferences || {}), sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (base.sourcePreference || fallback.sourcePreference) },
     constraints,
     ambiguities,
     clarificationNeeded: rows.some(row => row.value.clarificationNeeded) && fallback.confidence < 0.86,
