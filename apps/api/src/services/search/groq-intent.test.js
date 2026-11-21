@@ -6,7 +6,7 @@ test('uses deterministic intent when the Groq key is not configured', async () =
   const intent = await understandSearchIntentWithGroq('Find the official website for QuickCart', { env: {} });
   assert.equal(intent.type, 'destination');
   assert.equal(intent.provider, 'rules-fallback');
-  assert.match(intent.aiNote, /GROQ_API_KEY/);
+  assert.match(intent.aiNote, /not configured/);
 });
 
 test('uses Groq structured intent and returns bounded query suggestions', async () => {
