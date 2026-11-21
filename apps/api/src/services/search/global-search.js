@@ -106,7 +106,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
     for (const item of intentLeads) add(item.query, item.reason);
   }
 
-  const words = [...new Set((raw.toLocaleLowerCase().match(/[\\p{L}\\p{N}][\\p{L}\\p{N}._+-]*/gu) || []))];
+  const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(word => !STOP.has(word));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
   for (const word of words) {
