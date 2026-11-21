@@ -33,7 +33,7 @@ export async function runResearchPipeline({
   memory,
 }) {
   const seedQueries = [...new Set((Array.isArray(queries) ? queries : []).map(cleanQuery).filter(Boolean))].slice(0, 3);
-  const firstPass = await Promise.allSettled(seedQueries.map(query => searchAllPublic(query)));
+  const firstPass = await Promise.allSettled(seedQueries.map(query => searchAllPublic(query, providerKeys)));
   const seedResults = firstPass.flatMap((item, index) =>
     item.status === 'fulfilled'
       ? (item.value.results || []).map(result => ({ ...result, matchedQuery: seedQueries[index] }))
@@ -105,7 +105,7 @@ export async function runResearchPipeline({
     seenQueries.add(key);
     return true;
   }).slice(0, 3);
-  const followUpSettled = await Promise.allSettled(followUpLeads.map(lead => searchAllPublic(lead.query)));
+  const followUpSettled = await Promise.allSettled(followUpLeads.map(lead => searchAllPublic(lead.query, providerKeys)));
   const followUpResults = followUpSettled.flatMap((item, index) =>
     item.status === 'fulfilled'
       ? (item.value.results || []).map(result => ({
