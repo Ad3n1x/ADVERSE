@@ -1,6 +1,7 @@
 import { ingestEvidence } from './evidence-ingestion.js';
 import { enrichSourceProvenance } from './source-provenance.js';
 import { linkEvidenceAutomatically } from './evidence-linking.js';
+import { buildIntentQueryVariants, understandSearchIntent } from '../search/intent-understanding.js';
 
 const cleanQuery = value => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 
@@ -77,7 +78,13 @@ export async function runResearchPipeline({
   // Deterministic fallback ensures the workflow can still pursue leads when
   // no AI credential is configured. These are search hypotheses, not findings.
   if (!planning.leads.length) {
-    const fallbacks = [
+    const intent = understandSearchIntent(investigationQuestion);
+    const intentLeads = buildIntentQueryVariants(investigationQuestion, intent, 4).slice(1)
+      .map(item => ({
+        query: item.query,
+        reason: 'Intent-aware follow-up for ' + intent.type + ': ' + item.reason + '.',
+      }));
+    const fallbacks = intentLeads.length ? intentLeads : [
       { query: investigationQuestion + ' official source', reason: 'Seek a primary or official record.' },
       { query: investigationQuestion + ' independent reporting', reason: 'Look for reporting from a separately operated publisher.' },
       { query: investigationQuestion + ' timeline evidence', reason: 'Clarify dates and sequence of events.' },
