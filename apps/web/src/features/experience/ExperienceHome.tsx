@@ -443,6 +443,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
 
   async function controlResearchJob(action: 'pause' | 'resume' | 'cancel') {
     if (!researchJob?.id) return;
+    const controlledWorkspaceId = researchJob.workspaceId;
     setJobControlNotice(action === 'pause' ? 'Pause requested…' : action === 'resume' ? 'Resuming research…' : 'Cancellation requested…');
     try {
       const result = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(researchJob.id) + '/' + action, {
@@ -461,8 +462,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           setResearchJob(current);
           polls += 1;
         }
-        if (current.status === 'completed' && activeWorkspaceId) {
-          const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources');
+        if (current.status === 'completed' && activeWorkspaceId === controlledWorkspaceId) {
+          const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(controlledWorkspaceId) + '/sources');
           const nextSources = Array.isArray(saved.data) ? saved.data : [];
           setSources(nextSources);
           setSourceNotes(Object.fromEntries(nextSources.map(item => [item.url, item.analystNote || ''])));
