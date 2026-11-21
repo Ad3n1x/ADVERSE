@@ -9,6 +9,17 @@ test('understands official destination intent and extracts the subject', () => {
   assert.ok(buildIntentQueryVariants('Find the official website for QuickCart', intent).some(item => /official site/i.test(item.query)));
 });
 
+test('understands university application intent and isolates the institution', () => {
+  for (const query of ['I want to apply for ABUAD', 'I want to apply to ABUAD', 'How do I apply to ABUAD?']) {
+    const intent = understandSearchIntent(query);
+    assert.equal(intent.type, 'application');
+    assert.equal(intent.searchQuery, 'ABUAD');
+    const variants = buildIntentQueryVariants(query, intent, 5);
+    assert.ok(variants.some(item => /official admissions application portal/i.test(item.query)));
+    assert.ok(variants.some(item => /undergraduate admission requirements/i.test(item.query)));
+  }
+});
+
 test('understands claim verification and prioritizes evidence-oriented variants', () => {
   const query = 'Is it true that the agency changed its policy?';
   const intent = understandSearchIntent(query);
