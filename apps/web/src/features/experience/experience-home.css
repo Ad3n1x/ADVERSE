@@ -314,3 +314,22 @@
 .experience-task-step-actions button.experience-task-complete{border-color:rgba(132,160,153,.18);background:rgba(120,145,139,.07);color:#9eb6ad}
 .experience-task-save-notice{display:block;margin-top:10px;color:#7fa99b;font:9px 'DM Mono',monospace}
 @media(max-width:620px){.experience-task-guide{padding:13px}.experience-task-steps>li{grid-template-columns:28px minmax(0,1fr)}.experience-task-step-actions{grid-column:2;flex-direction:row;flex-wrap:wrap}.experience-task-guide-head h3{font-size:17px}}
+
+/* Outcome status is distinct from provider activity and source reachability. */
+.experience-answer-status{margin:12px 0;padding:14px 15px;border:1px solid rgba(126,170,160,.2);border-radius:10px;background:rgba(10,24,31,.68)}
+.experience-answer-status-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.experience-answer-status-head>div{display:grid;gap:5px}
+.experience-answer-status-head span,.experience-answer-unresolved>span{color:#8ca9a0;font:8px 'DM Mono',monospace;letter-spacing:.1em}
+.experience-answer-status-head strong{color:#d8eee5;font:600 11px 'DM Mono',monospace}
+.experience-answer-status-head>b{color:#a9e2ca;font:600 17px 'DM Mono',monospace}
+.experience-answer-status-track{height:5px;margin:10px 0 8px;overflow:hidden;border-radius:8px;background:rgba(140,170,160,.15)}
+.experience-answer-status-track span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#5aa88d,#9bd9bd)}
+.experience-answer-status>p{margin:7px 0;color:#b2c9c0;font-size:10px;line-height:1.6}
+.experience-answer-status>small{display:block;color:#829d95;font-size:9px;line-height:1.55}
+.experience-answer-unresolved{margin-top:10px;padding-top:9px;border-top:1px solid rgba(113,160,157,.12)}
+.experience-answer-unresolved ul{display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 0;padding:0;list-style:none}
+.experience-answer-unresolved li{padding:5px 8px;border:1px solid rgba(193,161,109,.22);border-radius:5px;color:#d2bc94;font-size:9px}
+.experience-answer-status.status-answered{border-color:rgba(112,199,157,.35)}
+.experience-answer-status.status-conflicting,.experience-answer-status.status-needs_clarification{border-color:rgba(211,160,98,.4)}
+.experience-source-relevance{padding:4px 6px;border:1px solid rgba(112,177,162,.18);border-radius:4px;color:#8fbeb0;font:8px 'DM Mono',monospace;white-space:nowrap}
+@media(max-width:620px){.experience-answer-status{padding:12px}.experience-answer-status-head>b{font-size:15px}}
