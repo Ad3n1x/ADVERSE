@@ -83,7 +83,7 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   };
 
   const suffixes = {
-    destination: ['official site domain'],
+    destination: /\\b(apply|application|admission|admissions|register|registration|enrol|enroll)\\b/i.test(original) ? ['official admissions application portal', 'admission requirements application deadline'] : ['official site domain'],
     verification: ['primary source evidence', 'independent fact check'],
     'current-events': ['latest reports official statement'],
     historical: ['dated primary records archive'],
