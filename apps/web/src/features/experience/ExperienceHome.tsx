@@ -22,7 +22,7 @@ type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
 
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number; providers?: string[] } };
-type ResearchJobSnapshot = { id: string; workspaceId: string; status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'; stage: string; progress: number; sourceCount: number; successfulSearches: number; providerNames: string[]; coverage: string; errorMessage?: string };
+type ResearchJobSnapshot = { id: string; workspaceId: string; status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'; stage: string; progress: number; attempts: number; sourceCount: number; successfulSearches: number; providerNames: string[]; coverage: string; errorMessage?: string };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
 
