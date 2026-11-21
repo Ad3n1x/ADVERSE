@@ -1,9 +1,10 @@
 import { WorkflowSchema } from './research-contracts.js';
 
 function providerPolicy(intent) {
-  if (intent?.sourcePreference === 'official') return 'official-first';
-  if (intent?.sourcePreference === 'primary-and-independent') return 'primary-and-independent';
-  if (intent?.sourcePreference === 'documentation') return 'documentation-first';
+  const preference = intent?.sourcePreference || intent?.preferences?.sourcePreference;
+  if (preference === 'official') return 'official-first';
+  if (preference === 'primary-and-independent') return 'primary-and-independent';
+  if (preference === 'documentation') return 'documentation-first';
   return 'balanced';
 }
 
