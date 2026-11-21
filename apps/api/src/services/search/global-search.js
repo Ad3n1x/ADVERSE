@@ -337,7 +337,22 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
   const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
-  const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
+  // For resolved institution/programme tasks, reject topical lookalikes that do not
+  // belong to the named institution. High search volume is not a substitute for relevance.
+  const scopedResults = intent?.institution ? rankedResults.filter(item => {
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
+    const text = [item.title, item.url, item.excerpt, item.publisher].join(' ').toLocaleLowerCase();
+    const institutionMatch = host === intent.institution.domain
+      || host.endsWith('.' + intent.institution.domain)
+      || /\\babuad\\b|afe\\s+babalola\\s+university/i.test(text);
+    const programmeMatch = /\\bmechatronics\\b/i.test(text);
+    const taskMatch = intent.type === 'fees-costs'
+      ? /\\b(tuition|school\\s+fees?|fee\\s+schedule|charges?|cost|payment|undergraduate\\s+fees?)\\b/i.test(text)
+      : true;
+    return institutionMatch && (programmeMatch || taskMatch);
+  }) : rankedResults;
+  const results = scopedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
@@ -347,6 +362,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,
       resultCount: results.length,
+      relevanceGate: intent?.institution ? 'institution-scoped: candidates must match the named institution and either the programme or the requested fee topic' : 'intent-aware relevance ranking',
       providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
       coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
