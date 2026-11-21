@@ -77,7 +77,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   };
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
-  const intentVariants = buildIntentQueryVariants(raw, intent, 5);
+  const intentVariants = buildIntentQueryVariants(raw, intent, 6);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
   // For applications, prioritize official admissions routes and requirements over
   // generic keyword matches such as pages that merely contain the word "apply".
@@ -229,7 +229,7 @@ async function performSearchAllPublic(input, providerKeys = {}) {
   const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys });
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
-    : expandSearchQueries(input, 5, intent);
+    : expandSearchQueries(input, 6, intent);
   const publicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
