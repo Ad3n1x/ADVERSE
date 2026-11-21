@@ -10,7 +10,7 @@ test('understands official destination intent and extracts the subject', () => {
 });
 
 test('understands university application intent and isolates the institution', () => {
-  for (const query of ['I want to apply for ABUAD', 'I want to apply to ABUAD', 'How do I apply to ABUAD?']) {
+  for (const query of ['I want to apply for ABUAD', 'I want to apply to ABUAD', 'How do I apply to ABUAD?', 'Where do I register for ABUAD?']) {
     const intent = understandSearchIntent(query);
     assert.equal(intent.type, 'application');
     assert.equal(intent.searchQuery, 'ABUAD');
