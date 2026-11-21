@@ -72,7 +72,8 @@ export function registerInvestigationCoreRoutes(app, deps) {
      let initialSearch={results:[],meta:{query:question,providers:[],coverage:'Initial search unavailable; the autonomous research agent will continue with configured providers.'}};
      try{
       const live=await searchAllPublic(question,providerKeys,{context:intentContext});
-      const ranked=diversifyPublicResults(Array.isArray(live.results)?live.results:[],question,{limit:24,maxPerDomain:3});
+      const intent=live.meta?.intent||null;
+      const ranked=diversifyPublicResults(Array.isArray(live.results)?live.results:[],intent?.searchQuery||question,{limit:24,maxPerDomain:3,intent});
       const seen=new Set();
       initialSearch.results=ranked.map(({_searchScore,_searchOrder,...item})=>item).filter(item=>{
        try{const url=normalizeResultUrl(validatePublicUrl(item.url).href);if(seen.has(url))return false;seen.add(url);item.url=url;return true;}catch{return false;}

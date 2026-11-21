@@ -172,9 +172,12 @@ export function registerPublicSearchRoutes(app, {
       } catch {}
     }
     const filtered = filterAdvancedSearchResults([...mergedByUrl.values()], advanced.filters);
+    const intent = live.meta?.intent || null;
+    const rankingQuery = intent?.searchQuery || q;
     const ranked = improvePublicSearchRanking(
-      diversifyPublicResults(filtered, q, { limit: 36, maxPerDomain: 3 }),
-      q,
+      diversifyPublicResults(filtered, rankingQuery, { limit: 36, maxPerDomain: 3, intent }),
+      rankingQuery,
+      intent,
     );
     const candidates = ranked.map(({ _searchScore, _searchOrder, ...item }) => item);
     const unique = [];

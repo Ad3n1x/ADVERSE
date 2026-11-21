@@ -28,8 +28,8 @@ export function normalizeResultUrl(value) {
 }
 
 /** Re-rank while preventing one host from crowding out every other useful source. */
-export function diversifyPublicResults(items, query, { limit = 120, maxPerDomain = 3 } = {}) {
-  const ranked = rankPublicResults(items, query);
+export function diversifyPublicResults(items, query, { limit = 120, maxPerDomain = 3, intent = null } = {}) {
+  const ranked = rankPublicResults(items, query, intent);
   const selected = [];
   const deferred = [];
   const counts = new Map();
@@ -162,7 +162,7 @@ async function searchGoogleNews(query) {
  * Exact subject matches in titles/URLs outrank incidental mentions in snippets.
  * The score is only a relevance heuristic; it is not a truth, safety, or source-quality rating.
  */
-export function rankPublicResults(items, query) {
+export function rankPublicResults(items, query, intent = null) {
   const normalize = value => clean(value, 2000).toLocaleLowerCase().normalize('NFKC')
     .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
   const tokens = value => normalize(value).split(/\s+/).filter(Boolean);
@@ -203,6 +203,35 @@ export function rankPublicResults(items, query) {
       else if (subjectHits < Math.min(2, subjectTerms.length)) score -= 8;
       if (titleHits === 0) score -= 5;
     }
+    // Match the user's intended task, not just the institution or topic name.
+    // These are retrieval relevance signals only; they do not certify a source as official.
+    const taskTerms = {
+      application: ['admission','admissions','application','apply','applicant','portal','undergraduate','postgraduate','direct entry','registration'],
+      eligibility: ['eligibility','entry requirements','admission requirements','qualifications','cut off','criteria'],
+      'fees-costs': ['tuition','school fees','fee schedule','acceptance fee','cost','charges'],
+      'programme-availability': ['programme','program','course','degree','department','faculty','offered'],
+      deadline: ['deadline','closing date','application closes','registration closes','important dates'],
+      'scholarship-funding': ['scholarship','financial aid','bursary','funding','grant'],
+      destination: ['official website','official site','portal','login','contact'],
+      verification: ['official statement','press release','primary source','evidence','investigation'],
+      'current-events': ['latest','news','update','announced','statement'],
+      historical: ['archive','historical','timeline','history','records'],
+      comparison: ['comparison','versus','pros and cons','differences'],
+      'how-to': ['how to','guide','documentation','instructions','steps','tutorial'],
+      'public-entity': ['official profile','about','organization','university','agency']
+    };
+    const intentType = String(intent?.type || '');
+    const intentPhrases = taskTerms[intentType] || [];
+    if (intentPhrases.length) {
+      const titleTaskHits = intentPhrases.filter(term => (' ' + title + ' ').includes(' ' + normalize(term) + ' ')).length;
+      const urlTaskHits = intentPhrases.filter(term => (' ' + url + ' ').includes(' ' + normalize(term) + ' ')).length;
+      const excerptTaskHits = intentPhrases.filter(term => (' ' + excerpt + ' ').includes(' ' + normalize(term) + ' ')).length;
+      score += Math.min(24, titleTaskHits * 8 + urlTaskHits * 6 + excerptTaskHits * 2);
+      if (intentType === 'application' && !titleTaskHits && !urlTaskHits && /\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\b/i.test(title + ' ' + url)) score -= 10;
+    }
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
+    if (intent?.sourcePreference === 'official' && /\.(edu(?:\.[a-z]{2})?|gov(?:\.[a-z]{2})?|ac\.[a-z]{2})$/i.test(host)) score += 2;
     if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
         !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
     if (/\b(404|page not found|not found)\b/i.test(title)) score -= 8;
@@ -291,7 +320,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
-  const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3 });
+  const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
   const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
