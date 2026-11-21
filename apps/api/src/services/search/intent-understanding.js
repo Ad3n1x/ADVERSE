@@ -36,7 +36,8 @@ function extractSubject(query, type) {
   if (type === 'application') {
     // The action prefix is removed above. Preserve institution-name components such as
     // "University of Lagos" and "College of Medicine" as part of the target entity.
-    subject = subject.replace(/^the\s+/i, '');
+    subject = subject.replace(/^the\s+/i, '')
+      .replace(/\s+(?:and|also|plus)\s+(?=(?:find|check|tell|show|what|how|when|whether|compare|verify|look|search)\b).*/i, '');
   } else {
     subject = subject
       .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
@@ -56,7 +57,7 @@ export function understandSearchIntent(input) {
   };
 
   const rule = RULES.find(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
-  const secondaryClauses = originalQuery.split(/\\s+(?:and|also|plus)\\s+|[,;]+/i).slice(1);
+  const secondaryClauses = originalQuery.split(/\s+(?:and|also|plus)\s+|[,;]+/i).slice(1);
   const secondaryRules = RULES.filter(candidate => candidate !== rule
     && secondaryClauses.some(clause => candidate.patterns.some(pattern => pattern.test(clause))));
   const selected = rule || {
