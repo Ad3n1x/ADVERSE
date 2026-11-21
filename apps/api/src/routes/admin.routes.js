@@ -17,8 +17,9 @@ export function registerAdminRoutes(app, {
     if(!user) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
     Promise.resolve().then(async()=>{
       const email=String(user.email||'').toLowerCase();
-      let account=isDb()?await User.findById(user.id).select('email role status').lean():memory.users.get(user.id);
+      let account=isDb()?await User.findById(user.id).select('email role status authVersion').lean():memory.users.get(user.id);
       if(!account || (account.status||'active')==='suspended') return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
+      if(Number(account.authVersion||0)!==Number(user.authVersion||0)) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
       const isOwner=email===ownerEmail() && String(account.email||'').toLowerCase()===ownerEmail() && account.role==='admin' && user.role==='admin';
       const isAdmin=account.role==='admin' && user.role==='admin';
       if(!isOwner && !isAdmin) return sendError(res,403,'ADMIN_REQUIRED','Administrator access is required.');
@@ -60,11 +61,11 @@ export function registerAdminRoutes(app, {
       // and promote the reserved owner account so an earlier public registration cannot persist.
       const salt=crypto.randomBytes(16).toString('hex');
       const passwordHash=configuredPasswordHash||salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
-      if(isDb())await User.updateOne({_id:account._id},{$set:{passwordHash,role:'admin'}});
-      else Object.assign(account,{passwordHash,role:'admin'});
+      if(isDb()){await User.updateOne({_id:account._id},{$set:{passwordHash,role:'admin'},$inc:{authVersion:1}});account.authVersion=(Number(account.authVersion)||0)+1;}
+      else Object.assign(account,{passwordHash,role:'admin',authVersion:(Number(account.authVersion)||0)+1});
     }
     const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
-    setSession(res,tokenFor(safe));
+    setSession(res,tokenFor({...safe,authVersion:Number(account.authVersion||0)}));
     req.user=safe;
     await auditAdmin(req,'admin.login','admin',configuredEmail,{success:true});
     res.json({data:safe});
