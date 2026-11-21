@@ -233,6 +233,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const sourceSaveSequence = useRef(0);
   const [isResolving, setIsResolving] = useState(false);
   const [researchJob, setResearchJob] = useState<ResearchJobSnapshot | null>(null);
+  const [workspaceAnswerStatus, setWorkspaceAnswerStatus] = useState<ExperienceAnswerStatus | null>(null);
   const [jobControlNotice, setJobControlNotice] = useState('');
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
@@ -327,6 +328,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     setSourceSyncStatus('idle');
     setIsResolving(true);
     setResearchJob(null);
+    setWorkspaceAnswerStatus(null);
     setJobControlNotice('');
     setPlannerMode('deterministic');
     setResolvedPlan(intentPlan);
@@ -414,6 +416,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           const latest = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(currentJob.id));
           currentJob = latest.data;
           setResearchJob(currentJob);
+          setWorkspaceAnswerStatus(currentJob.answerStatus || null);
           polls += 1;
         }
         if (currentJob.status !== 'completed') {
@@ -954,6 +957,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const plan = resolvedPlan?.request === activeIntent ? resolvedPlan : localPlan;
   const kind = plan.kind;
   const workspace = intentCopy[kind];
+  const displayedAnswerStatus = researchJob?.answerStatus || workspaceAnswerStatus;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1064,17 +1068,17 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 <div className="experience-job-progress-track"><span style={{ width: researchJob.progress + '%' }} /></div>
                 <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} saved sources · {researchJob.attempts || 0} attempt(s)</small>
               </div>}
-              {researchJob?.answerStatus && <section className={'experience-answer-status status-' + researchJob.answerStatus.status} aria-live="polite">
+              {displayedAnswerStatus && <section className={'experience-answer-status status-' + displayedAnswerStatus.status} aria-live="polite">
                 <div className="experience-answer-status-head">
-                  <div><span>RESEARCH ANSWER STATUS</span><strong>{researchJob.answerStatus.status.replaceAll('_', ' ').toUpperCase()}</strong></div>
-                  <b>{Math.round(researchJob.answerStatus.completionRatio * 100)}%</b>
+                  <div><span>RESEARCH ANSWER STATUS</span><strong>{displayedAnswerStatus.status.replaceAll('_', ' ').toUpperCase()}</strong></div>
+                  <b>{Math.round(displayedAnswerStatus.completionRatio * 100)}%</b>
                 </div>
-                <div className="experience-answer-status-track"><span style={{ width: Math.round(researchJob.answerStatus.completionRatio * 100) + '%' }} /></div>
-                <p>{researchJob.answerStatus.explanation}</p>
-                {researchJob.answerStatus.conflictCount > 0 && <small>{researchJob.answerStatus.conflictCount} conflicting claim(s) require review.</small>}
-                {researchJob.answerStatus.unresolvedQuestions.length > 0 && <div className="experience-answer-unresolved">
+                <div className="experience-answer-status-track"><span style={{ width: Math.round(displayedAnswerStatus.completionRatio * 100) + '%' }} /></div>
+                <p>{displayedAnswerStatus.explanation}</p>
+                {displayedAnswerStatus.conflictCount > 0 && <small>{displayedAnswerStatus.conflictCount} conflicting claim(s) require review.</small>}
+                {displayedAnswerStatus.unresolvedQuestions.length > 0 && <div className="experience-answer-unresolved">
                   <span>STILL UNRESOLVED</span>
-                  <ul>{researchJob.answerStatus.unresolvedQuestions.map(field => <li key={field}>{field}</li>)}</ul>
+                  <ul>{displayedAnswerStatus.unresolvedQuestions.map(field => <li key={field}>{field}</li>)}</ul>
                 </div>}
                 <small>Completion is based on supported, source-linked claims—not provider search counts or AI confidence.</small>
               </section>}
@@ -1162,7 +1166,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </Suspense>
             </div>}
             {activeWorkspaceId && <>
-              <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} onAnswerStatusChange={status => setResearchJob(current => current ? { ...current, answerStatus: status } : current)} refreshKey={runRefreshKey} />
+              <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} onAnswerStatusChange={status => { setWorkspaceAnswerStatus(status); setResearchJob(current => current ? { ...current, answerStatus: status } : current); }} refreshKey={runRefreshKey} />
               <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
               <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
               <WorkspaceAccessDocuments workspaceId={activeWorkspaceId} />
