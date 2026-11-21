@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expandSearchQueries, rankPublicResults } from './global-search.js';
+import { expandSearchQueries, rankPublicResults, getPublicProviderPolicy } from './global-search.js';
 
 test('query planner is bounded, unique, and starts with exact phrase intent', () => {
   const plan = expandSearchQueries('MovieBox old version download', 5);
@@ -77,4 +77,19 @@ test('fee-intent ranking prioritizes the named institution and programme over un
   ], 'abuad mechatronics degree', { type: 'fees-costs', sourcePreference: 'official' });
   assert.equal(results[0].title, 'ABUAD Undergraduate Fees and Charges');
   assert.ok(results.findIndex(item => /price discrimination/i.test(item.title)) > 0);
+});
+
+test('provider routing excludes academic indexes for admissions and fee tasks', () => {
+  for (const type of ['application', 'eligibility', 'fees-costs', 'programme-availability', 'deadline']) {
+    assert.ok(!getPublicProviderPolicy({ type }).includes('Wikipedia / Crossref / OpenAlex'));
+    assert.ok(getPublicProviderPolicy({ type }).includes('Purili Web Search'));
+  }
+});
+
+test('destination searches avoid academic and news indexes while general research retains them', () => {
+  const destination = getPublicProviderPolicy({ type: 'destination' });
+  assert.ok(!destination.includes('Wikipedia / Crossref / OpenAlex'));
+  assert.ok(!destination.includes('GDELT Global News'));
+  assert.ok(!destination.includes('Google News'));
+  assert.ok(getPublicProviderPolicy({ type: 'general-research' }).includes('Wikipedia / Crossref / OpenAlex'));
 });
