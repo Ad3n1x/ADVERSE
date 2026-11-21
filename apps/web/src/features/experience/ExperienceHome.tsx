@@ -412,6 +412,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         // The background worker already persisted this run and generated unreviewed claim candidates.
         if (resolutionId === resolutionSequence.current) setRunRefreshKey(value => value + 1);
       } else {
+        try {
           const providerNames = Array.from(new Set(mergedSources.flatMap(source => [
             ...(source.providers || []),
             ...(source.provider ? [source.provider] : []),
@@ -430,6 +431,9 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
             }),
           });
           if (resolutionId === resolutionSequence.current) setRunRefreshKey(value => value + 1);
+        } catch {
+          // Direct search and source review remain usable if optional run-history sync fails.
+        }
       }
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
       if (!mergedSources.length) {
