@@ -108,6 +108,7 @@ export function finalizeResearchWorkflow(workflowInput, outcome = {}, now = new 
   const completedAt = now.toISOString();
   const entityCount = Array.isArray(outcome.entities) ? outcome.entities.filter(entity => entity?.kind !== 'location').length : 0;
   const sourceCount = Number(outcome.sourceCount || 0);
+  const searchCompleted = Boolean(outcome.searchCompleted);
   const checkedCount = Number(outcome.checkedCount || 0);
   const claimCount = Number(outcome.claimCount || 0);
   const comparisonCount = Number(outcome.comparisonCount || 0);
@@ -118,10 +119,10 @@ export function finalizeResearchWorkflow(workflowInput, outcome = {}, now = new 
   const steps = workflow.steps.map(step => {
     let status = step.status;
     if (step.type === 'resolve-entity') status = entityCount ? 'completed' : 'skipped';
-    if (step.type === 'discover-source') status = sourceCount ? 'completed' : 'failed';
-    if (step.type === 'verify-source') status = checkedCount ? 'completed' : 'blocked';
-    if (step.type === 'extract-evidence') status = claimCount ? 'completed' : 'blocked';
-    if (step.type === 'compare-evidence') status = comparisonCount ? 'completed' : 'blocked';
+    if (step.type === 'discover-source') status = searchCompleted ? 'completed' : sourceCount ? 'completed' : 'failed';
+    if (step.type === 'verify-source') status = checkedCount ? 'completed' : sourceCount === 0 ? 'skipped' : 'blocked';
+    if (step.type === 'extract-evidence') status = claimCount ? 'completed' : sourceCount === 0 ? 'skipped' : 'blocked';
+    if (step.type === 'compare-evidence') status = comparisonCount ? 'completed' : sourceCount === 0 ? 'skipped' : 'blocked';
     if (step.type === 'prepare-outcome') status = answerStatus === 'needs_clarification' ? 'blocked' : 'completed';
     return {
       ...step,
