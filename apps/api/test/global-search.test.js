@@ -34,20 +34,6 @@ test('allocates public search queries to multiple objectives in one request', ()
   assert.ok(plan.some(item => item.reason === 'secondary intent: deadline'));
 });
 
-test('allocates public search queries to multiple objectives in one request', () => {
-  const query = 'I want to apply to ABUAD and find tuition fees and the admission deadline';
-  const intent = {
-    type: 'application',
-    searchQuery: 'ABUAD',
-    secondaryIntents: ['fees-costs', 'deadline'],
-    suggestedQueries: []
-  };
-  const plan = expandSearchQueries(query, 6, intent);
-  assert.ok(plan.some(item => item.query === 'ABUAD official admissions application portal'));
-  assert.ok(plan.some(item => item.reason === 'secondary intent: fees-costs'));
-  assert.ok(plan.some(item => item.reason === 'secondary intent: deadline'));
-});
-
 test('includes AI-proposed investigation leads in bounded search expansion', () => {
   const query = 'Is it true that ABUAD changed its admission policy?';
   const intent = {
