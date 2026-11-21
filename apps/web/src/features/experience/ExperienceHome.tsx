@@ -40,11 +40,17 @@ type IntentPlan = {
   steps: string[];
   spaces: string[];
   approvalRequired: boolean;
+  semanticType?: string;
+  subject?: string;
+  searchQuery?: string;
+  sourcePreference?: string;
+  providerLabel?: string;
 };
 
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
   if (/\b(compare|versus|vs\.?|difference|better than|pros and cons)\b/.test(text)) return 'compare';
+  if (/\b(?:apply\s+(?:to|for)|application\s+(?:to|for)|admission(?:s)?\s+(?:to|for))\b/i.test(text)) return 'plan';
   if (/\b(plan|schedule|roadmap|organize|steps|project|timeline)\b/.test(text)) return 'plan';
   if (/\b(build|create|design|make|develop|write|draft|generate)\b/.test(text)) return 'create';
   if (/\b(research|investigate|find|source|learn|understand|explain|analy[sz]e)\b/.test(text)) return 'research';
@@ -56,15 +62,16 @@ function buildIntentPlan(value: string): IntentPlan {
   const kind = classifyIntent(request);
   const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
   const constraints = [
-    ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between|for)\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between)\s+[^,.;!?]+/gi), match => match[0].trim()),
     ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
-  const focus = request
+  const applicationSubject = request.match(/\b(?:apply|application|admission|admissions)\s+(?:to|for)\s+(.+)$/i)?.[1]?.trim();
+  const focus = (applicationSubject || request
     .replace(/^(?:(?:please|can you|could you|i want to|i need to|help me|help us|we need to)\s+)*/i, '')
     .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
-    .replace(/\b(?:under|below|within|before|after|by|between|for|using|with|without)\s+[^,.;!?]+/gi, '')
+    .replace(/\b(?:under|below|within|before|after|by|between|using|with|without)\s+[^,.;!?]+/gi, '')
     .trim()
-    .replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
+    .replace(/^[,;: -]+|[,;: -]+$/g, '')) || request;
   const outcomeByKind: Record<IntentKind, string> = {
     research: 'A concise evidence-led understanding with sources and unanswered questions',
     plan: 'A sequence of milestones, dependencies, and practical next steps',
@@ -150,7 +157,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
   const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
-  const [plannerMode, setPlannerMode] = useState<'gemini' | 'deterministic'>('deterministic');
+  const [plannerMode, setPlannerMode] = useState<'ai' | 'deterministic'>('deterministic');
   const [showGeospatial, setShowGeospatial] = useState(false);
   const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
   const resolutionSequence = useRef(0);
@@ -245,7 +252,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     ].slice(0, HISTORY_LIMIT));
     let activePlan = intentPlan;
     try {
-      const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'gemini' | 'deterministic'; provider?: string; model?: string } } }>(
+      const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'ai' | 'deterministic'; provider?: string; model?: string } } }>(
         '/experience/resolve',
         { method: 'POST', body: JSON.stringify({ intent: trimmed }) },
       );
@@ -253,7 +260,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       if (resolved.data?.plan) {
         activePlan = resolved.data.plan;
         setResolvedPlan(activePlan);
-        setPlannerMode(resolved.data.engine?.mode === 'gemini' ? 'gemini' : 'deterministic');
+        setPlannerMode(resolved.data.engine?.mode === 'ai' ? 'ai' : 'deterministic');
         setHistory(current => current.map(item => item.intent.toLowerCase() === trimmed.toLowerCase()
           ? { ...item, kind: activePlan.kind }
           : item));
@@ -271,7 +278,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     }
     if (resolutionId !== resolutionSequence.current) return;
     try {
-      const query = activePlan.focus.length >= 2 ? activePlan.focus : trimmed;
+      // Preserve the complete request so search can interpret the action and its target together.
+      const query = trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
       if (resolutionId !== resolutionSequence.current) return;
       const freshSources = Array.isArray(response.data) ? response.data.slice(0, 12) : [];
@@ -725,7 +733,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 <div className="experience-constraint-list">{plan.constraints.map(item => <span key={item}>{item}</span>)}</div>
               </div>}
             </div>
-            <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'gemini' ? 'Google Gemini' : 'Local structured planner'}</strong></div>
+            <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'ai' ? (plan.providerLabel || 'Groq / Gemini semantic planner') : 'Local semantic planner'}</strong></div>
             {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
             <div className="experience-workspace-grid">

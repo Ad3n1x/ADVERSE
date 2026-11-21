@@ -86,3 +86,16 @@ test('includes bounded AI-suggested query leads in the actual search plan', () =
   const variants = buildIntentQueryVariants('I want to apply to ABUAD', intent, 5);
   assert.ok(variants.some(item => item.reason.startsWith('AI:') && /official undergraduate application portal/i.test(item.query)));
 });
+
+
+test('preserves institution-name words when extracting application targets', () => {
+  for (const [query, expected] of [
+    ['I would like to apply to University of Lagos', 'University of Lagos'],
+    ['How do I apply to the University of Ibadan?', 'University of Ibadan'],
+    ['I want to apply for ABUAD', 'ABUAD'],
+  ]) {
+    const intent = understandSearchIntent(query);
+    assert.equal(intent.type, 'application');
+    assert.equal(intent.searchQuery, expected);
+  }
+});

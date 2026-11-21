@@ -50,3 +50,21 @@ test('intent-aware ranking is optional and safely handles missing URLs', () => {
   assert.equal(results.length, 2);
   assert.equal(results[0].title, 'ABUAD admissions portal');
 });
+
+
+test('application query plan keeps the institution and reserves a slot for AI intent leads', () => {
+  const intent = {
+    type: 'application',
+    subject: 'ABUAD',
+    searchQuery: 'ABUAD',
+    sourcePreference: 'official',
+    suggestedQueries: [
+      { query: 'ABUAD official undergraduate admissions application portal', reason: 'Find the institution application destination' },
+      { query: 'ABUAD undergraduate entry requirements', reason: 'Identify applicant requirements' },
+    ],
+  };
+  const plan = expandSearchQueries('I want to apply for ABUAD', 6, intent);
+  assert.ok(plan.some(item => item.query === 'ABUAD'));
+  assert.ok(plan.some(item => item.reason.startsWith('AI:') && /official undergraduate admissions/i.test(item.query)));
+  assert.ok(plan.some(item => item.reason === 'intent: application' && /official admissions application portal/i.test(item.query)));
+});
