@@ -16,7 +16,7 @@ test('understands university application intent and isolates the institution', (
     assert.equal(intent.searchQuery, 'ABUAD');
     const variants = buildIntentQueryVariants(query, intent, 5);
     assert.ok(variants.some(item => /official admissions application portal/i.test(item.query)));
-    assert.ok(variants.some(item => /undergraduate admission requirements/i.test(item.query)));
+    assert.ok(variants.some(item => /admission requirements eligibility/i.test(item.query)));
   }
 });
 
