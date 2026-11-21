@@ -67,3 +67,30 @@ test('asks for clarification when the resolved intent says a missing detail is m
   });
   assert.equal(result.status, 'needs_clarification');
 });
+
+test('uses resolved ABUAD and programme aliases when evaluating a reviewed tuition claim', () => {
+  const result = evaluateAnswerStatus({
+    intent: {
+      type: 'fees-costs',
+      entities: [
+        { text: 'Afe Babalola University', matchedText: 'ABUAD', kind: 'institution' },
+        { text: 'Mechatronics Engineering', matchedText: 'Mechatronics', kind: 'programme' }
+      ]
+    },
+    searchCompleted: true,
+    sourceCount: 1,
+    claims: [{
+      claimId: 'fee-claim',
+      type: 'tuition',
+      statement: 'ABUAD Mechatronics Engineering tuition for the 2026/2027 session is ₦2,500,000.',
+      value: { amount: 2500000, currency: 'NGN', unit: 'academic session', text: null },
+      academicSession: '2026/2027',
+      sourceIds: ['https://abuad.edu.ng/fees'],
+      assessment: 'supported',
+      confidence: 0.8
+    }]
+  });
+
+  assert.equal(result.status, 'answered');
+  assert.equal(result.completionRatio, 1);
+});
