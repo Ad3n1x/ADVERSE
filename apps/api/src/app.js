@@ -90,7 +90,7 @@ function requireAuth(req,res,next){
     {
       let status='active';
       if(isDb()){const account=await User.findById(user.id).select('status authVersion').lean();if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');if(Number(account.authVersion||0)!==Number(user.authVersion||0))return sendError(res,401,'SESSION_REVOKED','Your session is no longer valid. Please sign in again.');status=account.status||'active';}
-      else {const account=memory.users.get(user.id);if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');status=account.status||'active';}
+      else {const account=memory.users.get(user.id);if(!account)return sendError(res,401,'ACCOUNT_UNAVAILABLE','This account is no longer available.');if(Number(account.authVersion||0)!==Number(user.authVersion||0))return sendError(res,401,'SESSION_REVOKED','Your session is no longer valid. Please sign in again.');status=account.status||'active';}
       if(status==='suspended')return sendError(res,403,'ACCOUNT_SUSPENDED','This account is suspended. Contact support if you believe this is a mistake.');
     }
     req.user=user;next();
