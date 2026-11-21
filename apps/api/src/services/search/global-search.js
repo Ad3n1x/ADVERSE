@@ -84,7 +84,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   if (intent.type === 'application' && intent.searchQuery) {
     add(intent.searchQuery, 'intent-focused subject');
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
-    add(intent.searchQuery + ' undergraduate admission requirements', 'intent: application');
+    add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
