@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { understandSearchIntent } from './intent-understanding.js';
 
 const GROQ_MODEL_DEFAULT = 'openai/gpt-oss-20b';
@@ -232,7 +233,8 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
   const context = options.context || '';
   if (!groqKey && !geminiKey) return fallbackResult(fallback, 'Neither Groq nor Gemini is configured for intent understanding.');
 
-  const key = [groqModel, geminiModel, original.toLocaleLowerCase(), clean(context, 1200)].join(':');
+  const credentialScope = createHash('sha256').update(groqKey + '\\0' + geminiKey).digest('hex').slice(0, 20);
+  const key = [credentialScope, groqModel, geminiModel, original.toLocaleLowerCase(), clean(context, 1200)].join(':');
   const now = Date.now();
   const cached = cache.get(key);
   if (cached && cached.expiresAt > now) return structuredClone(cached.value);
