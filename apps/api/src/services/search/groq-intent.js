@@ -106,10 +106,14 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
-  const subject = (fallback.confidence >= 0.86 && fallback.subject)
+  const hasResolvedEntity = (fallback.entities || []).some(entity =>
+    ['institution', 'programme', 'person', 'organisation', 'product'].includes(entity.kind)
+  );
+  const preferDeterministicSubject = fallback.confidence >= 0.86 && (fallback.type === 'application' || hasResolvedEntity);
+  const subject = preferDeterministicSubject && fallback.subject
     ? fallback.subject
     : (grounded(parsed?.subject) ? clean(parsed?.subject, 180) : (fallback.subject || original));
-  const searchQuery = fallback.confidence >= 0.86 && fallback.searchQuery
+  const searchQuery = preferDeterministicSubject && fallback.searchQuery
     ? fallback.searchQuery
     : (grounded(parsed?.search_query) ? clean(parsed?.search_query, 220) : (subject || original));
   const list = (value, maxItems, maxLength) => (Array.isArray(value) ? value : [])
@@ -218,8 +222,12 @@ function combineInterpretations(rows, original, fallback) {
   const provider = providerNames.length > 1
     ? (agreed ? 'groq+gemini-consensus' : 'groq+gemini-arbitrated')
     : base.provider;
-  const subject = fallback.confidence >= 0.86 && fallback.subject ? fallback.subject : (base.subject || fallback.subject);
-  const searchQuery = fallback.confidence >= 0.86 && fallback.searchQuery ? fallback.searchQuery : (base.searchQuery || subject || original);
+  const hasResolvedEntity = (fallback.entities || []).some(entity =>
+    ['institution', 'programme', 'person', 'organisation', 'product'].includes(entity.kind)
+  );
+  const preferDeterministicSubject = fallback.confidence >= 0.86 && (fallback.type === 'application' || hasResolvedEntity);
+  const subject = preferDeterministicSubject && fallback.subject ? fallback.subject : (base.subject || fallback.subject);
+  const searchQuery = preferDeterministicSubject && fallback.searchQuery ? fallback.searchQuery : (base.searchQuery || subject || original);
   return {
     ...base,
     type: fallback.confidence >= 0.86 ? fallback.type : base.type,
