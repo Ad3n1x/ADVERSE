@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import { rateLimit } from 'express-rate-limit';
+import { evaluateAnswerStatus } from '../services/research/answer-status.js';
 
 const workspaceRateLimit = rateLimit({
   windowMs: 60_000,
@@ -269,7 +270,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
     const record = isDb()
-      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims sources').lean()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims sources typedClaims resolvedIntent').lean()
       : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
     if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
     const allowedSourceUrls = new Set((record.sources || []).map(source => source.url));
@@ -282,12 +283,30 @@ export function registerExperienceWorkspaceRoutes(app, {
       createdAt: previous.get(claim.claimId)?.createdAt || now,
       updatedAt: now,
     }));
-    if (isDb()) await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { claims } });
-    else record.claims = claims.map(claim => ({ ...claim, createdAt: claim.createdAt.toISOString(), updatedAt: claim.updatedAt.toISOString() }));
+    const typedClaims = (record.typedClaims || []).map(typed => {
+      const normalized = String(typed.statement || '').toLocaleLowerCase().replace(/\\s+/g, ' ').trim();
+      const reviewed = claims.find(claim => claim.text.toLocaleLowerCase().replace(/\\s+/g, ' ').trim() === normalized);
+      return reviewed ? { ...typed, assessment: reviewed.assessment } : typed;
+    });
+    const answerStatus = evaluateAnswerStatus({
+      intent: record.resolvedIntent || {},
+      claims: typedClaims,
+      sourceCount: (record.sources || []).length,
+      searchCompleted: true
+    });
+    if (isDb()) await ExperienceWorkspace.updateOne(
+      { ownerId: req.user.id, workspaceId },
+      { $set: { claims, typedClaims, answerStatus } }
+    );
+    else {
+      record.claims = claims.map(claim => ({ ...claim, createdAt: claim.createdAt.toISOString(), updatedAt: claim.updatedAt.toISOString() }));
+      record.typedClaims = typedClaims;
+      record.answerStatus = answerStatus;
+    }
     const data = isDb()
       ? claims.map(claim => ({ ...claim, createdAt: claim.createdAt.toISOString(), updatedAt: claim.updatedAt.toISOString() }))
       : record.claims;
-    return res.json({ data, meta: { saved: data.length } });
+    return res.json({ data, meta: { saved: data.length, answerStatus } });
   }));
 
   app.get('/api/v1/experience/workspaces/:workspaceId/runs', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
