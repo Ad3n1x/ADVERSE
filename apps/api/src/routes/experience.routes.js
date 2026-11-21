@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { rateLimit } from 'express-rate-limit';
+import { understandSearchIntentWithGroq } from '../services/search/groq-intent.js';
+import { understandSearchIntent } from '../services/search/intent-understanding.js';
 
 const resolveRateLimit = rateLimit({
   windowMs: 60_000,
@@ -61,29 +63,41 @@ function detectKind(value) {
   return 'explore';
 }
 
-function deterministicPlan(value) {
-  const request = value.trim().replace(/\s+/g, ' ');
-  const kind = detectKind(request);
-  const constraints = [
-    ...Array.from(request.matchAll(/\b(?:under|below|within|before|after|by|between|for)\s+[^,.;!?]+/gi), match => match[0].trim()),
-    ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
-  ].slice(0, 5);
-  const focus = request
-    .replace(/^(?:(?:please|can you|could you|i want to|i need to|help me|help us|we need to)\s+)*/i, '')
-    .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
-    .replace(/\b(?:under|below|within|before|after|by|between|for|using|with|without)\s+[^,.;!?]+/gi, '')
-    .trim().replace(/^[,;: -]+|[,;: -]+$/g, '') || request;
-  const actionPattern = /\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\b|\b(send|message|email|invite|share)\b.{0,50}\b(to|with|via|through)\b/i;
+function deterministicPlan(value, semantic = understandSearchIntent(value)) {
+  const request = value.trim().replace(/\\s+/g, ' ');
+  const semanticType = semantic?.type || 'general-research';
+  const kind = semanticType === 'comparison' ? 'compare'
+    : ['how-to', 'application'].includes(semanticType) ? 'plan'
+      : ['general-research'].includes(semanticType) ? detectKind(request)
+        : 'research';
+  const explicitConstraints = [
+    ...Array.from(request.matchAll(/\\b(?:under|below|within|before|after|by|between)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+    ...Array.from(request.matchAll(/\\b(?:using|without)\\s+[^,.;!?]+/gi), match => match[0].trim()),
+  ];
+  const constraints = [...new Set([...(semantic?.constraints || []), ...explicitConstraints])].slice(0, 5);
+  const focus = String(semantic?.subject || semantic?.searchQuery || '').trim() || request;
+  const application = semanticType === 'application';
+  const subgoals = Array.isArray(semantic?.subgoals) ? semantic.subgoals.filter(Boolean).slice(0, 5) : [];
+  const actionPattern = /\\b(buy|purchase|book|publish|delete|transfer|deploy|submit|pay|post|order|cancel)\\b|\\b(send|message|email|invite|share)\\b.{0,50}\\b(to|with|via|through)\\b/i;
   return {
     kind, request, focus: focus.slice(0, 180),
-    outcome: defaults[kind].outcome,
+    outcome: application
+      ? 'Find the official admissions route, understand the requirements, and identify the next application steps.'
+      : (semantic?.goal || defaults[kind].outcome),
     constraints,
-    steps: defaults[kind].steps,
-    spaces: defaults[kind].spaces,
+    steps: subgoals.length >= 2 ? subgoals.slice(0, 5) : defaults[kind].steps,
+    spaces: application
+      ? ['Official admissions route', 'Entry requirements & deadlines', 'Application next steps']
+      : defaults[kind].spaces,
     approvalRequired: actionPattern.test(request),
+    semanticType,
+    subject: focus.slice(0, 180),
+    searchQuery: String(semantic?.searchQuery || focus).slice(0, 220),
+    sourcePreference: semantic?.sourcePreference || 'balanced',
+    entities: Array.isArray(semantic?.entities) ? semantic.entities.slice(0, 8) : [],
+    suggestedQueries: Array.isArray(semantic?.suggestedQueries) ? semantic.suggestedQueries.slice(0, 3) : [],
   };
 }
-
 function safePlan(candidate, original) {
   const parsed = planSchema.safeParse(candidate);
   if (!parsed.success) return null;
@@ -139,17 +153,30 @@ export function registerExperienceRoutes(app, {
       try { keys = await getUserProviderKeys(req.user.id) || {}; }
       catch { keys = {}; }
     }
-    const apiKey = String(keys.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '').trim();
-    const model = String(keys.GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
-    if (apiKey) {
-      try {
-        const plan = await generateGeminiPlan({ apiKey, model, intent });
-        if (plan) return res.json({ data: { plan, engine: { mode: 'gemini', provider: 'Google Gemini', model } } });
-      } catch (error) {
-        console.warn('ADVERSE intent planner using deterministic fallback:', String(error?.message || error).slice(0, 180));
-      }
+    let interpretation;
+    try {
+      interpretation = await understandSearchIntentWithGroq(intent, { providerKeys: keys });
+    } catch (error) {
+      console.warn('ADVERSE semantic intent resolution failed:', String(error?.message || error).slice(0, 180));
+      interpretation = understandSearchIntent(intent);
     }
-    return res.json({ data: { plan: deterministicPlan(intent), engine: { mode: 'deterministic', provider: 'ADVERSE local planner', model: 'intent-rules-v1' } } });
+    const plan = deterministicPlan(intent, interpretation);
+    const aiBacked = !['rules', 'rules-fallback'].includes(interpretation?.provider);
+    const providerNames = (interpretation?.providers || []).filter(item => item.status === 'success').map(item => item.name);
+    const provider = providerNames.length > 1 ? providerNames.join(' + ')
+      : providerNames[0] || (aiBacked ? interpretation.provider : 'ADVERSE local semantic planner');
+    return res.json({ data: { plan, engine: {
+      mode: aiBacked ? 'ai' : 'deterministic',
+      provider,
+      model: interpretation?.model || 'intent-rules-v2',
+      intent: {
+        type: interpretation?.type || 'general-research',
+        subject: interpretation?.subject || plan.focus,
+        searchQuery: interpretation?.searchQuery || plan.focus,
+        sourcePreference: interpretation?.sourcePreference || 'balanced',
+        provider: interpretation?.provider || 'rules-fallback',
+      },
+    } } });
   }));
 }
 
