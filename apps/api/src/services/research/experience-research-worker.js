@@ -246,7 +246,7 @@ export async function processNextExperienceResearchJob({ getUserProviderKeys = a
       await executeJob(job, getUserProviderKeys);
     } catch (error) {
       console.warn('ADVERSE experience research job failed:', clean(error?.message || 'unknown error', 180));
-      await failJob(job, error);
+      if (!(await finishRequested(job))) await failJob(job, error);
     } finally {
       clearInterval(heartbeat);
     }
