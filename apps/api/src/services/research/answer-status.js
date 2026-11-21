@@ -26,16 +26,41 @@ const CLAIM_TYPES = {
   'independent corroboration': ['general-fact']
 };
 
-function fieldEvidence(field, claims) {
+function fieldEvidence(field, claims, intent) {
+  const supported = claims.filter(claim =>
+    claim.assessment === 'supported' &&
+    Array.isArray(claim.sourceIds) &&
+    claim.sourceIds.length > 0
+  );
+  const entityTargets = (Array.isArray(intent?.entities) ? intent.entities : [])
+    .filter(entity => entity && entity.kind === (field === 'institution' ? 'institution' : 'programme'))
+    .flatMap(entity => [entity.text, entity.matchedText].filter(Boolean))
+    .map(value => String(value).toLocaleLowerCase());
+
+  if (field === 'institution' || field === 'programme') {
+    const fallbackType = field === 'institution' ? 'institution' : 'programme';
+    return supported.filter(claim => {
+      if (!entityTargets.length) return claim.type === fallbackType;
+      const statement = String(claim.statement || '').toLocaleLowerCase();
+      return entityTargets.some(target => statement.includes(target));
+    }).flatMap(claim => claim.sourceIds);
+  }
+  if (field === 'tuition') {
+    return supported.filter(claim => claim.type === 'tuition' && Number.isFinite(Number(claim.value?.amount)))
+      .flatMap(claim => claim.sourceIds);
+  }
+  if (field === 'currency') {
+    return supported.filter(claim => Boolean(claim.value?.currency)).flatMap(claim => claim.sourceIds);
+  }
+  if (field === 'academic session') {
+    return supported.filter(claim => Boolean(claim.academicSession)).flatMap(claim => claim.sourceIds);
+  }
+  if (field === 'primary evidence' || field === 'independent corroboration') {
+    // These require source-lineage and source-type assessment not yet established by claim extraction.
+    return [];
+  }
   const allowedTypes = CLAIM_TYPES[field] || [];
-  return claims.filter(claim => {
-    if (!allowedTypes.includes(claim.type) || !Array.isArray(claim.sourceIds) || !claim.sourceIds.length) return false;
-    if (claim.assessment !== 'supported') return false;
-    if (field === 'tuition') return Number.isFinite(Number(claim.value?.amount));
-    if (field === 'currency') return Boolean(claim.value?.currency);
-    if (field === 'academic session') return Boolean(claim.academicSession);
-    return true;
-  }).flatMap(claim => claim.sourceIds).filter((value, index, all) => all.indexOf(value) === index).slice(0, 20);
+  return supported.filter(claim => allowedTypes.includes(claim.type)).flatMap(claim => claim.sourceIds);
 }
 
 /**
@@ -52,7 +77,7 @@ export function evaluateAnswerStatus({
   const fields = requiredFields || REQUIRED_FIELDS[intent.type] || [];
   const safeClaims = Array.isArray(claims) ? claims : [];
   const required = fields.map(field => {
-    const evidenceIds = fieldEvidence(field, safeClaims);
+    const evidenceIds = fieldEvidence(field, safeClaims, intent);
     return { field, required: true, satisfied: evidenceIds.length > 0, evidenceIds };
   });
   const requiredCount = required.length;
