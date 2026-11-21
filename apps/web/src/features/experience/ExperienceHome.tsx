@@ -48,6 +48,72 @@ type IntentPlan = {
   providerLabel?: string;
 };
 
+type GuidedTaskStep = {
+  id: string;
+  title: string;
+  instruction: string;
+  sourceUrl: string | null;
+  sourceTitle: string;
+  status: 'next' | 'in_progress' | 'completed' | 'blocked';
+};
+type GuidedTaskPlan = { title: string; summary: string; steps: GuidedTaskStep[]; updatedAt?: string };
+
+function buildGuidedTaskPlan(plan: IntentPlan, sources: ExperienceSource[], previous: GuidedTaskPlan | null = null): GuidedTaskPlan {
+  const semantic = String(plan.semanticType || '').toLowerCase();
+  const application = semantic === 'application' || /\\b(apply|admission|application portal)\\b/i.test(plan.request);
+  const fees = semantic === 'fees-costs' || /\\b(price|fees?|tuition|cost)\\b/i.test(plan.request);
+  const focus = plan.focus || plan.request;
+  const institution = /\\b(abuad|university|college|polytechnic|institute)\\b/i.test(focus);
+  const definitions: Array<{ title: string; instruction: string; terms: string[] }> = application ? [
+    { title: 'Find the official admissions destination', instruction: 'Open the institution’s official admissions page. Confirm that the page belongs to the institution before entering personal information.', terms: ['admission', 'admissions', 'application', 'portal'] },
+    { title: 'Confirm the requested programme is offered', instruction: 'Check the exact programme name, award and study level. Do not assume a similar programme title is identical.', terms: ['mechatronics', 'programme', 'program', 'course', 'department'] },
+    { title: 'Check entry requirements and eligibility', instruction: 'Compare the published requirements with your own qualifications. Treat missing or unclear criteria as questions to confirm with admissions.', terms: ['entry requirements', 'eligibility', 'admission requirements', 'direct entry'] },
+    { title: 'Confirm fees and application dates', instruction: 'Check the current academic session, fee schedule, deadlines and any separate acceptance or application charges.', terms: ['fees', 'fee schedule', 'tuition', 'deadline', 'charges'] },
+    { title: 'Prepare the required documents', instruction: 'Make a checklist from the official document requirements. Keep original documents secure and do not share passwords or payment details with ADVERSE.', terms: ['documents', 'requirements', 'credentials', 'results'] },
+    { title: 'Review the application before submitting', instruction: 'Use the official portal to complete the form. Check every entry yourself. ADVERSE will not submit the application or make payments without your explicit approval.', terms: ['apply', 'application', 'portal', 'admissions'] },
+  ] : fees ? [
+    { title: 'Confirm the exact institution and programme', instruction: 'Make sure the fee information applies to the named institution, exact programme and study level—not another university or a similarly named course.', terms: ['abuad', 'mechatronics', 'programme', 'program', 'degree'] },
+    { title: 'Find the official fee schedule', instruction: 'Look for the institution’s current official fee schedule or admissions notice. Prefer pages published by the institution over third-party estimates.', terms: ['fees', 'fee schedule', 'tuition', 'school fees', 'charges'] },
+    { title: 'Separate tuition from additional charges', instruction: 'Check whether the published amount includes acceptance, registration, laboratory, accommodation, feeding and other compulsory charges.', terms: ['tuition', 'acceptance', 'registration', 'accommodation', 'charges'] },
+    { title: 'Confirm the academic session and payment timing', instruction: 'Check the session or year covered, whether fees are per semester or session, and the official payment deadlines.', terms: ['2026', '2027', 'session', 'semester', 'payment', 'deadline'] },
+    { title: 'Resolve anything the public fee schedule does not answer', instruction: 'If programme-specific fees are not published, use the institution’s official admissions or contact page to confirm the amount. Keep estimates clearly separate from confirmed fees.', terms: ['contact', 'admissions', 'fees', 'bursary', 'finance'] },
+  ] : (plan.steps || []).slice(0, 6).map((title, index) => ({
+    title,
+    instruction: index === 0
+      ? 'Start with the most authoritative source linked to this step. Check that it directly addresses your requested outcome.'
+      : 'Use the linked source to complete this part of the task. If the instructions differ from earlier findings, pause and re-check the original source.',
+    terms: title.toLowerCase().split(/\\s+/).filter(word => word.length > 3),
+  }));
+  const prior = new Map((previous?.steps || []).map(step => [step.id, step]));
+  const coreTerms = focus.toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 3 && !['degree','course','programme','program','price','fees','tuition','find','official','current'].includes(word));
+  const steps = definitions.map((definition, index) => {
+    const id = 'step-' + (index + 1);
+    const source = sources.map(item => {
+      const text = [item.title, item.publisher, item.url, item.excerpt].join(' ').toLowerCase();
+      const matchedCore = coreTerms.filter(term => text.includes(term)).length;
+      const matchedTask = definition.terms.filter(term => text.includes(term)).length;
+      const official = /\\.(edu\\.ng|edu|gov\\.ng|gov)(\\.|\\/|$)/i.test(item.url) ? 2 : 0;
+      return { item, score: matchedCore * 3 + matchedTask + official };
+    }).sort((a, b) => b.score - a.score)[0];
+    const matchedSource = source && source.score >= (institution ? 4 : 2) ? source.item : null;
+    const old = prior.get(id);
+    return {
+      id, title: definition.title, instruction: definition.instruction,
+      sourceUrl: matchedSource?.url || null, sourceTitle: matchedSource?.title || '',
+      status: old?.status || (index === 0 ? 'in_progress' : 'next'),
+    } as GuidedTaskStep;
+  });
+  return {
+    title: application ? 'Your application pathway' : fees ? 'Your cost-checking pathway' : 'Your guided task',
+    summary: application
+      ? 'ADVERSE has organised the application journey. Follow the official instructions and verify requirements before submitting anything.'
+      : fees
+        ? 'ADVERSE will help verify the right programme costs, separate confirmed charges from unknowns, and take you to the relevant official pages.'
+        : 'Follow the steps in order. ADVERSE links relevant sources and keeps your progress so you can continue later.',
+    steps, updatedAt: new Date().toISOString(),
+  };
+}
+
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
   if (/\b(compare|versus|vs\.?|difference|better than|pros and cons)\b/.test(text)) return 'compare';
@@ -162,7 +228,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
   const [plannerMode, setPlannerMode] = useState<'ai' | 'deterministic'>('deterministic');
   const [showGeospatial, setShowGeospatial] = useState(false);
-  const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
+  const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);\n  const [guidedTask, setGuidedTask] = useState<GuidedTaskPlan | null>(null);\n  const [taskSaveNotice, setTaskSaveNotice] = useState('');
   const resolutionSequence = useRef(0);
 
   useEffect(() => {
@@ -280,8 +346,28 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
         body: JSON.stringify({ workspaceId, intent: trimmed, kind: activePlan.kind, createdAt }),
       });
       workspaceSynced = true;
+      if (existingWorkspaceId) {
+        try {
+          const savedTask = await request<{ data: GuidedTaskPlan | null }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/task');
+          previousTaskPlan = savedTask.data || null;
+        } catch {
+          // Older workspaces may not have a saved guided task yet.
+        }
+      }
     } catch {
       // Guests and offline sessions use the direct public-search fallback.
+    }
+    const initialTask = buildGuidedTaskPlan(activePlan, [], previousTaskPlan);
+    setGuidedTask(initialTask);
+    if (workspaceSynced) {
+      try {
+        const saved = await request<{ data: GuidedTaskPlan }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/task', {
+          method: 'PUT', body: JSON.stringify(initialTask),
+        });
+        setGuidedTask(saved.data);
+      } catch {
+        setTaskSaveNotice('Progress is available in this session; cloud task sync is unavailable.');
+      }
     }
     if (resolutionId !== resolutionSequence.current) return;
     try {
@@ -435,6 +521,18 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           // Direct search and source review remain usable if optional run-history sync fails.
         }
       }
+      const nextGuidedTask = buildGuidedTaskPlan(activePlan, mergedSources, previousTaskPlan);
+      setGuidedTask(nextGuidedTask);
+      if (workspaceSynced) {
+        try {
+          const savedTask = await request<{ data: GuidedTaskPlan }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/task', {
+            method: 'PUT', body: JSON.stringify(nextGuidedTask),
+          });
+          if (resolutionId === resolutionSequence.current) setGuidedTask(savedTask.data);
+        } catch {
+          if (resolutionId === resolutionSequence.current) setTaskSaveNotice('Task progress is only saved in this session right now.');
+        }
+      }
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
       if (!mergedSources.length) {
         setResolveError(response.meta?.providerError || 'No public sources were returned. Try a more specific request.');
@@ -444,6 +542,57 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     } finally {
       if (resolutionId === resolutionSequence.current) setIsResolving(false);
     }
+  }
+
+  async function saveGuidedTask(next: GuidedTaskPlan) {
+    setGuidedTask(next);
+    setTaskSaveNotice('Saving progress…');
+    if (!activeWorkspaceId) {
+      setTaskSaveNotice('Progress is kept for this session only.');
+      return;
+    }
+    try {
+      const saved = await request<{ data: GuidedTaskPlan }>('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/task', {
+        method: 'PUT', body: JSON.stringify(next),
+      });
+      setGuidedTask(saved.data);
+      setTaskSaveNotice('Progress saved. You can continue this task later.');
+    } catch {
+      setTaskSaveNotice('Could not sync progress to your workspace. It remains visible in this session.');
+    }
+  }
+
+  function continueGuidedStep(stepId: string) {
+    const step = guidedTask?.steps.find(item => item.id === stepId);
+    if (!step) return;
+    if (step.sourceUrl) {
+      try {
+        const url = new URL(step.sourceUrl);
+        if (url.protocol === 'https:') window.open(url.href, '_blank', 'noopener,noreferrer');
+      } catch {
+        // Invalid or unsupported source destinations are never opened.
+      }
+    }
+    const next = {
+      ...guidedTask!,
+      steps: guidedTask!.steps.map(item => item.id === stepId
+        ? { ...item, status: 'in_progress' as const }
+        : item.status === 'in_progress' ? { ...item, status: 'next' as const } : item),
+      updatedAt: new Date().toISOString(),
+    };
+    void saveGuidedTask(next);
+  }
+
+  function completeGuidedStep(stepId: string) {
+    if (!guidedTask) return;
+    const next = {
+      ...guidedTask,
+      steps: guidedTask.steps.map(item => item.id === stepId
+        ? { ...item, status: item.status === 'completed' ? 'in_progress' as const : 'completed' as const }
+        : item),
+      updatedAt: new Date().toISOString(),
+    };
+    void saveGuidedTask(next);
   }
 
   async function controlResearchJob(action: 'pause' | 'resume' | 'cancel') {
@@ -879,6 +1028,29 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </ol>
               <p className="experience-journey-next"><strong>Recommended next step:</strong> {isResolving ? 'ADVERSE is collecting sources. You can review the plan while it works.' : resolveError ? 'Retry the search or narrow the request if providers returned no usable results.' : !sources.length ? 'Start with a question or task above to begin an investigation.' : reviewCounts.unreviewed ? 'Open the original sources and mark the useful ones. ADVERSE keeps unreviewed material separate from verified findings.' : 'Use the dossier tools below to prepare a source-linked brief.'}</p>
             </section>
+            {guidedTask && <section className="experience-task-guide" aria-labelledby="experience-task-guide-title">
+              <div className="experience-task-guide-head">
+                <div><span className="experience-section-label"><Workflow size={13} /> GUIDED TASK</span><h3 id="experience-task-guide-title">{guidedTask.title}</h3></div>
+                <span>{guidedTask.steps.filter(step => step.status === 'completed').length}/{guidedTask.steps.length} complete</span>
+              </div>
+              <p>{guidedTask.summary}</p>
+              <ol className="experience-task-steps">
+                {guidedTask.steps.map((step, index) => <li key={step.id} className={step.status === 'completed' ? 'is-done' : step.status === 'in_progress' ? 'is-current' : ''}>
+                  <span className="experience-task-step-number">{step.status === 'completed' ? <Check size={14} /> : String(index + 1).padStart(2, '0')}</span>
+                  <div className="experience-task-step-body">
+                    <strong>{step.title}</strong>
+                    <p>{step.instruction}</p>
+                    {step.sourceUrl && <a href={step.sourceUrl} target="_blank" rel="noopener noreferrer">{step.sourceTitle || 'Open relevant source'} <ArrowUpRight size={12} /></a>}
+                    {!step.sourceUrl && !isResolving && <small className="experience-task-no-source">No sufficiently relevant source found for this step yet. ADVERSE should search again or confirm the missing detail.</small>}
+                  </div>
+                  <div className="experience-task-step-actions">
+                    {step.sourceUrl && <button type="button" onClick={() => continueGuidedStep(step.id)}>{step.status === 'in_progress' ? 'Continue' : 'Open step'}</button>}
+                    <button type="button" className="experience-task-complete" onClick={() => completeGuidedStep(step.id)}>{step.status === 'completed' ? 'Reopen' : 'Mark done'}</button>
+                  </div>
+                </li>)}
+              </ol>
+              {taskSaveNotice && <small className="experience-task-save-notice" role="status">{taskSaveNotice}</small>}
+            </section>}
             <details className="experience-advanced-tools">
               <summary>Advanced research tools <span>Coverage · 3D globe · claims · exports · history · sharing</span></summary>
               <div className="experience-advanced-tools-content">
