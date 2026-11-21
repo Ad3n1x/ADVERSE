@@ -227,9 +227,11 @@ export function rankPublicResults(items, query, intent = null) {
       const urlTaskHits = intentPhrases.filter(term => (' ' + url + ' ').includes(' ' + normalize(term) + ' ')).length;
       const excerptTaskHits = intentPhrases.filter(term => (' ' + excerpt + ' ').includes(' ' + normalize(term) + ' ')).length;
       score += Math.min(24, titleTaskHits * 8 + urlTaskHits * 6 + excerptTaskHits * 2);
-      if (intentType === 'application' && !titleTaskHits && !urlTaskHits && /\\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\\b/i.test(title + ' ' + url)) score -= 10;
+      if (intentType === 'application' && !titleTaskHits && !urlTaskHits && /\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\b/i.test(title + ' ' + url)) score -= 10;
     }
-    if (intent?.sourcePreference === 'official' && /\\.(edu(?:\\.[a-z]{2})?|gov(?:\\.[a-z]{2})?|ac\\.[a-z]{2})$/i.test(new URL(item.url).hostname.replace(/^www\\./, ''))) score += 2;
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
+    if (intent?.sourcePreference === 'official' && /\.(edu(?:\.[a-z]{2})?|gov(?:\.[a-z]{2})?|ac\.[a-z]{2})$/i.test(host)) score += 2;
     if (/\b(chat|chatroom|conversation|forum thread)\b/i.test(title) &&
         !allTerms.some(term => ['chat','chatroom','conversation','forum'].includes(term))) score -= 14;
     if (/\b(404|page not found|not found)\b/i.test(title)) score -= 8;
