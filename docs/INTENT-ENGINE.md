@@ -9,7 +9,7 @@ ADVERSE interprets the outcome behind a search request and converts it into a bo
 1. **Deterministic baseline** — classifies clear request patterns and provides useful behaviour without external AI credentials.
 2. **Groq and Gemini** — when configured, both interpret the same request independently and concurrently. They return structured intent, primary subject, entities, constraints, ambiguities, subgoals, source preference and up to three proposed searches.
 3. **Arbitration** — clear high-confidence deterministic intent is retained; otherwise matching model interpretations are combined, and disagreements are resolved using the models' bounded confidence estimates. These estimates are not calibrated probabilities.
-4. **Research planning** — the search planner expands the original question with bounded intent-specific queries. The autonomous follow-up planner receives the full intent plus a short summary of gathered public-source context.
+4. **Research planning** — the search planner expands the original question with bounded intent-specific queries. The autonomous follow-up planner receives the full intent, prior investigation context when supplied, and a short summary of gathered public-source context.
 5. **Human inspection** — the search results panel shows the understood goal, subject, research tasks, entities, constraints, ambiguity and interpreter status.
 
 ## Supported intent families
