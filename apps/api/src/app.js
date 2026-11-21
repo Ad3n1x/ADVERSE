@@ -201,7 +201,7 @@ registerExperienceRoutes(app, {
   optionalAuth, limitProvider, wrap, sendError, getUserProviderKeys,
 });
 registerExperienceWorkspaceRoutes(app, {
-  requireAuth, wrap, sendError, isDb, ExperienceWorkspace,
+  requireAuth, wrap, sendError, isDb, ExperienceWorkspace, User,
 });
 registerSearchRoutes(app, {
   requireAuth, limitProvider, wrap, sendError, isDb, User, memory,

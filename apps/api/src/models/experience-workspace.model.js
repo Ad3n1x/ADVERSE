@@ -59,6 +59,33 @@ const experienceRunSchema = new Schema({
   recordedAt: { type: Date, required: true, default: Date.now },
 }, { _id: false });
 
+const experienceDocumentSchema = new Schema({
+  documentId: { type: String, required: true, maxlength: 100 },
+  filename: { type: String, required: true, maxlength: 180 },
+  mediaType: { type: String, enum: ['text/plain'], required: true, default: 'text/plain' },
+  text: { type: String, required: true, maxlength: 50000 },
+  byteLength: { type: Number, required: true, min: 1, max: 50000 },
+  contentHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+  hashAlgorithm: { type: String, enum: ['sha256'], default: 'sha256' },
+  uploadedAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
+const experienceMemberSchema = new Schema({
+  userId: { type: String, required: true, maxlength: 100 },
+  email: { type: String, required: true, maxlength: 254 },
+  role: { type: String, enum: ['viewer'], default: 'viewer' },
+  addedBy: { type: String, required: true, maxlength: 100 },
+  addedAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
+const sharingEventSchema = new Schema({
+  userId: { type: String, required: true, maxlength: 100 },
+  email: { type: String, required: true, maxlength: 254 },
+  action: { type: String, enum: ['shared', 'revoked'], required: true },
+  actorId: { type: String, required: true, maxlength: 100 },
+  occurredAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
 const experienceWorkspaceSchema = new Schema({
   workspaceId: { type: String, required: true, maxlength: 100 },
   ownerId: { type: String, required: true, index: true },
@@ -67,6 +94,9 @@ const experienceWorkspaceSchema = new Schema({
   sources: { type: [experienceSourceSchema], default: [] },
   claims: { type: [experienceClaimSchema], default: [] },
   researchRuns: { type: [experienceRunSchema], default: [] },
+  documents: { type: [experienceDocumentSchema], default: [] },
+  members: { type: [experienceMemberSchema], default: [] },
+  sharingEvents: { type: [sharingEventSchema], default: [] },
   createdAt: { type: Date, required: true, default: Date.now },
 }, { timestamps: true, versionKey: false });
 

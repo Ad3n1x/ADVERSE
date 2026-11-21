@@ -95,6 +95,7 @@ export function createAuthController({
         CyberAsset.deleteMany({ investigationId: { $in: investigationIds } }),
         CyberEvent.deleteMany({ investigationId: { $in: investigationIds } }),
         ExperienceWorkspace.deleteMany({ ownerId: uid }),
+        ExperienceWorkspace.updateMany({ 'members.userId': uid }, { $pull: { members: { userId: uid } } }),
         SearchMetric.deleteMany({ userId: uid }),
         User.deleteOne({ _id: uid }),
       ]);
@@ -109,7 +110,20 @@ export function createAuthController({
         }
       }
       memory.users.delete(uid);
-      globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.delete(uid);
+      const workspaces = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__;
+      if (workspaces instanceof Map) {
+        for (const records of workspaces.values()) {
+          for (const record of records.values()) {
+            const removed = (record.members || []).filter(member => String(member.userId) === uid);
+            if (!removed.length) continue;
+            record.members = (record.members || []).filter(member => String(member.userId) !== uid);
+            record.sharingEvents ||= [];
+            for (const member of removed) record.sharingEvents.push({ userId: uid, email: member.email, action: 'revoked', actorId: uid, occurredAt: new Date() });
+            record.sharingEvents = record.sharingEvents.slice(-50);
+          }
+        }
+        workspaces.delete(uid);
+      }
       if (Array.isArray(globalThis.__ADVERSE_METRICS__)) {
         globalThis.__ADVERSE_METRICS__ = globalThis.__ADVERSE_METRICS__.filter(item => String(item.userId || '') !== uid);
       }

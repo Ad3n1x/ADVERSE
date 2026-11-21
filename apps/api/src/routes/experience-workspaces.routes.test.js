@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerExperienceWorkspaceRoutes } from './experience-workspaces.routes.js';
 
-function makeHarness() {
+function makeHarness(users = []) {
   const routes = new Map();
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
@@ -18,6 +18,7 @@ function makeHarness() {
     sendError,
     isDb: () => false,
     ExperienceWorkspace: null,
+    User: { findOne(query) { return { select() { return { lean: async () => users.find(user => user.email === query.email && user.status === 'active') || null }; } }; } },
   });
   return {
     async call(method, path, req) {
@@ -303,4 +304,139 @@ test('research-run history is idempotent, bounded, and private to the workspace 
     user: { id: other }, params: { workspaceId },
   });
   assert.equal(denied.statusCode, 404);
+});
+
+
+test('plain-text document ingestion is bounded, deduplicated, hashed, and owner-scoped', async () => {
+  const api = makeHarness();
+  const owner = 'document-owner-' + randomUUID();
+  const other = 'document-other-' + randomUUID();
+  const workspaceId = 'workspace-document-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Review a public policy report', kind: 'research', createdAt: Date.now() },
+  });
+
+  const payload = { filename: '../report.txt', mediaType: 'text/plain', text: 'Line one.\r\nLine two.' };
+  const saved = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: owner }, params: { workspaceId }, body: payload,
+  });
+  assert.equal(saved.statusCode, 201);
+  assert.equal(saved.body.data.filename, '.._report.txt');
+  assert.equal(saved.body.data.mediaType, 'text/plain');
+  assert.equal(saved.body.data.byteLength, Buffer.byteLength('Line one.\nLine two.'));
+  assert.match(saved.body.data.contentHash, /^[a-f0-9]{64}$/);
+
+  const duplicate = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: owner }, params: { workspaceId }, body: { ...payload, filename: 'renamed.txt', text: 'Line one.\nLine two.' },
+  });
+  assert.equal(duplicate.statusCode, 200);
+  assert.equal(duplicate.body.meta.duplicate, true);
+  assert.equal(duplicate.body.data.documentId, saved.body.data.documentId);
+
+  const fetched = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/documents/:documentId', {
+    user: { id: owner }, params: { workspaceId, documentId: saved.body.data.documentId },
+  });
+  assert.equal(fetched.body.data.text, 'Line one.\nLine two.');
+
+  const hiddenList = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(hiddenList.statusCode, 404);
+
+  const deleted = await api.call('DELETE', '/api/v1/experience/workspaces/:workspaceId/documents/:documentId', {
+    user: { id: owner }, params: { workspaceId, documentId: saved.body.data.documentId },
+  });
+  assert.equal(deleted.statusCode, 204);
+  const missing = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/documents/:documentId', {
+    user: { id: owner }, params: { workspaceId, documentId: saved.body.data.documentId },
+  });
+  assert.equal(missing.statusCode, 404);
+});
+
+test('plain-text document ingestion rejects unsupported media, control bytes, and oversized text', async () => {
+  const api = makeHarness();
+  const owner = 'document-validation-' + randomUUID();
+  const workspaceId = 'workspace-document-validation-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Validate document imports', kind: 'research', createdAt: Date.now() },
+  });
+  const unsupported = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: owner }, params: { workspaceId }, body: { filename: 'report.pdf', mediaType: 'application/pdf', text: 'not parsed' },
+  });
+  assert.equal(unsupported.statusCode, 400);
+  const control = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: owner }, params: { workspaceId }, body: { filename: 'bad.txt', text: 'unsafe\u0000text' },
+  });
+  assert.equal(control.statusCode, 400);
+  const oversized = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/documents', {
+    user: { id: owner }, params: { workspaceId }, body: { filename: 'large.txt', text: 'x'.repeat(50001) },
+  });
+  assert.equal(oversized.statusCode, 400);
+});
+
+
+test('workspace sharing grants read-only access to an existing account and supports revocation', async () => {
+  const member = { _id: 'shared-user-' + randomUUID(), email: 'analyst@example.org', status: 'active' };
+  const owner = 'sharing-owner-' + randomUUID();
+  const api = makeHarness([member]);
+  const workspaceId = 'workspace-sharing-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Review public infrastructure evidence', kind: 'research', createdAt: Date.now() },
+  });
+  await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ url: 'https://example.org/record', title: 'Public record' }] },
+  });
+  const shared = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: member.email },
+  });
+  assert.equal(shared.statusCode, 201);
+  assert.equal(shared.body.meta.access, 'read-only');
+
+  const list = await api.call('GET', '/api/v1/experience/shared-workspaces', { user: { id: member._id } });
+  assert.equal(list.body.data.length, 1);
+  assert.equal(list.body.data[0].role, 'viewer');
+
+  const detail = await api.call('GET', '/api/v1/experience/shared-workspaces/:workspaceId', {
+    user: { id: member._id }, params: { workspaceId },
+  });
+  assert.equal(detail.statusCode, 200);
+  assert.equal(detail.body.data.sources.length, 1);
+  assert.equal(detail.body.data.role, 'viewer');
+
+  const members = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(members.body.data[0].userId, member._id);
+  assert.equal(members.body.audit[0].action, 'shared');
+
+  const revoke = await api.call('DELETE', '/api/v1/experience/workspaces/:workspaceId/members/:memberId', {
+    user: { id: owner }, params: { workspaceId, memberId: member._id },
+  });
+  assert.equal(revoke.statusCode, 204);
+  const afterRevoke = await api.call('GET', '/api/v1/experience/shared-workspaces/:workspaceId', {
+    user: { id: member._id }, params: { workspaceId },
+  });
+  assert.equal(afterRevoke.statusCode, 404);
+});
+
+test('workspace sharing cannot target the owner or an unknown account', async () => {
+  const owner = 'sharing-owner-' + randomUUID();
+  const api = makeHarness();
+  const workspaceId = 'workspace-sharing-validation-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Validate workspace sharing', kind: 'research', createdAt: Date.now() },
+  });
+  const unknown = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: 'missing@example.org' },
+  });
+  assert.equal(unknown.statusCode, 404);
+  const invalid = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: 'not-an-email' },
+  });
+  assert.equal(invalid.statusCode, 400);
 });
