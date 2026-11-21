@@ -41,6 +41,17 @@ test('accepts fee pages and programme pages that match the named research subjec
   assert.ok(results.accepted.every(item => item.relevance.accepted));
 });
 
+test('accepts canonical institution names when the query used a known abbreviation', () => {
+  const result = evaluateSourceRelevance({
+    title: 'Afe Babalola University official undergraduate fee schedule',
+    url: 'https://example.edu.ng/fees',
+    excerpt: 'Published fee information for undergraduate students.'
+  }, 'abuad price for mechatronics degree', intent);
+
+  assert.equal(result.accepted, true);
+  assert.equal(result.entityMatch, true);
+});
+
 test('retains sparse metadata as uncertain instead of rejecting it automatically', () => {
   const result = evaluateSourceRelevance({
     title: 'Untitled',
