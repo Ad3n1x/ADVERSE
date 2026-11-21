@@ -106,7 +106,7 @@ export function buildResearchWorkflow(intent = {}, workflowId = 'research-workfl
 export function finalizeResearchWorkflow(workflowInput, outcome = {}, now = new Date()) {
   const workflow = WorkflowSchema.parse(workflowInput);
   const completedAt = now.toISOString();
-  const entityCount = Array.isArray(outcome.entities) ? outcome.entities.length : 0;
+  const entityCount = Array.isArray(outcome.entities) ? outcome.entities.filter(entity => entity?.kind !== 'location').length : 0;
   const sourceCount = Number(outcome.sourceCount || 0);
   const checkedCount = Number(outcome.checkedCount || 0);
   const claimCount = Number(outcome.claimCount || 0);
