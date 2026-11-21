@@ -200,7 +200,7 @@ async function saveJobResults(job, sources, live) {
     sourceCount: mergedSources.length,
     checkedCount: mergedSources.filter(source => source.linkCheck?.checkedAt).length,
     claimCount: typedClaims.length,
-    comparisonCount: typedClaims.length >= 2 ? typedClaims.length : 0,
+    comparisonCount: 0,
     answerStatus,
     evidenceIds: mergedSources.map(source => source.url)
   });
