@@ -126,7 +126,7 @@ test('turns shorthand ABUAD programme-price requests into an outcome-specific in
   assert.ok(intent.researchTasks.some(task => task.id === 'official-fees'));
   assert.ok(intent.researchTasks.some(task => task.id === 'total-cost'));
   const variants = buildIntentQueryVariants(query, intent, 12);
-  assert.ok(variants.some(item => /site:abuad\\.edu\\.ng.*mechatronics engineering fees/i.test(item.query)));
+  assert.ok(variants.some(item => /site:abuad\.edu\.ng.*mechatronics engineering fees/i.test(item.query)));
   assert.ok(variants.some(item => /Afe Babalola University.*Mechatronics Engineering.*tuition fees/i.test(item.query)));
   assert.equal(intent.expectedOutcome.includes('itemized'), true);
 });
