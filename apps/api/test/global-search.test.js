@@ -16,7 +16,7 @@ test('plans university application searches around official admissions routes', 
   const plan = expandSearchQueries('I want to apply for ABUAD', 5);
   assert.equal(plan[2].query, 'ABUAD');
   assert.ok(plan.some(item => item.query === 'ABUAD official admissions application portal'));
-  assert.ok(plan.some(item => item.query === 'ABUAD undergraduate admission requirements'));
+  assert.ok(plan.some(item => item.query === 'ABUAD admission requirements for applicants'));
   assert.ok(plan.every(item => item.query.length <= 240));
 });
 
