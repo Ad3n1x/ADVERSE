@@ -5,7 +5,7 @@ import {
   scrypt as scryptCallback,
 } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
-import { access, link, mkdir, open, stat, unlink } from 'node:fs/promises';
+import { link, mkdir, open, stat, unlink } from 'node:fs/promises';
 import { dirname, basename, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { once } from 'node:events';
@@ -34,17 +34,23 @@ async function assertInputAndOutput(inputPath, outputPath) {
   const info = await stat(input);
   if (!info.isFile()) throw new Error('Input must be a regular file.');
   await mkdir(dirname(output), { recursive: true });
-  try {
-    await access(output);
-    throw new Error('Output already exists; refusing to overwrite it.');
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
   return { input, output };
 }
 
 function temporaryPath(output, suffix) {
   return resolve(dirname(output), `.${basename(output)}.${process.pid}.${randomBytes(8).toString('hex')}.${suffix}`);
+}
+
+async function publishWithoutOverwrite(temporaryFile, outputFile) {
+  try {
+    // link() atomically fails if the destination already exists; no check-then-write race.
+    await link(temporaryFile, outputFile);
+  } catch (error) {
+    if (error?.code === 'EEXIST') {
+      throw new Error('Output already exists; refusing to overwrite it.');
+    }
+    throw error;
+  }
 }
 
 async function removeIfPresent(path) {
@@ -81,7 +87,7 @@ export async function encryptBackupFile(inputPath, outputPath, passphrase) {
     const outputStream = createWriteStream(finalTemp, { flags: 'wx', mode: 0o600 });
     if (!outputStream.write(header)) await once(outputStream, 'drain');
     await pipeline(createReadStream(encryptedTemp), outputStream);
-    await link(finalTemp, output);
+    await publishWithoutOverwrite(finalTemp, output);
     await removeIfPresent(finalTemp);
     return { output, algorithm: 'AES-256-GCM', authenticated: true };
   } finally {
@@ -99,12 +105,6 @@ export async function decryptBackupFile(inputPath, outputPath, passphrase) {
   const info = await stat(input);
   if (!info.isFile() || info.size <= HEADER_BYTES) throw new Error('Encrypted backup is missing or incomplete.');
   await mkdir(dirname(output), { recursive: true });
-  try {
-    await access(output);
-    throw new Error('Output already exists; refusing to overwrite it.');
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
 
   const handle = await open(input, 'r');
   const header = Buffer.alloc(HEADER_BYTES);
@@ -129,19 +129,20 @@ export async function decryptBackupFile(inputPath, outputPath, passphrase) {
   const finalTemp = temporaryPath(output, 'partial');
 
   try {
-    const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_BYTES });
-    decipher.setAAD(aad);
-    decipher.setAuthTag(tag);
-    await pipeline(
-      createReadStream(input, { start: HEADER_BYTES }),
-      decipher,
-      createWriteStream(finalTemp, { flags: 'wx', mode: 0o600 }),
-    );
-    await link(finalTemp, output);
-    await removeIfPresent(finalTemp);
+    try {
+      const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_BYTES });
+      decipher.setAAD(aad);
+      decipher.setAuthTag(tag);
+      await pipeline(
+        createReadStream(input, { start: HEADER_BYTES }),
+        decipher,
+        createWriteStream(finalTemp, { flags: 'wx', mode: 0o600 }),
+      );
+    } catch {
+      throw new Error('Backup authentication failed: the passphrase is incorrect or the archive was altered.');
+    }
+    await publishWithoutOverwrite(finalTemp, output);
     return { output, algorithm: 'AES-256-GCM', authenticated: true };
-  } catch {
-    throw new Error('Backup authentication failed: the passphrase is incorrect or the archive was altered.');
   } finally {
     key.fill(0);
     await removeIfPresent(finalTemp);
