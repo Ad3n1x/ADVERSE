@@ -86,9 +86,11 @@ function deterministicPlan(value, semantic = understandSearchIntent(value)) {
       : (semantic?.goal || defaults[kind].outcome),
     constraints,
     steps: subgoals.length >= 2 ? subgoals.slice(0, 5) : defaults[kind].steps,
-    spaces: application
-      ? ['Official admissions route', 'Entry requirements & deadlines', 'Application next steps']
-      : defaults[kind].spaces,
+    spaces: semantic?.type === 'fees-costs'
+      ? ['Official fee schedule', 'Additional charges', 'Verified total cost']
+      : application
+        ? ['Official admissions route', 'Entry requirements & deadlines', 'Application next steps']
+        : defaults[kind].spaces,
     approvalRequired: actionPattern.test(request),
     semanticType,
     subject: focus.slice(0, 180),
@@ -96,6 +98,12 @@ function deterministicPlan(value, semantic = understandSearchIntent(value)) {
     sourcePreference: semantic?.sourcePreference || 'balanced',
     entities: Array.isArray(semantic?.entities) ? semantic.entities.slice(0, 8) : [],
     suggestedQueries: Array.isArray(semantic?.suggestedQueries) ? semantic.suggestedQueries.slice(0, 3) : [],
+    researchTasks: Array.isArray(semantic?.researchTasks) ? semantic.researchTasks.slice(0, 8) : [],
+    expectedOutcome: semantic?.expectedOutcome || semantic?.goal || defaults[kind].outcome,
+    institution: semantic?.institution || null,
+    programme: semantic?.programme || null,
+    geography: semantic?.geography || null,
+    completionCriteria: Array.isArray(semantic?.completionCriteria) ? semantic.completionCriteria.slice(0, 8) : [],
   };
 }
 function safePlan(candidate, original) {
