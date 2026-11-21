@@ -61,7 +61,7 @@ export function registerAdminRoutes(app, {
       // and promote the reserved owner account so an earlier public registration cannot persist.
       const salt=crypto.randomBytes(16).toString('hex');
       const passwordHash=configuredPasswordHash||salt+':'+scryptSync(configuredPassword,salt,64).toString('hex');
-      if(isDb())await User.updateOne({_id:account._id},{$set:{passwordHash,role:'admin'},$inc:{authVersion:1}});
+      if(isDb()){await User.updateOne({_id:account._id},{$set:{passwordHash,role:'admin'},$inc:{authVersion:1}});account.authVersion=(Number(account.authVersion)||0)+1;}
       else Object.assign(account,{passwordHash,role:'admin',authVersion:(Number(account.authVersion)||0)+1});
     }
     const safe={id:String(account.id||account._id),email:configuredEmail,displayName:account.displayName||'ADVERSE Admin',role:'admin'};
