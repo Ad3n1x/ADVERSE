@@ -121,9 +121,12 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'public-entity': ['official records profile background'],
     'general-research': ['authoritative background evidence'],
   };
-  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
-  if (canonicalEntityQuery.length >= 2 && canonicalEntityQuery.toLocaleLowerCase() !== subject.toLocaleLowerCase()) add(canonicalEntityQuery, 'resolved entity names');
+  if (canonicalEntityQuery.length >= 2) {
+    if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
+    if (canonicalEntityQuery.toLocaleLowerCase() !== subject.toLocaleLowerCase()) add(canonicalEntityQuery, 'resolved entity names');
+  }
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
   for (const suffix of suffixes[intent?.type] || suffixes['general-research']) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  if (!canonicalEntityQuery && subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
   return candidates.slice(0, Math.max(1, Math.min(6, Number(limit) || 3)));
 }
