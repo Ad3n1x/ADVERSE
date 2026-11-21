@@ -77,6 +77,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   };
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
+  if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) add(intent.searchQuery, 'intent-focused subject');
   const intentVariants = buildIntentQueryVariants(raw, intent, 6);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
   // For applications, prioritize official admissions routes and requirements over
