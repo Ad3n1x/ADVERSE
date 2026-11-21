@@ -252,6 +252,7 @@ export function registerPublicSearchRoutes(app, {
     res.json({ data: results, meta: {
       query: q,
       originalQuery: rawQuery,
+      intent: live.meta?.intent || null,
       advancedFilters: advanced.filters,
       invalidOperators: advanced.invalidOperators,
       retrievedAt: new Date().toISOString(),
