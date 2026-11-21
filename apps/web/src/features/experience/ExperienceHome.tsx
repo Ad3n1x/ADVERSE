@@ -22,6 +22,7 @@ type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
 
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number; providers?: string[] } };
+type ResearchJobSnapshot = { id: string; workspaceId: string; status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'; stage: string; progress: number; sourceCount: number; successfulSearches: number; providerNames: string[]; coverage: string; errorMessage?: string };
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
 
@@ -154,6 +155,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [reviewSaveNotice, setReviewSaveNotice] = useState('');
   const sourceSaveSequence = useRef(0);
   const [isResolving, setIsResolving] = useState(false);
+  const [researchJob, setResearchJob] = useState<ResearchJobSnapshot | null>(null);
+  const [jobControlNotice, setJobControlNotice] = useState('');
   const [resolveError, setResolveError] = useState('');
   const [sourceCoverage, setSourceCoverage] = useState('');
   const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
@@ -244,6 +247,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     setSourceCoverage('');
     setSourceSyncStatus('idle');
     setIsResolving(true);
+    setResearchJob(null);
+    setJobControlNotice('');
     setPlannerMode('deterministic');
     setResolvedPlan(intentPlan);
     setHistory(current => [
@@ -268,21 +273,71 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     } catch {
       // The local intent planner remains available if the optional AI endpoint is unavailable.
     }
+    let workspaceSynced = false;
     try {
       await request('/experience/workspaces', {
         method: 'POST',
         body: JSON.stringify({ workspaceId, intent: trimmed, kind: activePlan.kind, createdAt }),
       });
+      workspaceSynced = true;
     } catch {
-      // Signed-out users retain local history; authenticated users sync when the API is available.
+      // Guests and offline sessions use the direct public-search fallback.
     }
     if (resolutionId !== resolutionSequence.current) return;
     try {
-      // Preserve the complete request so search can interpret the action and its target together.
+      // Keep the full natural-language request intact from intent resolution through background discovery.
       const query = trimmed;
-      const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+      let response: ExperienceSearchResponse;
+      let freshSources: ExperienceSource[] = [];
+      let queuedJob: ResearchJobSnapshot | null = null;
+      if (workspaceSynced) {
+        try {
+          const queued = await request<{ data: ResearchJobSnapshot }>('/experience/jobs', {
+            method: 'POST',
+            body: JSON.stringify({
+              workspaceId, query, plannerKind: activePlan.kind,
+              idempotencyKey: window.crypto?.randomUUID?.() || ('job-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)),
+            }),
+          });
+          queuedJob = queued.data;
+          setResearchJob(queuedJob);
+        } catch {
+          // If persistent jobs are unavailable, preserve the existing direct-search experience.
+        }
+      }
+      if (queuedJob) {
+        let currentJob = queuedJob;
+        let polls = 0;
+        while (!['completed', 'failed', 'cancelled', 'paused'].includes(currentJob.status) && polls < 240) {
+          await new Promise(resolve => window.setTimeout(resolve, 4000));
+          if (resolutionId !== resolutionSequence.current) return;
+          const latest = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(currentJob.id));
+          currentJob = latest.data;
+          setResearchJob(currentJob);
+          polls += 1;
+        }
+        if (currentJob.status !== 'completed') {
+          const message = currentJob.status === 'paused'
+            ? 'Research is paused. Resume it when you are ready.'
+            : currentJob.status === 'cancelled'
+              ? 'Research was cancelled. Any evidence already saved remains in this workspace.'
+              : currentJob.status === 'failed'
+                ? (currentJob.errorMessage || 'Research could not be completed after automatic retries.')
+                : 'Research is taking longer than expected. Your job is still saved; reopen this workspace to check its status.';
+          throw new Error(message);
+        }
+        const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources');
+        freshSources = Array.isArray(saved.data) ? saved.data.slice(0, 24) : [];
+        response = { data: freshSources, meta: {
+          coverage: currentJob.coverage,
+          successfulSearches: currentJob.successfulSearches,
+          providers: currentJob.providerNames,
+        } };
+      } else {
+        response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
+        freshSources = Array.isArray(response.data) ? response.data.slice(0, 12) : [];
+      }
       if (resolutionId !== resolutionSequence.current) return;
-      const freshSources = Array.isArray(response.data) ? response.data.slice(0, 12) : [];
       let savedSources: ExperienceSource[] = [];
       try {
         const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/sources');
@@ -383,6 +438,20 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       if (resolutionId === resolutionSequence.current) setResolveError(error instanceof Error ? error.message : 'Public source discovery is temporarily unavailable.');
     } finally {
       if (resolutionId === resolutionSequence.current) setIsResolving(false);
+    }
+  }
+
+  async function controlResearchJob(action: 'pause' | 'resume' | 'cancel') {
+    if (!researchJob?.id) return;
+    setJobControlNotice(action === 'pause' ? 'Pause requested…' : action === 'resume' ? 'Resuming research…' : 'Cancellation requested…');
+    try {
+      const result = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(researchJob.id) + '/' + action, {
+        method: 'POST', body: JSON.stringify({}),
+      });
+      setResearchJob(result.data);
+      setJobControlNotice(action === 'pause' ? 'ADVERSE will pause at the next safe checkpoint.' : action === 'resume' ? 'Research has been queued to resume.' : 'ADVERSE will stop at the next safe checkpoint.');
+    } catch (error) {
+      setJobControlNotice(error instanceof Error ? error.message : 'The research control could not be applied.');
     }
   }
 
@@ -716,7 +785,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           <section className="experience-workspace" aria-live="polite">
             <div className="experience-workspace-head">
               <div><span className="experience-section-label"><i /> WORKSPACE FOR YOUR INTENT</span><h2>{workspace.title}</h2></div>
-              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setClaims([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); setShowGeospatial(false); }}><Plus size={14} /> New intent</button>
+              <button type="button" className="experience-reset" onClick={() => { setShowDetails(false); setActiveIntent(''); setActiveWorkspaceId(''); setIntent(''); setSources([]); setClaims([]); setSourceNotes({}); setSourceReviewFilter('all'); setResolveError(''); setSourceCoverage(''); setResolvedPlan(null); setPlannerMode('deterministic'); setResearchJob(null); setJobControlNotice(''); setShowGeospatial(false); }}><Plus size={14} /> New intent</button>
             </div>
             <p className="experience-intent-echo">“{activeIntent}”</p>
             <div className="experience-intent-blueprint">
