@@ -8,7 +8,7 @@ import { timingSafeEqual, scryptSync } from 'node:crypto';
 export function createAuthController({
   authSchema, sendError, ownerEmail, isDb, User, memory, id, setSession, tokenFor,
   Investigation, Evidence, Entity, Relationship, Watch, Alert, CyberAsset, CyberEvent,
-  ExperienceWorkspace, SearchMetric,
+  ExperienceWorkspace, ExperienceResearchJob, SearchMetric,
 }) {
   const clearSession = (res) => {
     res.setHeader('Set-Cookie', `adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
@@ -95,6 +95,7 @@ export function createAuthController({
         CyberAsset.deleteMany({ investigationId: { $in: investigationIds } }),
         CyberEvent.deleteMany({ investigationId: { $in: investigationIds } }),
         ExperienceWorkspace.deleteMany({ ownerId: uid }),
+        ExperienceResearchJob.deleteMany({ ownerId: uid }),
         ExperienceWorkspace.updateMany({ 'members.userId': uid }, { $pull: { members: { userId: uid } } }),
         SearchMetric.deleteMany({ userId: uid }),
         User.deleteOne({ _id: uid }),
