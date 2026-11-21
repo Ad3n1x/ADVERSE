@@ -227,7 +227,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const originalInputQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean(((input.find(item => item && item.reason === 'natural-language query') || input[0]) || {}).query || input[0], 200);
-  const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys, context: options.context || '' });
+  const intent = options.intent || await understandSearchIntentWithGroq(originalInputQuery, { providerKeys, context: options.context || '' });
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input, 6, intent);
@@ -312,11 +312,11 @@ const PUBLIC_SEARCH_CACHE_MAX = 100;
 const publicSearchCache = new Map();
 const publicSearchInflight = new Map();
 
-function publicSearchCacheKey(input, context = '') {
+function publicSearchCacheKey(input, context = '', intent = null) {
   const normalized = Array.isArray(input)
     ? JSON.stringify(input.slice(0, 5).map(item => typeof item === 'string' ? item : { query: item?.query, reason: item?.reason }))
     : clean(input, 200).normalize('NFKC').toLocaleLowerCase();
-  return normalized + ':' + clean(context, 1200).toLocaleLowerCase();
+  return normalized + ':' + clean(context, 1200).toLocaleLowerCase() + ':' + clean(intent?.type || '') + ':' + clean(intent?.searchQuery || '');
 }
 
 /**
@@ -326,7 +326,7 @@ function publicSearchCacheKey(input, context = '') {
  */
 export async function searchAllPublic(input, providerKeys = {}, options = {}) {
   if (Object.keys(providerKeys || {}).length > 0) return performSearchAllPublic(input, providerKeys, options);
-  const key = publicSearchCacheKey(input, options.context || '');
+  const key = publicSearchCacheKey(input, options.context || '', options.intent || null);
   const now = Date.now();
   const cached = publicSearchCache.get(key);
   if (cached && cached.expiresAt > now) return structuredClone(cached.value);
