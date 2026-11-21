@@ -879,18 +879,21 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </ol>
               <p className="experience-journey-next"><strong>Recommended next step:</strong> {isResolving ? 'ADVERSE is collecting sources. You can review the plan while it works.' : resolveError ? 'Retry the search or narrow the request if providers returned no usable results.' : !sources.length ? 'Start with a question or task above to begin an investigation.' : reviewCounts.unreviewed ? 'Open the original sources and mark the useful ones. ADVERSE keeps unreviewed material separate from verified findings.' : 'Use the dossier tools below to prepare a source-linked brief.'}</p>
             </section>
-            <div className="experience-workspace-grid">
-              <div className="experience-plan">
-                <span className="experience-section-label">A POSSIBLE FLOW</span>
-                {plan.steps.map((step, index) => <div className="experience-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b></div>)}
-              </div>
-              <div className="experience-spaces">
-                <span className="experience-section-label">YOUR WORKING SPACES</span>
-                {plan.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
-              </div>
-            </div>
-            <ExperienceCoveragePanel sources={sources} />
-            <section className="experience-geospatial-launch" aria-labelledby="experience-geospatial-title">
+            <details className="experience-advanced-tools">
+              <summary>Advanced research tools <span>Coverage · 3D globe · claims · exports · history · sharing</span></summary>
+              <div className="experience-advanced-tools-content">
+                <div className="experience-workspace-grid">
+                  <div className="experience-plan">
+                    <span className="experience-section-label">RESEARCH FLOW</span>
+                    {plan.steps.map((step, index) => <div className="experience-step" key={step}><span>{String(index + 1).padStart(2, '0')}</span><b>{step}</b></div>)}
+                  </div>
+                  <div className="experience-spaces">
+                    <span className="experience-section-label">WORKING SPACES</span>
+                    {plan.spaces.map((space, index) => <div className="experience-space" key={space}><span>{index === 0 ? <FileSearch size={15} /> : index === 1 ? <Layers3 size={15} /> : <Compass size={15} />}</span>{space}<ArrowUpRight size={13} /></div>)}
+                  </div>
+                </div>
+                <ExperienceCoveragePanel sources={sources} />
+                <section className="experience-geospatial-launch" aria-labelledby="experience-geospatial-title">
               <div>
                 <span className="experience-section-label"><Globe2 size={13} /> PUBLIC-EVENT GEOSPATIAL INTELLIGENCE</span>
                 <h3 id="experience-geospatial-title">Explore the public world in 3D</h3>
@@ -911,6 +914,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
               <WorkspaceAccessDocuments workspaceId={activeWorkspaceId} />
             </>}
+              </div>
+            </details>
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
                 <span className="experience-section-label"><i /> LIVE PUBLIC DISCOVERY</span>
