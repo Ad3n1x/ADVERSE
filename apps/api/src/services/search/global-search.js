@@ -218,7 +218,7 @@ async function performSearchAllPublic(input, providerKeys = {}) {
   const originalInputQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean(((input.find(item => item && item.reason === 'natural-language query') || input[0]) || {}).query || input[0], 200);
-  const intent = await understandSearchIntentWithGroq(originalInputQuery);
+  const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys });
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input, 5, intent);
