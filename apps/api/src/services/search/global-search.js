@@ -267,6 +267,24 @@ export function rankPublicResults(items, query, intent = null) {
   }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
 }
 
+/** Keep results tied to the resolved institution and requested task. */
+export function filterOutcomeScopedResults(items, intent) {
+  if (!intent?.institution) return items;
+  return (Array.isArray(items) ? items : []).filter(item => {
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
+    const text = [item.title, item.url, item.excerpt, item.publisher].join(' ').toLocaleLowerCase();
+    const institutionMatch = host === intent.institution.domain
+      || host.endsWith('.' + intent.institution.domain)
+      || /\\babuad\\b|afe\\s+babalola\\s+university/i.test(text);
+    const programmeMatch = /\\bmechatronics\\b/i.test(text);
+    const taskMatch = intent.type === 'fees-costs'
+      ? /\\b(tuition|school\\s+fees?|fee\\s+schedule|charges?|cost|payment|undergraduate\\s+fees?)\\b/i.test(text)
+      : true;
+    return institutionMatch && (programmeMatch || taskMatch);
+  });
+}
+
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const originalInputQuery = typeof input === 'string'
@@ -337,21 +355,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
   const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
-  // For resolved institution/programme tasks, reject topical lookalikes that do not
-  // belong to the named institution. High search volume is not a substitute for relevance.
-  const scopedResults = intent?.institution ? rankedResults.filter(item => {
-    let host = '';
-    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\\./, ''); } catch {}
-    const text = [item.title, item.url, item.excerpt, item.publisher].join(' ').toLocaleLowerCase();
-    const institutionMatch = host === intent.institution.domain
-      || host.endsWith('.' + intent.institution.domain)
-      || /\\babuad\\b|afe\\s+babalola\\s+university/i.test(text);
-    const programmeMatch = /\\bmechatronics\\b/i.test(text);
-    const taskMatch = intent.type === 'fees-costs'
-      ? /\\b(tuition|school\\s+fees?|fee\\s+schedule|charges?|cost|payment|undergraduate\\s+fees?)\\b/i.test(text)
-      : true;
-    return institutionMatch && (programmeMatch || taskMatch);
-  }) : rankedResults;
+  // A large result count is not a substitute for task relevance.
+  const scopedResults = filterOutcomeScopedResults(rankedResults, intent);
   const results = scopedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
