@@ -408,27 +408,28 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       } else if (savedSources.length) {
         setSourceSyncStatus('saved');
       }
-      try {
-        const providerNames = Array.from(new Set(mergedSources.flatMap(source => [
-          ...(source.providers || []),
-          ...(source.provider ? [source.provider] : []),
-        ]))).slice(0, 8);
-        const runId = window.crypto?.randomUUID?.() || ('run-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
-        await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/runs', {
-          method: 'POST',
-          body: JSON.stringify({
-            runId,
-            query,
-            plannerKind: activePlan.kind,
-            sourceCount: mergedSources.length,
-            successfulSearches: Number(response.meta?.successfulSearches || 0),
-            providerNames,
-            coverage: response.meta?.coverage || '',
-          }),
-        });
+      if (queuedJob) {
+        // The background worker already persisted this run and generated unreviewed claim candidates.
         if (resolutionId === resolutionSequence.current) setRunRefreshKey(value => value + 1);
-      } catch {
-        // Search and source review remain usable if the optional run-history record cannot sync.
+      } else {
+          const providerNames = Array.from(new Set(mergedSources.flatMap(source => [
+            ...(source.providers || []),
+            ...(source.provider ? [source.provider] : []),
+          ]))).slice(0, 8);
+          const runId = window.crypto?.randomUUID?.() || ('run-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+          await request('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/runs', {
+            method: 'POST',
+            body: JSON.stringify({
+              runId,
+              query,
+              plannerKind: activePlan.kind,
+              sourceCount: mergedSources.length,
+              successfulSearches: Number(response.meta?.successfulSearches || 0),
+              providerNames,
+              coverage: response.meta?.coverage || '',
+            }),
+          });
+          if (resolutionId === resolutionSequence.current) setRunRefreshKey(value => value + 1);
       }
       setSourceCoverage(response.meta?.coverage || 'Public search results are limited to available connected providers.');
       if (!mergedSources.length) {
