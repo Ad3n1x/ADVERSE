@@ -154,7 +154,7 @@ test('research pipeline uses the interpreted goal for deterministic follow-up se
   const result = await runResearchPipeline(harness.dependencies);
 
   assert.ok(result.followUpQueries.some(item => /primary source evidence/i.test(item.query)));
-  assert.ok(result.followUpQueries.some(item => /independent fact check/i.test(item.query)));
+  assert.ok(result.followUpQueries.some(item => /independent corroboration/i.test(item.query)));
   assert.ok(calls.some(query => /primary source evidence/i.test(query)));
   assert.equal(result.leadPlanning.mode, 'heuristic');
 });
