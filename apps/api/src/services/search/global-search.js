@@ -88,6 +88,13 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   if (intent.type === 'application' && intent.searchQuery) {
     add(intent.searchQuery, 'intent-focused subject');
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
+  }
+  const secondaryTypes = Array.isArray(intent.secondaryIntents) ? intent.secondaryIntents.slice(0, 3) : [];
+  for (const secondaryType of secondaryTypes) {
+    const lead = intentVariants.find(entry => entry.reason === 'secondary intent: ' + secondaryType);
+    if (lead) add(lead.query, lead.reason);
+  }
+  if (intent.type === 'application' && intent.searchQuery && secondaryTypes.length === 0) {
     add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
