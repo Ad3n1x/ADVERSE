@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import mongoose from 'mongoose';
-import { app } from './app.js';
+import { app, getUserProviderKeys } from './app.js';
 import { startMonitoringWorker } from './monitor.js';
 import { startDiscoveryWorker } from './discovery.js';
-import { Investigation, ExperienceWorkspace } from './models.js';
+import { startExperienceResearchWorker } from './services/research/experience-research-worker.js';
+import { Investigation, ExperienceWorkspace, ExperienceResearchJob } from './models.js';
 import { PublicSearchDocument } from './models/public-search-document.model.js';
 import { interruptedAgentState } from './agent-run-state.js';
 const port=Number(process.env.PORT||4000);
@@ -19,6 +20,9 @@ if(process.env.MONGODB_URI){
   await ExperienceWorkspace.createIndexes().catch(error => {
     console.warn('ADVERSE experience workspace index initialization deferred:', String(error?.message || 'index creation failed').slice(0, 180));
   });
+  await ExperienceResearchJob.createIndexes().catch(error => {
+    console.warn('ADVERSE research job index initialization deferred:', String(error?.message || 'index creation failed').slice(0, 180));
+  });
 }else{globalThis.__ADVERSE_MONGO_READY__=false;console.warn('MONGODB_URI not set; local development data is ephemeral.');}
 if(globalThis.__ADVERSE_MONGO_READY__===true){
   const stale=await Investigation.find({'agentRunState.status':'running'}).select('_id agentRunState').lean();
@@ -31,4 +35,4 @@ if(globalThis.__ADVERSE_MONGO_READY__===true){
   }
   if(recovered)console.warn('ADVERSE recovered '+recovered+' interrupted investigation run(s); rerun them to continue.');
 }
-app.listen(port,'0.0.0.0',()=>{console.log('ADVERSE API listening on '+port);startMonitoringWorker();startDiscoveryWorker();});
+app.listen(port,'0.0.0.0',()=>{console.log('ADVERSE API listening on '+port);startMonitoringWorker();startDiscoveryWorker();startExperienceResearchWorker({ getUserProviderKeys });});
