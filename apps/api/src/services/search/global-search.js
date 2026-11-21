@@ -76,6 +76,9 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   };
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
+  const intentVariants = buildIntentQueryVariants(raw, intent, 5);
+  for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
@@ -88,10 +91,6 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
       const at = raw.toLocaleLowerCase().indexOf(word);
       add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
     }
-  }
-  const intent = intentOverride || understandSearchIntent(raw);
-  for (const item of buildIntentQueryVariants(raw, intent, Math.min(3, maxQueries))) {
-    if (item.reason !== 'original question') add(item.query, item.reason);
   }
   if (meaningful.length > 1) add(meaningful.join(' OR '), 'broad term match');
   // Spend remaining query slots on individual input tokens.
