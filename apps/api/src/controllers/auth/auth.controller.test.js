@@ -85,7 +85,7 @@ test('account deletion also removes private experience workspaces and user-linke
   memory.evidence.set('evidence-owned', { id: 'evidence-owned', investigationId: 'case-owned' });
   memory.evidence.set('evidence-other', { id: 'evidence-other', investigationId: 'case-other' });
   globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.set(ownerId, new Map([['private-workspace', { workspaceId: 'private-workspace' }]]));
-  globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.set(otherId, new Map([['other-workspace', { workspaceId: 'other-workspace' }]]));
+  globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.set(otherId, new Map([['other-workspace', { workspaceId: 'other-workspace', members: [{ userId: ownerId, email: 'owner@example.test', role: 'viewer' }] }]]));
   globalThis.__ADVERSE_METRICS__ = [
     { userId: ownerId, route: '/api/v1/search' },
     { userId: otherId, route: '/api/v1/search' },
@@ -102,5 +102,9 @@ test('account deletion also removes private experience workspaces and user-linke
   assert.equal(memory.evidence.has('evidence-other'), true);
   assert.equal(globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.has(ownerId), false);
   assert.equal(globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.has(otherId), true);
+  const sharedWorkspace = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.get(otherId).get('other-workspace');
+  assert.equal(sharedWorkspace.members.length, 0);
+  assert.equal(sharedWorkspace.sharingEvents[0].action, 'revoked');
+  assert.equal(sharedWorkspace.sharingEvents[0].userId, ownerId);
   assert.deepEqual(globalThis.__ADVERSE_METRICS__.map(item => item.userId), [otherId, '']);
 });
