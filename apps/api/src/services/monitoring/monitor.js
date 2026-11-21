@@ -1,7 +1,30 @@
-import { Watch, Alert } from '../../models.js';
+import { Watch, Alert, SearchMetric, PlatformConfig } from '../../models.js';
 import { waybackCaptures, compareArchivedText, validatePublicUrl } from '../../providers.js';
 
 let running = false;
+
+export function getTelemetryRetentionWindow(now = new Date(), configuredDays = 90) {
+  const parsed = Number(configuredDays);
+  const retentionDays = Number.isFinite(parsed)
+    ? Math.max(1, Math.min(3650, Math.floor(parsed)))
+    : 90;
+  const reference = now instanceof Date ? now : new Date(now);
+  return {
+    retentionDays,
+    cutoff: new Date(reference.getTime() - retentionDays * 24 * 60 * 60 * 1000),
+  };
+}
+
+export async function pruneSearchMetrics({
+  now = new Date(),
+  SearchMetricModel = SearchMetric,
+  PlatformConfigModel = PlatformConfig,
+} = {}) {
+  const setting = await PlatformConfigModel.findOne({ key: 'retentionDays' }).lean();
+  const window = getTelemetryRetentionWindow(now, setting?.value ?? 90);
+  const result = await SearchMetricModel.deleteMany({ createdAt: { $lt: window.cutoff } });
+  return { retentionDays: window.retentionDays, cutoff: window.cutoff, deletedCount: Number(result?.deletedCount || 0) };
+}
 
 export function hasMaterialArchiveChange(watch, latest) {
   const previousTimestamp=String(watch?.lastCaptureTimestamp||'');
@@ -136,9 +159,16 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
   running = true;
   let checked = 0;
   let retriedEmails = 0;
+  let prunedMetricCount = 0;
   let enabledWatches = 0;
   let dueWatches = 0;
   try {
+    try {
+      const retention = await pruneSearchMetrics();
+      prunedMetricCount = retention.deletedCount;
+    } catch (error) {
+      console.warn('ADVERSE telemetry retention cleanup unavailable:', String(error?.message || error).slice(0, 160));
+    }
     retriedEmails = await retryPendingEmails();
     const now = new Date();
     enabledWatches = await Watch.countDocuments({ enabled: true });
@@ -201,7 +231,7 @@ export async function runMonitoringCycle({ watchId = '' } = {}) {
       }
       checked += 1;
     }
-    return { checked, retriedEmails, enabledWatches, dueWatches, skipped: false };
+    return { checked, retriedEmails, prunedMetricCount, enabledWatches, dueWatches, skipped: false };
   } finally {
     running = false;
   }

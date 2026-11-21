@@ -8,6 +8,7 @@ import { timingSafeEqual, scryptSync } from 'node:crypto';
 export function createAuthController({
   authSchema, sendError, ownerEmail, isDb, User, memory, id, setSession, tokenFor,
   Investigation, Evidence, Entity, Relationship, Watch, Alert, CyberAsset, CyberEvent,
+  ExperienceWorkspace, SearchMetric,
 }) {
   const clearSession = (res) => {
     res.setHeader('Set-Cookie', `adverse_session=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
@@ -93,6 +94,8 @@ export function createAuthController({
         Alert.deleteMany({ investigationId: { $in: investigationIds } }),
         CyberAsset.deleteMany({ investigationId: { $in: investigationIds } }),
         CyberEvent.deleteMany({ investigationId: { $in: investigationIds } }),
+        ExperienceWorkspace.deleteMany({ ownerId: uid }),
+        SearchMetric.deleteMany({ userId: uid }),
         User.deleteOne({ _id: uid }),
       ]);
     } else {
@@ -106,6 +109,10 @@ export function createAuthController({
         }
       }
       memory.users.delete(uid);
+      globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.delete(uid);
+      if (Array.isArray(globalThis.__ADVERSE_METRICS__)) {
+        globalThis.__ADVERSE_METRICS__ = globalThis.__ADVERSE_METRICS__.filter(item => String(item.userId || '') !== uid);
+      }
     }
     clearSession(res);
     return res.status(204).end();

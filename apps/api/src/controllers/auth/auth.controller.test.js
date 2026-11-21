@@ -5,6 +5,8 @@ import { createAuthController } from './auth.controller.js';
 
 function setup() {
   const memory = { users: new Map(), investigations: new Map(), evidence: new Map(), entities: new Map(), relationships: new Map(), watches: new Map(), alerts: new Map(), cyberAssets: new Map(), cyberEvents: new Map() };
+  globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__ = new Map();
+  globalThis.__ADVERSE_METRICS__ = [];
   let nextId = 0;
   let sessionToken = '';
   const authSchema = z.object({
@@ -32,7 +34,7 @@ function setup() {
     id: () => `user-${++nextId}`,
     setSession: (_response, token) => { sessionToken = token; },
     tokenFor: (user) => `session:${user.id}`,
-    Investigation: {}, Evidence: {}, Entity: {}, Relationship: {}, Watch: {}, Alert: {}, CyberAsset: {}, CyberEvent: {},
+    Investigation: {}, Evidence: {}, Entity: {}, Relationship: {}, Watch: {}, Alert: {}, CyberAsset: {}, CyberEvent: {}, ExperienceWorkspace: {}, SearchMetric: {},
   });
   return { controller, memory, res, getSessionToken: () => sessionToken };
 }
@@ -70,4 +72,35 @@ test('registration blocks the reserved owner address', async () => {
   await controller.register({ body: { email: 'owner@example.com', password: 'correct-horse-battery' } }, res);
   assert.equal(res.statusCode, 403);
   assert.equal(res.body.error.code, 'OWNER_EMAIL_RESERVED');
+});
+
+
+test('account deletion also removes private experience workspaces and user-linked telemetry', async () => {
+  const { controller, memory, res } = setup();
+  const ownerId = 'delete-owner';
+  const otherId = 'keep-other';
+  memory.users.set(ownerId, { id: ownerId, email: 'owner@example.test' });
+  memory.investigations.set('case-owned', { id: 'case-owned', ownerId });
+  memory.investigations.set('case-other', { id: 'case-other', ownerId: otherId });
+  memory.evidence.set('evidence-owned', { id: 'evidence-owned', investigationId: 'case-owned' });
+  memory.evidence.set('evidence-other', { id: 'evidence-other', investigationId: 'case-other' });
+  globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.set(ownerId, new Map([['private-workspace', { workspaceId: 'private-workspace' }]]));
+  globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.set(otherId, new Map([['other-workspace', { workspaceId: 'other-workspace' }]]));
+  globalThis.__ADVERSE_METRICS__ = [
+    { userId: ownerId, route: '/api/v1/search' },
+    { userId: otherId, route: '/api/v1/search' },
+    { userId: '', route: '/api/v1/health' },
+  ];
+
+  await controller.deleteAccount({ user: { id: ownerId } }, res);
+
+  assert.equal(res.statusCode, 204);
+  assert.equal(memory.users.has(ownerId), false);
+  assert.equal(memory.investigations.has('case-owned'), false);
+  assert.equal(memory.evidence.has('evidence-owned'), false);
+  assert.equal(memory.investigations.has('case-other'), true);
+  assert.equal(memory.evidence.has('evidence-other'), true);
+  assert.equal(globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.has(ownerId), false);
+  assert.equal(globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__.has(otherId), true);
+  assert.deepEqual(globalThis.__ADVERSE_METRICS__.map(item => item.userId), [otherId, '']);
 });

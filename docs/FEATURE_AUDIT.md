@@ -13,7 +13,7 @@ Audit basis: repository source on main inspected after the 2026-11-21 Render rel
 | Requirement | Current implementation / evidence | Status | Remaining work |
 |---|---|---|---|
 | Repository foundation, MERN-style app, CI | npm workspaces; React + TypeScript/Vite; Express/Mongoose; GitHub Actions API check/test, frontend build, Playwright | Implemented (bounded) | Add lint/format jobs and broaden tests; CI green does not prove all requirements |
-| Auth and private investigations | apps/api/src/app.js, models.js, app.test.js; scrypt hashes, signed HttpOnly cookie, owner-scoped investigation routes | Implemented (bounded) | Review session expiry/rotation, registration abuse controls, CSRF posture and account lifecycle |
+| Auth and private investigations | apps/api/src/app.js, models.js, auth controllers; scrypt hashes, signed HttpOnly cookie, owner-scoped investigation/workspace routes | Implemented (bounded) | Review session expiry/rotation, registration abuse controls, CSRF posture, and verify full account deletion against MongoDB; this continuation also closes owner ExperienceWorkspace and user-linked SearchMetric cleanup in memory and database code |
 | Public intelligence search | providers.js: federated Wikipedia, Crossref and OpenAlex queries with per-provider fault tolerance and result deduplication | Implemented (bounded) | Not a whole-web index; no saved search history, suggestions, or advanced query filters; provider failures and rate limits reduce coverage |
 | Evidence vault and provenance | Evidence model includes URL, publisher, published/retrieved dates, excerpt, status, capture timestamp and content hash field | Partial | Verify hash population/deduplication, evidence reuse across investigations, claim links, retention controls and richer extraction errors |
 | Entities and relationships | Investigation-scoped entity/relationship models; relationship requires evidence IDs; overview APIs/UI | Partial | Verify referenced evidence/entities belong to the same investigation on every mutation; richer provenance/edge details and path traversal needed |
@@ -58,3 +58,7 @@ Audit basis: repository source on main inspected after the 2026-11-21 Render rel
 ## Completion rule
 
 ADVERSE should not be labelled fully compliant with the master prompt until the remaining items are implemented or explicitly scoped out and the relevant end-to-end tests pass. The product can be deployed and useful while still being incomplete against the broader specification.
+
+## Phases 11–20 continuation
+
+The detailed status and closure criteria for the proposed extension are tracked in [PHASES-11-20-COMPLETION.md](PHASES-11-20-COMPLETION.md). The extension is not represented as complete: backup/restore and monitoring require owner-controlled production exercises; collaboration is not implemented; document ingestion is currently limited to bounded public-page retrieval; accessibility and provider resilience remain partial. Phase 15 account deletion was found to omit owner ExperienceWorkspace records and user-linked telemetry; the correction and regression test are included in the continuation branch.
