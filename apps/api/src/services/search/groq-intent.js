@@ -94,10 +94,10 @@ function fallbackResult(fallback, reason = 'AI intent providers are not configur
 function normalizeModelResult(parsed, original, fallback, provider, model) {
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
-  const subject = (fallback.confidence >= 0.86 && fallback.subject)
+  const subject = (fallback.confidence >= 0.86 && fallback.type === 'application' && fallback.subject)
     ? fallback.subject
     : (clean(parsed?.subject, 180) || fallback.subject || original);
-  const searchQuery = fallback.confidence >= 0.86
+  const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application'
     ? (fallback.searchQuery || subject || original)
     : (clean(parsed?.search_query, 220) || subject || original);
   const list = (value, maxItems, maxLength) => (Array.isArray(value) ? value : [])
@@ -193,8 +193,8 @@ function combineInterpretations(rows, original, fallback) {
   const provider = providerNames.length > 1
     ? (agreed ? 'groq+gemini-consensus' : 'groq+gemini-arbitrated')
     : base.provider;
-  const subject = fallback.confidence >= 0.86 ? fallback.subject : base.subject;
-  const searchQuery = fallback.confidence >= 0.86 ? fallback.searchQuery : (base.searchQuery || subject || original);
+  const subject = fallback.confidence >= 0.86 && fallback.type === 'application' ? fallback.subject : (base.subject || fallback.subject);
+  const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application' ? fallback.searchQuery : (base.searchQuery || subject || original);
   return {
     ...base,
     type: fallback.confidence >= 0.86 ? fallback.type : base.type,
