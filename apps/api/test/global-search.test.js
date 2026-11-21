@@ -12,6 +12,29 @@ test('expands a phrase into exact, natural-language, and individual keyword sear
   assert.ok(queries.length <= 10);
 });
 
+test('plans university application searches around official admissions routes', () => {
+  const plan = expandSearchQueries('I want to apply for ABUAD', 5);
+  assert.equal(plan[2].query, 'ABUAD');
+  assert.ok(plan.some(item => item.query === 'ABUAD official admissions application portal'));
+  assert.ok(plan.some(item => item.query === 'ABUAD admission requirements for applicants'));
+  assert.ok(plan.every(item => item.query.length <= 240));
+});
+
+test('includes AI-proposed investigation leads in bounded search expansion', () => {
+  const query = 'Is it true that ABUAD changed its admission policy?';
+  const intent = {
+    type: 'verification',
+    searchQuery: 'ABUAD admission policy',
+    suggestedQueries: [
+      { query: 'ABUAD official admission policy notice', reason: 'Find the primary announcement' },
+      { query: 'independent reporting on ABUAD admission policy', reason: 'Seek independent corroboration' }
+    ]
+  };
+  const plan = expandSearchQueries(query, 5, intent);
+  assert.ok(plan.some(item => item.query === 'ABUAD official admission policy notice'));
+  assert.ok(plan.some(item => item.query === 'independent reporting on ABUAD admission policy'));
+});
+
 test('adds related wording while keeping expansion bounded and deduplicated', () => {
   const plan = expandSearchQueries('MovieBox old version', 8);
   assert.ok(plan.some(item => item.reason === 'related wording'));
