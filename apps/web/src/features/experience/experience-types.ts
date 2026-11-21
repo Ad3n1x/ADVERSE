@@ -51,3 +51,13 @@ export type ExperienceResearchRun = {
   coverage: string;
   recordedAt: string;
 };
+
+export type ExperienceAnswerStatus = {
+  status: 'answered' | 'partially_answered' | 'not_found' | 'conflicting' | 'insufficient_evidence' | 'needs_clarification';
+  requiredFields: Array<{ field: string; required: boolean; satisfied: boolean; evidenceIds: string[] }>;
+  completionRatio: number;
+  unresolvedQuestions: string[];
+  conflictCount: number;
+  explanation: string;
+  evaluatedAt?: string;
+};
