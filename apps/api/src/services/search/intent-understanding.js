@@ -41,7 +41,7 @@ function extractSubject(query, type) {
       .replace(/\s+(?:and|also|plus)\s+(?=(?:find|check|tell|show|what|how|when|whether|compare|verify|look|search)\b).*/i, '');
   } else {
     subject = subject
-      .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+      .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|price|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
       .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ');
   }
   return subject.replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim() || query;
