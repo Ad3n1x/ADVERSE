@@ -79,6 +79,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       }).slice(0,24);
       initialSearch.meta={query:question,intent:live.meta?.intent||null,queryPlan:live.queryPlan||[],providers:[...new Set(initialSearch.results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],coverage:live.meta?.coverage||'Initial public-source search completed.',successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0};
      }catch(error){initialSearch.meta.error=String(error?.message||'Initial search provider unavailable.');}
+     const intentForRun=initialSearch.meta?.intent||null;
      const investigativeRoutes=buildInvestigativeRoutes(question,initialSearch.results);
      res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Search received. Initial results and autonomous investigation are running as one workflow.',initialSearch}});
      void (async()=>{
@@ -108,7 +109,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       if(!current.length)continue;
       await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original mission across available public indexes.':'Following promising leads from round '+(round-1)+' and cross-checking them against additional public sources.'});
       const settled=await Promise.all(current.map(async item=>{
-       try{return {plan:item,result:await searchAllPublic(item.query,providerKeys,{context:[intentContext,'Original investigation: '+question].filter(Boolean).join(' | ')})};}
+       try{return {plan:item,result:await searchAllPublic(item.query,providerKeys,{context:[intentContext,'Original investigation: '+question].filter(Boolean).join(' | '),intent:intentForRun})};}
        catch{return {plan:item,result:{results:[],meta:{failedSearches:1},error:'Provider search failed'}};}
       }));
       for(const item of settled){
