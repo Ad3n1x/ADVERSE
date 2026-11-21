@@ -92,9 +92,13 @@ export async function planAgentFollowUps({ question, results, providerKeys = {},
   if (!sourceContext) return { leads: [], mode: 'heuristic', provider: null };
   const intent = await understandSearchIntentWithGroq(question, { providerKeys, env });
   const prompt = 'Investigation question: ' + clean(question, 500)
-    + '\n\nHeuristic intent interpretation (may be wrong; do not override the original question):'
-    + '\nGoal: ' + intent.type
+    + '\n\nDual-provider intent interpretation (planning context, not facts):'
+    + '\nPrimary goal: ' + intent.type + ' — ' + clean(intent.goal || intent.label, 220)
     + '\nSubject: ' + intent.subject
+    + '\nEntities: ' + JSON.stringify(intent.entities || [])
+    + '\nSubgoals: ' + JSON.stringify(intent.subgoals || [])
+    + '\nConstraints: ' + JSON.stringify(intent.constraints || [])
+    + '\nAmbiguities: ' + JSON.stringify(intent.ambiguities || [])
     + '\nPreferred source focus: ' + intent.sourcePreference
     + '\nInterpretation note: ' + intent.explanation
     + '\n\nFirst-pass public search results (unverified):\n' + sourceContext
