@@ -1,20 +1,25 @@
 const clean = value => String(value ?? '')
   .normalize('NFKC')
   .replace(/<[^>]*>/g, ' ')
+  .replace(/[\u0000-\u001f\u007f]/g, ' ')
   .replace(/\s+/g, ' ')
   .trim()
   .slice(0, 500);
 
 const RULES = [
-  // Application intent must be recognized before generic entity/how-to wording.
-  { type: 'application', label: 'Find the official application or admissions route', patterns: [/\b(i\s+want\s+to\s+apply|i\s+would\s+like\s+to\s+apply|want\s+to\s+apply|apply\s+(?:to|for)|application\s+(?:for|to)|admission(?:s)?\s+(?:for|to)|how\s+to\s+apply)\b/i], confidence: 0.94, sourcePreference: 'official' },
-  { type: 'destination', label: 'Find an official or working destination', patterns: [/\b(official\s+(website|site|page)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download))\b/i], confidence: 0.91, sourcePreference: 'official' },
-  { type: 'verification', label: 'Check a claim against evidence', patterns: [/\b(is\s+it\s+true|is\s+this\s+true|verify|verification|fact\s*check|fact-check|debunk|real\s+or\s+fake|truth\s+about|scam|fraud|legitimate|authenticity|did\s+.*\s+happen)\b/i], confidence: 0.88, sourcePreference: 'primary-and-independent' },
-  { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|updates?|news|202[5-9])\b/i], confidence: 0.9, sourcePreference: 'recent' },
-  { type: 'historical', label: 'Reconstruct history or chronology', patterns: [/\b(history|historical|timeline|chronology|originally|when\s+did|before|previous|former|old\s+version|archive|archived|wayback)\b/i], confidence: 0.87, sourcePreference: 'dated-primary-records' },
-  { type: 'comparison', label: 'Compare options or competing explanations', patterns: [/\b(compare|comparison|versus|\bvs\.?\b|difference\s+between|which\s+is\s+better|pros\s+and\s+cons)\b/i], confidence: 0.86, sourcePreference: 'parallel-sources' },
-  { type: 'how-to', label: 'Find instructions or troubleshooting guidance', patterns: [/\b(how\s+to|how\s+do\s+i|steps\s+to|guide|tutorial|fix|troubleshoot|not\s+working|error|configure|install|setup|set\s+up)\b/i], confidence: 0.85, sourcePreference: 'documentation' },
-  { type: 'public-entity', label: 'Research a public person or organization', patterns: [/\b(who\s+is|about\s+the\s+person|biography|profile|organization|company|agency|foundation|university|government)\b/i], confidence: 0.8, sourcePreference: 'primary-and-reference' },
+  { type: 'application', label: 'Find the official application route and explain how to apply', patterns: [/\b(i\s+(?:want|would\s+like)\s+to\s+apply|want\s+to\s+apply|apply\s+(?:to|for)|application\s+(?:for|to)|admission(?:s)?\s+(?:for|to)|how\s+to\s+apply)\b/i], sourcePreference: 'official', subgoals: ['official application portal', 'eligibility and entry requirements', 'deadlines and application dates', 'fees and required documents', 'application steps and next actions'] },
+  { type: 'eligibility', label: 'Assess eligibility against stated requirements', patterns: [/\b(am\s+i\s+eligible|do\s+i\s+qualify|can\s+i\s+(?:get\s+in|gain\s+admission|apply)|my\s+(?:grades|results|scores|qualifications)|with\s+my\s+(?:grades|results|scores)|requirements?\s+for\s+me)\b/i], sourcePreference: 'official', subgoals: ['published eligibility criteria', 'compare supplied qualifications with requirements', 'identify missing or uncertain criteria'] },
+  { type: 'fees-costs', label: 'Find current fees and costs', patterns: [/\b(how\s+much|tuition|school\s+fees|acceptance\s+fee|application\s+fee|cost\s+of|price\s+of|fees?\s+for)\b/i], sourcePreference: 'official', subgoals: ['official fee schedule', 'additional and one-time charges', 'academic session and programme differences'] },
+  { type: 'programme-availability', label: 'Check whether a programme or service is offered', patterns: [/\b(does|do|is|are)\s+.+\s+(offer|offers|offering|have|has|available|provide|provides)\b|\b(is\s+there|available\s+at|courses?\s+offered|programmes?\s+offered|majors?\s+offered)\b/i], sourcePreference: 'official', subgoals: ['official programme catalogue', 'campus and degree type', 'entry requirements and accreditation where relevant'] },
+  { type: 'deadline', label: 'Find a deadline or important date', patterns: [/\b(deadline|closing\s+date|when\s+does|when\s+is|when\s+will|last\s+day|application\s+closes|registration\s+closes)\b/i], sourcePreference: 'official', subgoals: ['current official date', 'academic session or event it applies to', 'whether dates have changed'] },
+  { type: 'scholarship-funding', label: 'Find scholarships and funding options', patterns: [/\b(scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition\s+support|fully\s+funded|study\s+grant)\b/i], sourcePreference: 'official', subgoals: ['eligibility and award coverage', 'application process and deadline', 'official sponsor and terms'] },
+  { type: 'comparison', label: 'Compare options against the user’s criteria', patterns: [/\b(compare|comparison|versus|\bvs\.?\b|difference\s+between|which\s+is\s+better|pros\s+and\s+cons)\b/i], sourcePreference: 'parallel-sources', subgoals: ['shared comparison criteria', 'material differences', 'trade-offs and source-backed recommendation'] },
+  { type: 'verification', label: 'Check a claim against evidence', patterns: [/\b(is\s+it\s+true|is\s+this\s+true|verify|verification|fact\s*check|fact-check|debunk|real\s+or\s+fake|truth\s+about|scam|fraud|legitimate|authenticity|did\s+.*\s+happen)\b/i], sourcePreference: 'primary-and-independent', subgoals: ['original or primary evidence', 'independent corroboration', 'counterevidence and uncertainty'] },
+  { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|news|202[5-9])\b/i], sourcePreference: 'recent', subgoals: ['most recent credible reporting', 'official statements', 'publication dates and changes'] },
+  { type: 'historical', label: 'Reconstruct history or chronology', patterns: [/\b(history|historical|timeline|chronology|originally|when\s+did|before|previous|former|old\s+version|archive|archived|wayback)\b/i], sourcePreference: 'dated-primary-records', subgoals: ['dated primary records', 'chronological sequence', 'changes and gaps in the record'] },
+  { type: 'destination', label: 'Find and check the official or working destination', patterns: [/\b(official\s+(website|site|page|portal)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download))\b/i], sourcePreference: 'official', subgoals: ['official domain or destination', 'working page or route', 'redirect and reachability checks'] },
+  { type: 'how-to', label: 'Find instructions or troubleshooting guidance', patterns: [/\b(how\s+to|how\s+do\s+i|steps\s+to|guide|tutorial|fix|troubleshoot|not\s+working|error|configure|install|setup|set\s+up)\b/i], sourcePreference: 'documentation', subgoals: ['official instructions', 'prerequisites', 'ordered steps and common failure points'] },
+  { type: 'public-entity', label: 'Research a public person or organization', patterns: [/\b(who\s+is|about\s+the\s+person|biography|profile|organization|company|agency|foundation|university|government)\b/i], sourcePreference: 'primary-and-reference', subgoals: ['identity and official profile', 'primary records', 'relevant background and dates'] },
 ];
 
 const PREFIXES = [
@@ -23,86 +28,87 @@ const PREFIXES = [
   /^(?:what\s+is|what\s+are|who\s+is|who\s+are|where\s+is|when\s+did|why\s+did|how\s+does|how\s+do\s+i)\s+/i,
   /^(?:is\s+it\s+true\s+that|is\s+this\s+true\s+that|build\s+a\s+timeline\s+of|create\s+a\s+timeline\s+of|compare)\s+/i,
   /^(?:the\s+)?(?:official\s+)?(?:website|web\s*site|site|homepage)\s+(?:for|of)\s+/i,
-  /^(?:find\s+)?(?:the\s+)?(?:official\s+)?(?:website|web\s*site|site|homepage)\s+(?:for|of)\s+/i,
 ];
 
-function extractSubject(query) {
+function extractSubject(query, type) {
   let subject = query;
   for (const pattern of PREFIXES) subject = subject.replace(pattern, '');
-  subject = subject
-    .replace(/\b(please|i|want|would|like|apply|application|admissions?|admission|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
-    .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ')
-    .replace(/[?!.]+$/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return subject || query;
+  if (type === 'application') {
+    subject = subject.replace(/\b(?:i|want|would|like|to|apply|application|admission|admissions|for|at|into|the|university|college)\b/gi, ' ');
+  } else {
+    subject = subject
+      .replace(/\b(please|i|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+      .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ');
+  }
+  return subject.replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim() || query;
 }
 
-/** Interpret the user's search goal with transparent, bounded rules and no fabricated certainty. */
+/** Deterministic semantic baseline: keeps the original request while extracting a bounded goal and subject. */
 export function understandSearchIntent(input) {
   const originalQuery = clean(input);
   if (!originalQuery) return {
     type: 'general-research', label: 'General public-source research', confidence: 0,
     subject: '', searchQuery: '', sourcePreference: 'balanced', matchedSignals: [],
-    explanation: 'No search question was supplied.',
+    goal: 'Understand the topic', subgoals: [], entities: [], constraints: [],
+    clarificationNeeded: false, ambiguities: [], explanation: 'No search question was supplied.',
   };
 
   const rule = RULES.find(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
   const selected = rule || {
-    type: 'general-research',
-    label: 'Explore a topic and discover relevant sources',
-    confidence: 0.62,
-    sourcePreference: 'balanced',
+    type: 'general-research', label: 'Understand the request and discover relevant evidence',
+    sourcePreference: 'balanced', subgoals: ['identify the main subject', 'find authoritative context', 'check important details'],
   };
-  const subject = extractSubject(originalQuery);
-  const matchedSignals = rule
-    ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 90))
-    : [];
-
+  const subject = extractSubject(originalQuery, selected.type);
+  const matchedSignals = rule ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 120)) : [];
   return {
     type: selected.type,
     label: selected.label,
-    confidence: selected.confidence,
+    confidence: rule ? 0.88 : 0.58,
     subject,
     searchQuery: subject.length >= 2 ? subject : originalQuery,
     sourcePreference: selected.sourcePreference,
     matchedSignals,
+    goal: selected.label,
+    subgoals: selected.subgoals.slice(0, 5),
+    entities: subject ? [{ text: subject, role: 'primary-subject', kind: 'unknown' }] : [],
+    constraints: [],
+    clarificationNeeded: false,
+    ambiguities: [],
     explanation: rule
-      ? 'The wording suggests this research goal. ADVERSE keeps the original question and adds a small number of goal-specific search variants.'
-      : 'No strong goal marker was detected, so ADVERSE keeps the wording broad and avoids guessing a narrower task.',
+      ? 'The wording indicates a likely goal. ADVERSE preserves the complete request and builds bounded research tasks around it.'
+      : 'No single strong goal marker was detected. ADVERSE preserves the wording and avoids guessing a narrower task.',
   };
 }
 
-/** Keep the original question and add a few goal-specific variants for public-source discovery. */
+/** Generate bounded research leads that directly support the user's intended outcome. */
 export function buildIntentQueryVariants(input, intent = understandSearchIntent(input), limit = 3) {
   const original = clean(input);
   if (!original) return [];
-  const subject = clean(intent?.searchQuery || original);
+  const subject = clean(intent?.searchQuery || intent?.subject || original);
   const candidates = [{ query: original, reason: 'original question' }];
   const add = (query, reason) => {
     const value = clean(query);
     if (value.length < 2 || candidates.some(item => item.query.toLocaleLowerCase() === value.toLocaleLowerCase())) return;
     candidates.push({ query: value, reason });
   };
-
   const suffixes = {
-    application: ['official admissions application portal', 'undergraduate admission requirements', 'application deadline and how to apply'],
-    destination: ['official site domain'],
-    verification: ['primary source evidence', 'independent fact check'],
-    'current-events': ['latest reports official statement'],
-    historical: ['dated primary records archive'],
-    comparison: ['independent comparison review'],
-    'how-to': ['official documentation troubleshooting'],
-    'public-entity': ['official records background'],
-    'general-research': [],
+    application: ['official admissions application portal', 'admission requirements eligibility', 'application deadline fees required documents next steps'],
+    eligibility: ['official eligibility criteria requirements', 'compare qualifications with entry requirements'],
+    'fees-costs': ['official fee schedule tuition additional charges', 'current academic session programme fees'],
+    'programme-availability': ['official programme catalogue available degrees', 'programme accreditation entry requirements'],
+    deadline: ['official current deadline closing date', 'academic session application date changes'],
+    'scholarship-funding': ['official scholarship eligibility coverage deadline', 'scholarship application procedure sponsor'],
+    destination: ['official site domain working portal'],
+    verification: ['primary source evidence', 'independent corroboration counterevidence'],
+    'current-events': ['latest credible reports official statement'],
+    historical: ['dated primary records archive chronology'],
+    comparison: ['independent comparison criteria trade-offs'],
+    'how-to': ['official documentation prerequisites step-by-step instructions'],
+    'public-entity': ['official records profile background'],
+    'general-research': ['authoritative background evidence'],
   };
-  for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) {
-    add(item?.query, 'Groq: ' + clean(item?.reason || 'intent-specific lead', 80));
-  }
-  for (const suffix of suffixes[intent?.type] || []) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
-  // Keep goal-specific evidence leads ahead of a generic subject-only variant.
-  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) {
-    add(subject, 'intent-focused subject');
-  }
-  return candidates.slice(0, Math.max(1, Math.min(5, Number(limit) || 3)));
+  for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
+  for (const suffix of suffixes[intent?.type] || suffixes['general-research']) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
+  return candidates.slice(0, Math.max(1, Math.min(6, Number(limit) || 3)));
 }
