@@ -59,6 +59,17 @@ const experienceRunSchema = new Schema({
   recordedAt: { type: Date, required: true, default: Date.now },
 }, { _id: false });
 
+const experienceDocumentSchema = new Schema({
+  documentId: { type: String, required: true, maxlength: 100 },
+  filename: { type: String, required: true, maxlength: 180 },
+  mediaType: { type: String, enum: ['text/plain'], required: true, default: 'text/plain' },
+  text: { type: String, required: true, maxlength: 50000 },
+  byteLength: { type: Number, required: true, min: 1, max: 50000 },
+  contentHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
+  hashAlgorithm: { type: String, enum: ['sha256'], default: 'sha256' },
+  uploadedAt: { type: Date, required: true, default: Date.now },
+}, { _id: false });
+
 const experienceWorkspaceSchema = new Schema({
   workspaceId: { type: String, required: true, maxlength: 100 },
   ownerId: { type: String, required: true, index: true },
@@ -67,6 +78,7 @@ const experienceWorkspaceSchema = new Schema({
   sources: { type: [experienceSourceSchema], default: [] },
   claims: { type: [experienceClaimSchema], default: [] },
   researchRuns: { type: [experienceRunSchema], default: [] },
+  documents: { type: [experienceDocumentSchema], default: [] },
   createdAt: { type: Date, required: true, default: Date.now },
 }, { timestamps: true, versionKey: false });
 
