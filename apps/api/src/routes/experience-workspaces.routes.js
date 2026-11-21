@@ -107,11 +107,13 @@ function normalizeSources(input) {
       const alternativeFor = item.alternativeFor ? canonicalSourceUrl(item.alternativeFor) : null;
       if (item.alternativeFor && !alternativeFor) return null;
 
-      const finalUrl = item.linkCheck.finalUrl ? canonicalSourceUrl(item.linkCheck.finalUrl) : null;
-      if (item.linkCheck.finalUrl && !finalUrl) return null;
+      const linkCheck = item.linkCheck || {};
+      const rawRedirects = Array.isArray(linkCheck.redirects) ? linkCheck.redirects : [];
+      const finalUrl = linkCheck.finalUrl ? canonicalSourceUrl(linkCheck.finalUrl) : null;
+      if (linkCheck.finalUrl && !finalUrl) return null;
       const redirects = [];
       let expectedFrom = canonicalUrl;
-      for (const redirect of item.linkCheck.redirects) {
+      for (const redirect of rawRedirects) {
         const from = canonicalSourceUrl(redirect.from);
         const to = canonicalSourceUrl(redirect.to);
         if (!from || !to || from !== expectedFrom) return null;
@@ -125,8 +127,15 @@ function normalizeSources(input) {
         ...item,
         url: canonicalUrl,
         alternativeFor,
-        linkCheck: { ...item.linkCheck, finalUrl, redirects },
-        providers: [...new Set(item.providers.map(value => value.trim()).filter(Boolean))].slice(0, 8),
+        linkCheck: {
+          status: linkCheck.status || 'not_checked',
+          checkedAt: linkCheck.checkedAt || null,
+          httpStatus: linkCheck.httpStatus ?? null,
+          finalUrl,
+          redirects,
+          note: linkCheck.note || '',
+        },
+        providers: [...new Set((item.providers || []).map(value => value.trim()).filter(Boolean))].slice(0, 8),
       });
     } catch {
       return null;
