@@ -161,7 +161,7 @@ export function registerExperienceRoutes(app, {
       interpretation = understandSearchIntent(intent);
     }
     const plan = deterministicPlan(intent, interpretation);
-    const aiBacked = !['rules', 'rules-fallback'].includes(interpretation?.provider);
+    const aiBacked = ['groq', 'gemini', 'groq+gemini-consensus', 'groq+gemini-arbitrated'].includes(interpretation?.provider);
     const providerNames = (interpretation?.providers || []).filter(item => item.status === 'success').map(item => item.name);
     const provider = providerNames.length > 1 ? providerNames.join(' + ')
       : providerNames[0] || (aiBacked ? interpretation.provider : 'ADVERSE local semantic planner');
