@@ -7,8 +7,8 @@ const intent = {
   subject: 'ABUAD Mechatronics Engineering',
   searchQuery: 'ABUAD Mechatronics Engineering degree',
   entities: [
-    { text: 'ABUAD', kind: 'institution', role: 'primary-subject' },
-    { text: 'Mechatronics Engineering', kind: 'programme', role: 'primary-subject' }
+    { text: 'Afe Babalola University', matchedText: 'ABUAD', kind: 'institution', role: 'primary-subject' },
+    { text: 'Mechatronics Engineering', matchedText: 'Mechatronics', kind: 'programme', role: 'primary-subject' }
   ]
 };
 
