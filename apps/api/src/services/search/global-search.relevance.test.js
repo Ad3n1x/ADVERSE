@@ -68,3 +68,13 @@ test('application query plan keeps the institution and reserves a slot for AI in
   assert.ok(plan.some(item => item.reason.startsWith('AI:') && /official undergraduate admissions/i.test(item.query)));
   assert.ok(plan.some(item => item.reason === 'intent: application' && /official admissions application portal/i.test(item.query)));
 });
+
+test('fee-intent ranking prioritizes the named institution and programme over unrelated degree-price papers', () => {
+  const results = rankPublicResults([
+    { title: 'The Degree of Distortions under Second-Degree Price Discrimination', url: 'https://papers.example.org/price-discrimination', excerpt: 'Economics paper about price discrimination.' },
+    { title: 'ABUAD Undergraduate Fees and Charges', url: 'https://abuad.edu.ng/fees', excerpt: 'Official fee schedule for undergraduate programmes.' },
+    { title: 'Mechatronics Engineering Degree Programme', url: 'https://university.example.edu/mechatronics', excerpt: 'Programme overview and course details.' },
+  ], 'abuad mechatronics degree', { type: 'fees-costs', sourcePreference: 'official' });
+  assert.equal(results[0].title, 'ABUAD Undergraduate Fees and Charges');
+  assert.ok(results.findIndex(item => /price discrimination/i.test(item.title)) > 0);
+});
