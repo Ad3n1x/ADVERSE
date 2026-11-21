@@ -94,11 +94,15 @@ function fallbackResult(fallback, reason = 'AI intent providers are not configur
 
 function normalizeModelResult(parsed, original, fallback, provider, model, context = '') {
   const groundedText = (original + ' ' + clean(context, 1200)).toLocaleLowerCase();
-  const evidenceTokens = groundedText.split(/\\s+/).filter(Boolean);
+  const evidenceTokens = groundedText.split(/\s+/).filter(Boolean);
   const grounded = value => {
     const candidate = clean(value, 140).toLocaleLowerCase();
-    const tokens = candidate.split(/\\s+/).filter(Boolean);
-    return Boolean(candidate) && (groundedText.includes(candidate) || (tokens.length > 0 && tokens.every(token => evidenceTokens.some(source => source === token || source.startsWith(token) || token.startsWith(source))));
+    const tokens = candidate.split(/\s+/).filter(Boolean);
+    if (!candidate) return false;
+    if (groundedText.includes(candidate)) return true;
+    return tokens.length > 0 && tokens.every(token =>
+      evidenceTokens.some(source => source === token || source.startsWith(token) || token.startsWith(source))
+    );
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
