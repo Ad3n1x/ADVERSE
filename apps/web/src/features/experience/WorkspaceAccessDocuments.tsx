@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
+import './workspace-access-documents.css';
 import { FileText, Link2, Trash2, Upload, Users, UserMinus, Download, RefreshCw } from 'lucide-react';
 import { request } from '../../lib/api';
 
@@ -30,7 +32,7 @@ export default function WorkspaceAccessDocuments({ workspaceId }: { workspaceId:
 
   useEffect(() => { void refresh(); }, [workspaceId]);
 
-  async function share(event: React.FormEvent<HTMLFormElement>) {
+  async function share(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!email.trim() || busy) return;
     setBusy(true); setError(''); setNotice('');
