@@ -326,6 +326,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
       ...current.filter(item => item.intent.toLowerCase() !== trimmed.toLowerCase()),
     ].slice(0, HISTORY_LIMIT));
     let activePlan = intentPlan;
+    let previousTaskPlan: GuidedTaskPlan | null = null;
     try {
       const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'ai' | 'deterministic'; provider?: string; model?: string } } }>(
         '/experience/resolve',
