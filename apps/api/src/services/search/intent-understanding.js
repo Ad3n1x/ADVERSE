@@ -6,9 +6,9 @@ const clean = value => String(value ?? '')
   .slice(0, 500);
 
 const RULES = [
-  { type: 'destination', label: 'Find an official or working destination', patterns: [/\b(official\s+(website|site|page)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download))\b/i], confidence: 0.91, sourcePreference: 'official' },
+  { type: 'destination', label: 'Find an official or working destination', patterns: [/\b(official\s+(website|site|page)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download)|apply\s+(to|for)|application\s+(portal|form|process)|admissions?\s+(portal|application|process)|register\s+for|enrol(?:l)?\s+(at|in|for))\b/i], confidence: 0.91, sourcePreference: 'official' },
   { type: 'verification', label: 'Check a claim against evidence', patterns: [/\b(is\s+it\s+true|is\s+this\s+true|verify|verification|fact\s*check|fact-check|debunk|real\s+or\s+fake|truth\s+about|scam|fraud|legitimate|authenticity|did\s+.*\s+happen)\b/i], confidence: 0.88, sourcePreference: 'primary-and-independent' },
-  { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|updates?|news|202[5-9])\b/i], confidence: 0.9, sourcePreference: 'recent' },
+  { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|news|202[5-9])\b/i], confidence: 0.9, sourcePreference: 'recent' },
   { type: 'historical', label: 'Reconstruct history or chronology', patterns: [/\b(history|historical|timeline|chronology|originally|when\s+did|before|previous|former|old\s+version|archive|archived|wayback)\b/i], confidence: 0.87, sourcePreference: 'dated-primary-records' },
   { type: 'comparison', label: 'Compare options or competing explanations', patterns: [/\b(compare|comparison|versus|\bvs\.?\b|difference\s+between|which\s+is\s+better|pros\s+and\s+cons)\b/i], confidence: 0.86, sourcePreference: 'parallel-sources' },
   { type: 'how-to', label: 'Find instructions or troubleshooting guidance', patterns: [/\b(how\s+to|how\s+do\s+i|steps\s+to|guide|tutorial|fix|troubleshoot|not\s+working|error|configure|install|setup|set\s+up)\b/i], confidence: 0.85, sourcePreference: 'documentation' },
@@ -16,19 +16,18 @@ const RULES = [
 ];
 
 const PREFIXES = [
-  /^(?:please\s+)?(?:find|search\s+for|look\s+up|research|investigate|show\s+me|tell\s+me\s+about|explain|check)\s+/i,
+  /^(?:please\s+)?(?:i\s+(?:want|need)\s+to\s+)?(?:apply\s+(?:to|for)|find|search\s+for|look\s+up|research|investigate|show\s+me|tell\s+me\s+about|explain|check)\s+/i,
   /^(?:what\s+is|what\s+are|who\s+is|who\s+are|where\s+is|when\s+did|why\s+did|how\s+does|how\s+do\s+i)\s+/i,
   /^(?:is\s+it\s+true\s+that|is\s+this\s+true\s+that|build\s+a\s+timeline\s+of|create\s+a\s+timeline\s+of|compare)\s+/i,
   /^(?:the\s+)?(?:official\s+)?(?:website|web\s*site|site|homepage)\s+(?:for|of)\s+/i,
-  /^(?:find\s+)?(?:the\s+)?(?:official\s+)?(?:website|web\s*site|site|homepage)\s+(?:for|of)\s+/i,
 ];
 
 function extractSubject(query) {
   let subject = query;
   for (const pattern of PREFIXES) subject = subject.replace(pattern, '');
   subject = subject
-    .replace(/\b(please|for\s+me|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
-    .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ')
+    .replace(/\b(please|i|want|need|to|apply|application|admission|admissions|portal|process|register|registration|enrol|enroll|for\s+me|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+    .replace(/\b(?:the|a|an|of|on|about|that|what|are|is|it|this|me|do|does|did|at|in)\b/gi, ' ')
     .replace(/[?!.]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -53,7 +52,7 @@ export function understandSearchIntent(input) {
   };
   const subject = extractSubject(originalQuery);
   const matchedSignals = rule
-    ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 90))
+    ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => String(pattern).slice(0, 90))
     : [];
 
   return {
@@ -82,8 +81,9 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     candidates.push({ query: value, reason });
   };
 
+  const applicationIntent = /\b(apply|application|admission|admissions|register|registration|enrol|enroll)\b/i.test(original);
   const suffixes = {
-    destination: /\\b(apply|application|admission|admissions|register|registration|enrol|enroll)\\b/i.test(original) ? ['official admissions application portal', 'admission requirements application deadline'] : ['official site domain'],
+    destination: applicationIntent ? ['official admissions application portal', 'admission requirements application deadline'] : ['official site domain'],
     verification: ['primary source evidence', 'independent fact check'],
     'current-events': ['latest reports official statement'],
     historical: ['dated primary records archive'],
@@ -93,12 +93,9 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'general-research': [],
   };
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) {
-    add(item?.query, 'Groq: ' + clean(item?.reason || 'intent-specific lead', 80));
+    add(item?.query, 'AI intent lead: ' + clean(item?.reason || 'intent-specific lead', 80));
   }
   for (const suffix of suffixes[intent?.type] || []) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
-  // Keep goal-specific evidence leads ahead of a generic subject-only variant.
-  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) {
-    add(subject, 'intent-focused subject');
-  }
+  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
   return candidates.slice(0, Math.max(1, Math.min(5, Number(limit) || 3)));
 }
