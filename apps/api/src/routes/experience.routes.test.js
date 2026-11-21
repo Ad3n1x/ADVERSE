@@ -24,3 +24,29 @@ test('intent planner does not flag ordinary research as an external action', () 
   assert.equal(plan.approvalRequired, false);
   assert.match(plan.focus, /public transport options in Lagos/i);
 });
+
+
+test('application intent keeps its named institution as the focus, not a constraint', () => {
+  const plan = deterministicPlan('I want to apply for ABUAD');
+  assert.equal(plan.kind, 'plan');
+  assert.equal(plan.focus, 'ABUAD');
+  assert.equal(plan.subject, 'ABUAD');
+  assert.equal(plan.searchQuery, 'ABUAD');
+  assert.equal(plan.semanticType, 'application');
+  assert.ok(!plan.constraints.some(value => /for ABUAD/i.test(value)));
+  assert.match(plan.outcome, /official admissions route/i);
+  assert.ok(plan.steps.some(value => /application|admission|requirements|deadline/i.test(value)));
+  assert.deepEqual(plan.spaces, ['Official admissions route', 'Entry requirements & deadlines', 'Application next steps']);
+});
+
+test('application intent preserves a multi-word institution name', () => {
+  const plan = deterministicPlan('I would like to apply to University of Lagos');
+  assert.equal(plan.focus, 'University of Lagos');
+  assert.equal(plan.searchQuery, 'University of Lagos');
+});
+
+test('ordinary constraints remain constraints without swallowing the subject', () => {
+  const plan = deterministicPlan('Compare solar and wind power under $5000');
+  assert.match(plan.focus, /solar and wind power/i);
+  assert.ok(plan.constraints.some(value => /under \\$5000/i.test(value)));
+});
