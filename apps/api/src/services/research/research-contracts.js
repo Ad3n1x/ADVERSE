@@ -112,7 +112,7 @@ export const AnswerStatusSchema = z.object({
     field: shortText(100),
     required: z.boolean(),
     satisfied: z.boolean(),
-    evidenceIds: z.array(id).max(20).default([])
+    evidenceIds: z.array(z.string().trim().min(1).max(2048)).max(20).default([])
   })).max(20),
   completionRatio: z.number().min(0).max(1),
   unresolvedQuestions: z.array(z.string().max(240)).max(20).default([]),
