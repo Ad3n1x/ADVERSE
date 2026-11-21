@@ -79,6 +79,12 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   add(raw, 'natural-language query');
   const intentVariants = buildIntentQueryVariants(raw, intent, 5);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
+  // For applications, prioritize official admissions routes and requirements over
+  // generic keyword matches such as pages that merely contain the word "apply".
+  if (intent.type === 'application' && intent.searchQuery) {
+    add(intent.searchQuery + ' official admissions application portal', 'intent: application');
+    add(intent.searchQuery + ' undergraduate admission requirements', 'intent: application');
+  }
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
@@ -160,7 +166,7 @@ export function rankPublicResults(items, query) {
   const tokens = value => normalize(value).split(/\s+/).filter(Boolean);
   const normalizedQuery = normalize(query);
   const allTerms = [...new Set(tokens(query))];
-  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app']);
+  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app','i','want','would','like','apply','application','admission','admissions']);
   const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
   const phrase = value => normalizedQuery.length >= 3 && (' ' + normalize(value) + ' ').includes(' ' + normalizedQuery + ' ');
   const hasTerm = (field, term) => (' ' + normalize(field) + ' ').includes(' ' + term + ' ');
