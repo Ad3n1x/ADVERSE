@@ -48,7 +48,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
      if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');
      const title=String(investigation.title||'').trim();
      const question=String(investigation.question||title).trim();
-     const intentContext=String(req.body?.context||'').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim().slice(0,1200);
+     const intentContext=String(req.body?.context||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,1200);
      if(question.length<2)return sendError(res,400,'RESEARCH_QUESTION_REQUIRED','Add a clear investigation question before starting the agent.');
      const currentState=investigation.agentRunState||{};
      if(isFreshRunningAgentRun(currentState))return sendError(res,409,'AGENT_ALREADY_RUNNING','This investigation already has a research run in progress.');
