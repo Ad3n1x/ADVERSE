@@ -256,9 +256,9 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
     const result = successful.length
       ? combineInterpretations(successful, original, fallback)
       : fallbackResult(fallback, 'Groq and Gemini were unavailable; ADVERSE used its deterministic intent model.');
-    result.providers = successful.length
-      ? result.providers
-      : settled.map(row => ({ name: row.name, model: row.model, status: 'unavailable', error: row.error || 'request failed' }));
+    result.providers = settled.map(row => row.value
+      ? { name: row.name, model: row.model, status: 'success', confidence: row.value.confidence }
+      : { name: row.name, model: row.model, status: 'unavailable', error: row.error || 'request failed' });
     while (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
     cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value: result });
     return result;
