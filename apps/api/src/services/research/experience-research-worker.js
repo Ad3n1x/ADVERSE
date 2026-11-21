@@ -229,11 +229,13 @@ async function executeJob(job, getUserProviderKeys) {
       subject: clean(resolved.subject || resolved.searchQuery || job.query, 300),
       entities: (Array.isArray(resolved.entities) ? resolved.entities : []).map(item => ({
         text: clean(typeof item === 'string' ? item : item?.text, 150),
+        ...(typeof item === 'object' && item?.matchedText ? { matchedText: clean(item.matchedText, 150) } : {}),
+        ...(typeof item === 'object' && item?.country ? { country: clean(item.country, 100) } : {}),
         kind: entityKinds.has(item?.kind) ? item.kind : 'unknown',
         role: clean(item?.role || 'context', 80)
       })).filter(item => typeof item.text === 'string' && item.text.trim()).slice(0, 20),
       constraints: Array.isArray(resolved.constraints) ? resolved.constraints.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 20) : [],
-      preferences: { sourcePreference: resolved.sourcePreference || 'balanced' },
+      preferences: { sourcePreference: resolved.sourcePreference || 'balanced', ...(resolved.preferences?.country ? { country: clean(resolved.preferences.country, 100) } : {}), ...(resolved.preferences?.currency ? { currency: clean(resolved.preferences.currency, 8) } : {}) },
       subgoals: Array.isArray(resolved.subgoals) ? resolved.subgoals.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 12) : [],
       clarificationNeeded: Boolean(resolved.clarificationNeeded),
       ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 10) : [],
