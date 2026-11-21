@@ -136,7 +136,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (SOURCE_PREFERENCES.has(parsed?.source_preference) ? parsed.source_preference : fallback.sourcePreference),
     matchedSignals: fallback.matchedSignals || [],
     subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
-    secondaryIntents: [...new Set([...(fallback.secondaryIntents || []), ...(Array.isArray(parsed?.secondary_intents) ? parsed.secondary_intents : []).filter(type => TYPES.has(type))])].filter(type => type !== modelType).slice(0, 3),
+    secondaryIntents: [...new Set([...(fallback.secondaryIntents || []), ...(Array.isArray(parsed?.secondary_intents) ? parsed.secondary_intents : []).filter(type => TYPES.has(type))])].filter(intentType => intentType !== type).slice(0, 3),
     entities,
     constraints: list(parsed?.constraints, 8, 140).filter(grounded),
     ambiguities: list(parsed?.ambiguities, 4, 140),
