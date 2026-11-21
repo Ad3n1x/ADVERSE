@@ -108,7 +108,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     );
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
-  const stableInterpretation = fallback.confidence >= 0.86;
+  const stableInterpretation = fallback.confidence >= 0.86 && ['application', 'fees-costs'].includes(fallback.type);
   const type = stableInterpretation ? fallback.type : modelType;
   const subject = (stableInterpretation && fallback.subject)
     ? fallback.subject
@@ -136,7 +136,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     searchQuery,
     sourcePreference: fallback.confidence >= 0.86 ? fallback.sourcePreference : (SOURCE_PREFERENCES.has(parsed?.source_preference) ? parsed.source_preference : fallback.sourcePreference),
     matchedSignals: fallback.matchedSignals || [],
-    subgoals: [...new Set([...(fallback.subgoals || []), ...list(parsed?.subgoals, 6, 160)])].slice(0, 6),
+    subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
     secondaryIntents: [...new Set([...(fallback.secondaryIntents || []), ...(Array.isArray(parsed?.secondary_intents) ? parsed.secondary_intents : []).filter(type => TYPES.has(type))])].filter(intentType => intentType !== type).slice(0, 3),
     entities: [...(fallback.entities || []), ...entities].filter((item, index, rows) => rows.findIndex(other => other.text.toLowerCase() === item.text.toLowerCase() && other.role === item.role) === index).slice(0, 10),
     constraints: [...new Set([...(fallback.constraints || []), ...list(parsed?.constraints, 8, 140).filter(grounded)])].slice(0, 8),
