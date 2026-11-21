@@ -3,6 +3,9 @@ import crypto from 'node:crypto';
 import { ExperienceResearchJob, ExperienceWorkspace } from '../../models.js';
 import { searchAllPublic, rankPublicResults } from '../search/global-search.js';
 import { understandSearchIntentWithGroq } from '../search/groq-intent.js';
+import { understandSearchIntent } from '../search/intent-understanding.js';
+import { evaluateAnswerStatus } from './answer-status.js';
+import { ResolvedIntentSchema, TypedClaimSchema } from './research-contracts.js';
 import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
@@ -77,7 +80,7 @@ function toWorkspaceSource(item, checked = null) {
     publisher: clean(item.publisher || host, 240),
     provider: clean(item.provider || (item.providers || []).join(', '), 160),
     providers: [...new Set([...(item.providers || []), ...(item.provider ? [item.provider] : [])].map(value => clean(value, 160)).filter(Boolean))].slice(0, 8),
-    sourceType: 'web', alternativeFor: null, reviewStatus: 'unreviewed', analystNote: '',
+    sourceType: 'web', relevance: item.relevance || undefined, alternativeFor: null, reviewStatus: 'unreviewed', analystNote: '',
     publishedAt: item.publishedAt || null, retrievedAt: new Date().toISOString(),
     linkCheck, savedAt: new Date(),
   };
@@ -159,6 +162,34 @@ async function saveJobResults(job, sources, live) {
     }
   }
   const claims = [...claimsById.values()].slice(0, 50);
+  const typedClaimsById = new Map((workspace.typedClaims || []).map(claim => [claim.claimId, claim]));
+  for (const candidate of extraction.claims || []) {
+    const statement = clean(candidate.claim, 1000);
+    const sourceIds = [...new Set((candidate.sources || [])
+      .map(source => String(source.url || '').trim())
+      .filter(url => mergedSources.some(saved => saved.url === url)))].slice(0, 12);
+    if (!statement || !sourceIds.length) continue;
+    const claimId = 'typed-' + crypto.createHash('sha256').update(statement.toLocaleLowerCase()).digest('hex').slice(0, 32);
+    const parsed = TypedClaimSchema.safeParse({
+      claimId,
+      type: 'general-fact',
+      statement,
+      value: { amount: null, currency: null, unit: null, text: statement },
+      entityId: null,
+      academicSession: null,
+      sourceIds,
+      assessment: 'unreviewed',
+      confidence: 0
+    });
+    if (parsed.success) typedClaimsById.set(claimId, parsed.data);
+  }
+  const typedClaims = [...typedClaimsById.values()].slice(0, 80);
+  const answerStatus = evaluateAnswerStatus({
+    intent: live.meta?.resolvedIntent || { type: 'general-research' },
+    claims: typedClaims,
+    sourceCount: mergedSources.length,
+    searchCompleted: true
+  });
   const run = {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
@@ -170,9 +201,9 @@ async function saveJobResults(job, sources, live) {
   const researchRuns = [...(workspace.researchRuns || []).filter(item => item.runId !== job.jobId), run]
     .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()).slice(-20);
   await ExperienceWorkspace.updateOne({ ownerId: job.ownerId, workspaceId: job.workspaceId }, {
-    $set: { sources: mergedSources, claims, researchRuns },
+    $set: { sources: mergedSources, claims, typedClaims, resolvedIntent: live.meta?.resolvedIntent || undefined, answerStatus, pipelineVersion: 'intent-evidence-v1', researchRuns },
   });
-  return { sourceCount: mergedSources.length, claimCount: claims.length, run };
+  return { sourceCount: mergedSources.length, claimCount: claims.length, typedClaimCount: typedClaims.length, answerStatus, run };
 }
 
 async function executeJob(job, getUserProviderKeys) {
@@ -189,9 +220,28 @@ async function executeJob(job, getUserProviderKeys) {
     } catch {
       // Deterministic intent rules remain available if Groq and Gemini are unavailable.
     }
-    const queries = buildResearchQueryPlan(job.query, semantic || {});
+    const resolved = semantic || understandSearchIntent(job.query);
+    const entityKinds = new Set(['institution', 'programme', 'location', 'person', 'organisation', 'product', 'date', 'unknown']);
+    const resolvedIntent = ResolvedIntentSchema.parse({
+      originalQuery: job.query,
+      type: resolved.type || 'general-research',
+      goal: resolved.goal || resolved.label || 'Research the requested subject',
+      subject: resolved.subject || resolved.searchQuery || job.query,
+      entities: (Array.isArray(resolved.entities) ? resolved.entities : []).map(item => ({
+        text: typeof item === 'string' ? item : item?.text,
+        kind: entityKinds.has(item?.kind) ? item.kind : 'unknown',
+        role: item?.role || 'context'
+      })).filter(item => typeof item.text === 'string' && item.text.trim()).slice(0, 20),
+      constraints: Array.isArray(resolved.constraints) ? resolved.constraints.filter(value => typeof value === 'string').slice(0, 20) : [],
+      preferences: { sourcePreference: resolved.sourcePreference || 'balanced' },
+      subgoals: Array.isArray(resolved.subgoals) ? resolved.subgoals.filter(value => typeof value === 'string').slice(0, 12) : [],
+      clarificationNeeded: Boolean(resolved.clarificationNeeded),
+      ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').slice(0, 10) : [],
+      confidence: Math.max(0, Math.min(1, Number(resolved.confidence) || 0))
+    });
+    const queries = buildResearchQueryPlan(job.query, resolved);
     await appendEvent(job.jobId, 'searching', 'Searching the original request and ' + Math.max(0, queries.length - 1) + ' focused sub-questions.', researchJobProgress('searching'));
-    const outcomes = await Promise.allSettled(queries.map(query => searchAllPublic(query, providerKeys || {})));
+    const outcomes = await Promise.allSettled(queries.map(query => searchAllPublic(query, providerKeys || {}, { intent: resolved })));
     if (await finishRequested(job)) return;
     const completedSearches = outcomes.filter(item => item.status === 'fulfilled').map(item => item.value);
     if (!completedSearches.length) throw new Error('Public search providers are temporarily unavailable.');
@@ -221,8 +271,9 @@ async function executeJob(job, getUserProviderKeys) {
       successfulSearches,
       failedSearches,
       queries,
-      semanticType: semantic?.type || 'general-research',
+      semanticType: resolved.type || 'general-research',
       intentProvider: semantic?.provider || 'rules-fallback',
+      resolvedIntent,
       providerNames: [...new Set(candidateSources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
       coverage: 'Bounded public-source discovery across ' + queries.length + ' intent-focused searches. Provider indexes are not exhaustive.',
     };
@@ -254,6 +305,9 @@ async function executeJob(job, getUserProviderKeys) {
     $set: {
       status: 'completed', stage: 'completed', progress: 100,
       sourceCount: saved.sourceCount,
+      resolvedIntent: searchMeta.resolvedIntent || undefined,
+      answerStatus: saved.answerStatus,
+      pipelineVersion: 'intent-evidence-v1',
       successfulSearches: Number(searchMeta.successfulSearches || 0),
       providerNames: saved.run.providerNames, coverage: saved.run.coverage,
       finishedAt: new Date(), leaseOwner: '', leaseExpiresAt: null,
