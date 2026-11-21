@@ -1,4 +1,5 @@
 import { understandSearchIntent } from './intent-understanding.js';
+import { understandSearchIntentWithGemini } from './gemini-intent.js';
 
 const MODEL_DEFAULT = 'openai/gpt-oss-20b';
 const TIMEOUT_MS = 4500;
@@ -120,9 +121,14 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
   const env = options.env || process.env;
   const providerKeys = options.providerKeys || {};
   const apiKey = String(providerKeys.GROQ_API_KEY || env.GROQ_API_KEY || '').trim();
-  if (!apiKey) return fallbackResult(original, fallback, 'Groq is not configured for this search or on the API service.');
+  const geminiFallback = async reason => {
+    const gemini = await understandSearchIntentWithGemini(original, { env, providerKeys });
+    if (gemini) return { ...gemini, aiNote: reason ? 'Groq unavailable; Gemini supplied the intent interpretation.' : null };
+    return fallbackResult(original, fallback, reason || 'Neither Groq nor Gemini is configured or reachable; ADVERSE used deterministic intent rules.');
+  };
+  if (!apiKey) return geminiFallback('Groq is not configured.');
 
-  const model = clean(env.GROQ_INTENT_MODEL || MODEL_DEFAULT, 100);
+  const model = clean(providerKeys.GROQ_INTENT_MODEL || env.GROQ_INTENT_MODEL || MODEL_DEFAULT, 100);
   const key = model + ':' + original.toLocaleLowerCase();
   const now = Date.now();
   const cached = cache.get(key);
@@ -138,7 +144,7 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
       cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value });
       return value;
     } catch {
-      return fallbackResult(original, fallback, 'Groq interpretation was unavailable; ADVERSE used its deterministic rules.');
+      return geminiFallback('Groq interpretation was unavailable.');
     }
   })();
   inflight.set(key, task);
