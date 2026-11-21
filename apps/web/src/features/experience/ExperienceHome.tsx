@@ -252,7 +252,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     ].slice(0, HISTORY_LIMIT));
     let activePlan = intentPlan;
     try {
-      const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'gemini' | 'deterministic'; provider?: string; model?: string } } }>(
+      const resolved = await request<{ data: { plan: IntentPlan; engine?: { mode?: 'ai' | 'deterministic'; provider?: string; model?: string } } }>(
         '/experience/resolve',
         { method: 'POST', body: JSON.stringify({ intent: trimmed }) },
       );
