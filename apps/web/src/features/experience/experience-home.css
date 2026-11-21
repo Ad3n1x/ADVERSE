@@ -278,3 +278,5 @@
 .experience-job-controls button{padding:7px 11px;border:1px solid rgba(143,184,170,.22);border-radius:7px;background:rgba(14,31,34,.75);color:#b9d8cb;font-size:10px;cursor:pointer}
 .experience-job-controls button:hover{border-color:rgba(143,214,186,.55);background:rgba(36,78,63,.35)}
 .experience-job-control-notice{margin:6px 0 10px;color:#9db9ad;font-size:10px;line-height:1.55}
+
+.experience-claim-auto-label{display:inline-flex;align-items:center;padding:3px 6px;border:1px solid rgba(128,183,157,.24);border-radius:4px;color:#9ccab3;font:8px 'DM Mono',monospace;letter-spacing:.07em}
