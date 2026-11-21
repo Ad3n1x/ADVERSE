@@ -16,6 +16,8 @@ export const ResolvedIntentSchema = z.object({
   subject: z.string().max(300).default(''),
   entities: z.array(z.object({
     text: shortText(150),
+    matchedText: z.string().max(150).optional(),
+    country: z.string().max(100).optional(),
     kind: z.enum(['institution', 'programme', 'location', 'person', 'organisation', 'product', 'date', 'unknown']),
     role: z.string().max(80).default('context')
   })).max(20).default([]),
