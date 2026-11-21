@@ -137,7 +137,7 @@ test('authenticated experience supports source triage, claim links, chronology, 
   await page.getByRole('button', { name: 'Save note' }).click();
   await expect(page.getByText('Review saved to this workspace.')).toBeVisible();
   await page.locator('.experience-review-toolbar button').filter({ hasText: 'Useful' }).click();
-  await expect(page.getByText('Public energy storage report').first()).toBeVisible();
+  await expect(page.locator('.experience-source-card').getByText('Public energy storage report').first()).toBeVisible();
 
   await page.getByLabel('Statement to examine').fill('Grid-scale energy storage deployment increased during the reporting period.');
   await page.getByLabel('Link source: Public energy storage report').check();
