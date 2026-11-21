@@ -12,6 +12,14 @@ test('expands a phrase into exact, natural-language, and individual keyword sear
   assert.ok(queries.length <= 10);
 });
 
+test('plans university application searches around official admissions routes', () => {
+  const plan = expandSearchQueries('I want to apply for ABUAD', 5);
+  assert.equal(plan[2].query, 'ABUAD');
+  assert.ok(plan.some(item => item.query === 'ABUAD official admissions application portal'));
+  assert.ok(plan.some(item => item.query === 'ABUAD undergraduate admission requirements'));
+  assert.ok(plan.every(item => item.query.length <= 240));
+});
+
 test('adds related wording while keeping expansion bounded and deduplicated', () => {
   const plan = expandSearchQueries('MovieBox old version', 8);
   assert.ok(plan.some(item => item.reason === 'related wording'));
