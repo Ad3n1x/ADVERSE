@@ -76,3 +76,13 @@ test('includes bounded AI-generated intent leads without dropping the original q
   assert.ok(variants.some(item => item.query === 'agency official policy notice'));
   assert.ok(variants.some(item => item.reason.startsWith('AI:')));
 });
+
+
+test('includes bounded AI-suggested query leads in the actual search plan', () => {
+  const intent = {
+    type: 'application', searchQuery: 'ABUAD',
+    suggestedQueries: [{ query: 'ABUAD official undergraduate application portal', reason: 'Locate the official application destination' }]
+  };
+  const variants = buildIntentQueryVariants('I want to apply to ABUAD', intent, 5);
+  assert.ok(variants.some(item => item.reason.startsWith('AI:') && /official undergraduate application portal/i.test(item.query)));
+});
