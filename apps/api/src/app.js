@@ -177,7 +177,7 @@ registerAdminRoutes(app, {
 registerAuthRoutes(app, {
   limitAuth, wrap, authSchema, sendError, ownerEmail, isDb, User, memory,
   id, setSession, tokenFor, requireAuth, Investigation, Evidence, Entity,
-  Relationship, Watch, Alert, CyberAsset, CyberEvent, ExperienceWorkspace, SearchMetric,
+  Relationship, Watch, Alert, CyberAsset, CyberEvent, ExperienceWorkspace, ExperienceResearchJob, SearchMetric,
 });
 app.use('/api/v1/investigations',requireAuth);
 app.use('/api/v1/evidence',requireAuth);
