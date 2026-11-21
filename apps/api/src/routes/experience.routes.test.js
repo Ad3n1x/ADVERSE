@@ -50,3 +50,18 @@ test('ordinary constraints remain constraints without swallowing the subject', (
   assert.match(plan.focus, /solar and wind power/i);
   assert.ok(plan.constraints.some(value => /under \$5000/i.test(value)));
 });
+
+
+test('fees shorthand resolves to a concrete university and programme investigation', async () => {
+  const { understandSearchIntent } = await import('../services/search/intent-understanding.js');
+  const semantic = understandSearchIntent('abuad price for mechatronics degree');
+  const plan = deterministicPlan('abuad price for mechatronics degree', semantic);
+  assert.equal(plan.semanticType, 'fees-costs');
+  assert.equal(plan.focus, 'ABUAD Mechatronics Engineering');
+  assert.equal(plan.institution.name, 'Afe Babalola University');
+  assert.equal(plan.programme, 'Mechatronics Engineering');
+  assert.equal(plan.geography, 'Nigeria');
+  assert.ok(plan.researchTasks.some(task => task.id === 'official-fees'));
+  assert.match(plan.outcome, /itemized|source-backed|cost/i);
+  assert.ok(plan.steps.some(step => /fee|cost|session/i.test(step)));
+});
