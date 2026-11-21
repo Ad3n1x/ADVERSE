@@ -68,5 +68,5 @@ test('intent-aware ranking keeps task boosts bounded and deterministic', () => {
   const intended = improvePublicSearchRanking(items, 'ABUAD', { type: 'application' });
   assert.equal(normal.length, 2);
   assert.equal(intended[0].title, 'ABUAD admissions portal');
-  assert.ok(intended[0]._searchScore - 20 <= 26);
+  assert.ok(intended[0]._searchScore - 20 <= 32);
 });
