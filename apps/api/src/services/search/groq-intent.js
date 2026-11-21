@@ -242,7 +242,7 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
   const groqModel = clean(env.GROQ_INTENT_MODEL || GROQ_MODEL_DEFAULT, 100);
   const geminiModel = clean(env.GEMINI_INTENT_MODEL || env.GEMINI_MODEL || GEMINI_MODEL_DEFAULT, 100).replace(/^models\//, '');
   const context = options.context || '';
-  if (!groqKey && !geminiKey) return fallbackResult(fallback, 'Neither Groq nor Gemini is configured for intent understanding.');
+  if (!groqKey && !geminiKey) return fallbackResult(fallback, 'Groq and Gemini are not configured for intent understanding.');
 
   const credentialScope = createHash('sha256').update(groqKey + '\\0' + geminiKey).digest('hex').slice(0, 20);
   const key = [credentialScope, groqModel, geminiModel, original.toLocaleLowerCase(), clean(context, 1200)].join(':');
