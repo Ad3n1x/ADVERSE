@@ -66,9 +66,10 @@ export function improvePublicSearchRanking(items, query, intent = null) {
       const urlTaskHits = phrases.filter(term => (' ' + normalize(item?.url) + ' ').includes(' ' + normalize(term) + ' ')).length;
       const excerptTaskHits = phrases.filter(term => (' ' + excerpt + ' ').includes(' ' + normalize(term) + ' ')).length;
       score += Math.min(24, titleTaskHits * 8 + urlTaskHits * 6 + excerptTaskHits * 2);
-      if (intent.type === 'application' && !titleTaskHits && !urlTaskHits && /\\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\\b/i.test(title + ' ' + normalize(item?.url))) score -= 10;
+      if (intent.type === 'application' && !titleTaskHits && !urlTaskHits && /\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\b/i.test(title + ' ' + normalize(item?.url))) score -= 10;
     }
-    if (intent?.sourcePreference === 'official' && /\\.(edu(?:\\.[a-z]{2})?|gov(?:\\.[a-z]{2})?|ac\\.[a-z]{2})$/i.test((() => { try { return new URL(item?.url).hostname.replace(/^www\\./i, ''); } catch { return ''; } })())) score += 2;
+    const officialHost = (() => { try { return new URL(item?.url).hostname.replace(/^www\./i, ''); } catch { return ''; } })();
+    if (intent?.sourcePreference === 'official' && /\.(edu(?:\.[a-z]{2})?|gov(?:\.[a-z]{2})?|ac\.[a-z]{2})$/i.test(officialHost)) score += 2;
 
     // Freshness matters most when the query explicitly asks for recent information.
     const freshnessIntent = /\b(latest|today|current|recent|newest|breaking|news|updates?|this week|202[5-9])\b/i.test(String(query || ''));
