@@ -242,3 +242,28 @@
 .experience-source-final-url,.experience-source-link-note{margin:5px 0;color:#91aaa2;font-size:9px;line-height:1.6;overflow-wrap:anywhere}
 .experience-source-link-note{color:#b4a98e}
 .experience-source-review-actions button:disabled{opacity:.45;cursor:wait}
+
+/* Clear, task-oriented progress without exposing internal agent terminology. */
+.experience-journey{margin:22px 0 24px;padding:20px 22px;border:1px solid rgba(125,184,170,.2);border-radius:13px;background:linear-gradient(145deg,rgba(17,35,39,.82),rgba(12,24,32,.86));text-align:left}
+.experience-journey-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:14px}
+.experience-journey-heading h3{margin:6px 0 0;color:#e4f1ec;font:600 18px 'Space Grotesk',sans-serif}
+.experience-journey-state{padding:6px 9px;border:1px solid rgba(126,213,187,.2);border-radius:20px;color:#a9d7c9;font:9px 'DM Mono',monospace;white-space:nowrap}
+.experience-journey-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:0;padding:0;list-style:none}
+.experience-journey-steps li{position:relative;display:grid;grid-template-columns:28px minmax(0,1fr);align-items:start;gap:9px;min-width:0;padding:12px 10px;border:1px solid rgba(145,183,170,.12);border-radius:9px;background:rgba(5,14,19,.45)}
+.experience-journey-marker{display:grid;place-items:center;width:25px;height:25px;border:1px solid rgba(145,183,170,.25);border-radius:50%;color:#a4bbb1;font:10px 'DM Mono',monospace}
+.experience-journey-steps li>div{display:grid;gap:5px;min-width:0}
+.experience-journey-steps strong{color:#d8e8e1;font-size:10px;line-height:1.45}
+.experience-journey-steps small{color:#829d95;font-size:9px;line-height:1.55;overflow-wrap:anywhere}
+.experience-journey-status{grid-column:2;color:#78988d;font:8px 'DM Mono',monospace;letter-spacing:.08em}
+.experience-journey-steps li.is-complete{border-color:rgba(102,210,177,.28);background:rgba(41,111,91,.10)}
+.experience-journey-steps li.is-complete .experience-journey-marker{border-color:#68c7a8;color:#8be0c1}
+.experience-journey-steps li.is-complete .experience-journey-status{color:#8bd9ba}
+.experience-journey-steps li.is-active{border-color:rgba(120,181,239,.42);background:rgba(52,91,133,.13)}
+.experience-journey-steps li.is-active .experience-journey-marker{border-color:#8bb8ec;color:#b6d7ff}
+.experience-journey-steps li.is-active .experience-journey-status{color:#a9ccf5}
+.experience-journey-steps li.is-error{border-color:rgba(230,151,126,.4);background:rgba(123,58,42,.12)}
+.experience-journey-steps li.is-error .experience-journey-status{color:#e8aa91}
+.experience-journey-next{margin:13px 0 0;padding-top:12px;border-top:1px solid rgba(145,183,170,.12);color:#9bb3a9;font-size:10px;line-height:1.65}
+.experience-journey-next strong{color:#cce3d9}
+@media(max-width:760px){.experience-journey-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.experience-journey{padding:15px 12px}.experience-journey-heading{align-items:flex-start;flex-direction:column}.experience-journey-steps{grid-template-columns:1fr}.experience-journey-steps li{grid-template-columns:28px minmax(0,1fr)}}
