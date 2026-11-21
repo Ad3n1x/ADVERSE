@@ -49,6 +49,7 @@ test('uses Groq structured intent and returns bounded query suggestions', async 
           confidence: 0.93,
           explanation: 'The user wants to test a claim against evidence.',
           ambiguities: [],
+          secondary_intents: ['fees-costs'],
           suggested_queries: [
             { query: 'agency official policy notice', reason: 'Find the primary announcement' },
             { query: 'independent reporting agency policy change', reason: 'Check independent coverage' },
@@ -67,6 +68,8 @@ test('uses Groq structured intent and returns bounded query suggestions', async 
     assert.equal(intent.type, 'verification');
     assert.equal(intent.subject, 'agency policy change');
     assert.equal(intent.suggestedQueries.length, 3);
+    assert.ok(intent.secondaryIntents.includes('fees-costs'));
+    assert.ok(requestBody.response_format.json_schema.required.includes('secondary_intents'));
     assert.equal(requestBody.response_format.json_schema.strict, true);
     assert.equal(requestBody.model, 'openai/gpt-oss-20b');
   } finally {
