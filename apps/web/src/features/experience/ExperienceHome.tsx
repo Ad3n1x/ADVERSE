@@ -587,15 +587,67 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     void saveGuidedTask(next);
   }
 
+  async function researchForGuidedStep(stepId: string) {
+    const step = guidedTask?.steps.find(item => item.id === stepId);
+    if (!step || !activeWorkspaceId || !activeIntent || isResolving) return;
+    const focusedQuery = activeIntent + '. Find authoritative, current sources specifically for: ' + step.title + '. Preserve the original institution, programme and constraints.';
+    setIsResolving(true);
+    setTaskSaveNotice('Searching for evidence for this step…');
+    try {
+      const queued = await request<{ data: ResearchJobSnapshot }>('/experience/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspaceId: activeWorkspaceId,
+          query: focusedQuery,
+          plannerKind: resolvedPlan?.kind || 'research',
+          idempotencyKey: window.crypto?.randomUUID?.() || ('task-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8)),
+        }),
+      });
+      let current = queued.data;
+      setResearchJob(current);
+      let polls = 0;
+      while (!['completed', 'failed', 'cancelled', 'paused'].includes(current.status) && polls < 240) {
+        await new Promise(resolve => window.setTimeout(resolve, 4000));
+        const latest = await request<{ data: ResearchJobSnapshot }>('/experience/jobs/' + encodeURIComponent(current.id));
+        current = latest.data;
+        setResearchJob(current);
+        polls += 1;
+      }
+      if (current.status !== 'completed') throw new Error(current.errorMessage || 'ADVERSE could not finish the focused source search.');
+      const saved = await request<{ data: ExperienceSource[] }>('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/sources');
+      const nextSources = Array.isArray(saved.data) ? saved.data : [];
+      setSources(nextSources);
+      setSourceNotes(Object.fromEntries(nextSources.map(item => [item.url, item.analystNote || ''])));
+      setSourceSyncStatus('saved');
+      setSourceCoverage(current.coverage || '');
+      const nextTask = buildGuidedTaskPlan(resolvedPlan || buildIntentPlan(activeIntent), nextSources, guidedTask);
+      setGuidedTask(nextTask);
+      const savedTask = await request<{ data: GuidedTaskPlan }>('/experience/workspaces/' + encodeURIComponent(activeWorkspaceId) + '/task', {
+        method: 'PUT', body: JSON.stringify(nextTask),
+      });
+      setGuidedTask(savedTask.data);
+      setRunRefreshKey(value => value + 1);
+      setTaskSaveNotice('Focused search finished. ADVERSE updated the sources and step links.');
+    } catch (error) {
+      setTaskSaveNotice(error instanceof Error ? error.message : 'Focused research is temporarily unavailable.');
+    } finally {
+      setIsResolving(false);
+    }
+  }
+
   function completeGuidedStep(stepId: string) {
     if (!guidedTask) return;
-    const next = {
-      ...guidedTask,
-      steps: guidedTask.steps.map(item => item.id === stepId
-        ? { ...item, status: item.status === 'completed' ? 'in_progress' as const : 'completed' as const }
-        : item),
-      updatedAt: new Date().toISOString(),
-    };
+    const completing = guidedTask.steps.find(item => item.id === stepId)?.status !== 'completed';
+    let promoted = false;
+    const steps = guidedTask.steps.map(item => {
+      if (item.id === stepId) return { ...item, status: completing ? 'completed' as const : 'in_progress' as const };
+      if (completing && !promoted && item.status === 'next') {
+        promoted = true;
+        return { ...item, status: 'in_progress' as const };
+      }
+      return item;
+    });
+    const next = { ...guidedTask, steps, updatedAt: new Date().toISOString() };
     void saveGuidedTask(next);
   }
 
@@ -1045,10 +1097,11 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                     <strong>{step.title}</strong>
                     <p>{step.instruction}</p>
                     {step.sourceUrl && <a href={step.sourceUrl} target="_blank" rel="noopener noreferrer">{step.sourceTitle || 'Open relevant source'} <ArrowUpRight size={12} /></a>}
-                    {!step.sourceUrl && !isResolving && <small className="experience-task-no-source">No sufficiently relevant source found for this step yet. ADVERSE should search again or confirm the missing detail.</small>}
+                    {!step.sourceUrl && !isResolving && <small className="experience-task-no-source">No sufficiently relevant source is linked yet. ADVERSE can run a focused follow-up search for this step.</small>}
                   </div>
                   <div className="experience-task-step-actions">
                     {step.sourceUrl && <button type="button" onClick={() => continueGuidedStep(step.id)}>{step.status === 'in_progress' ? 'Continue' : 'Open step'}</button>}
+                    {!step.sourceUrl && <button type="button" disabled={isResolving} onClick={() => void researchForGuidedStep(step.id)}>Find source</button>}
                     <button type="button" className="experience-task-complete" onClick={() => completeGuidedStep(step.id)}>{step.status === 'completed' ? 'Reopen' : 'Mark done'}</button>
                   </div>
                 </li>)}
