@@ -2,6 +2,7 @@ import { searchPublic } from './providers.js';
 import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
 import { buildIntentQueryVariants, understandSearchIntent } from './intent-understanding.js';
+import { understandSearchIntentWithGroq } from './groq-intent.js';
 
 const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
 
@@ -60,7 +61,7 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 5) {
+export function expandSearchQueries(input, maxQueries = 5, intentOverride = null) {
   const raw = clean(input, 200);
   if (!raw) return [];
   const queries = [];
@@ -88,7 +89,7 @@ export function expandSearchQueries(input, maxQueries = 5) {
       add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
     }
   }
-  const intent = understandSearchIntent(raw);
+  const intent = intentOverride || understandSearchIntent(raw);
   for (const item of buildIntentQueryVariants(raw, intent, Math.min(3, maxQueries))) {
     if (item.reason !== 'original question') add(item.query, item.reason);
   }
@@ -214,9 +215,13 @@ export function rankPublicResults(items, query) {
 
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 async function performSearchAllPublic(input, providerKeys = {}) {
+  const originalInputQuery = typeof input === 'string'
+    ? clean(input, 200)
+    : clean(((input.find(item => item && item.reason === 'natural-language query') || input[0]) || {}).query || input[0], 200);
+  const intent = await understandSearchIntentWithGroq(originalInputQuery);
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
-    : expandSearchQueries(input);
+    : expandSearchQueries(input, 5, intent);
   const publicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
@@ -275,7 +280,6 @@ async function performSearchAllPublic(input, providerKeys = {}) {
   const originalQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
-  const intent = understandSearchIntent(originalQuery);
   const rankedResults = diversifyPublicResults([...merged.values()], originalQuery, { limit: 120, maxPerDomain: 3 });
   const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
