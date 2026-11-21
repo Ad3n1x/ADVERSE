@@ -52,6 +52,17 @@ test('accepts canonical institution names when the query used a known abbreviati
   assert.equal(result.entityMatch, true);
 });
 
+test('does not accept a generic university page as an ABUAD entity match', () => {
+  const result = evaluateSourceRelevance({
+    title: 'University fee policy and undergraduate costs',
+    url: 'https://generic.example.org/university-fees',
+    excerpt: 'General information about university charges and tuition.'
+  }, 'abuad price for mechatronics degree', intent);
+
+  assert.equal(result.entityMatch, false);
+  assert.equal(result.accepted, false);
+});
+
 test('retains sparse metadata as uncertain instead of rejecting it automatically', () => {
   const result = evaluateSourceRelevance({
     title: 'Untitled',
