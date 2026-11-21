@@ -81,12 +81,15 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   const aiLeads = variants.filter(item => item.reason.startsWith('AI:'));
   const secondaryLeads = variants.filter(item => item.reason.startsWith('secondary intent:'));
   const intentLeads = variants.filter(item => item.reason.startsWith('intent:'));
+  const outcomeLeads = variants.filter(item => item.reason.startsWith('official institution source:') || item.reason.startsWith('institution and programme') || item.reason.startsWith('additional costs') || item.reason.startsWith('check fee schedule'));
 
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
   if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) {
     add(intent.searchQuery, 'intent-focused subject');
   }
+
+  for (const item of outcomeLeads) add(item.query, item.reason);
 
   if (intent.type === 'application' && intent.searchQuery) {
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
