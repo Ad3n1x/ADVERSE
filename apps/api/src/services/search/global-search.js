@@ -86,7 +86,7 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
     add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
-  for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
