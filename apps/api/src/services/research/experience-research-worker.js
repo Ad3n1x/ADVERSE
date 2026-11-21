@@ -137,19 +137,24 @@ async function saveJobResults(job, sources, live) {
       .filter(source => mergedSources.some(saved => saved.url === source.url))
       .map(source => ({ url: source.url, role: 'context' }));
     if (!evidenceLinks.length) continue;
-    const claimId = 'auto-' + crypto.createHash('sha256')
-      .update(String(candidate.claim || '') + '|' + evidenceLinks.map(link => link.url).sort().join('|'))
-      .digest('hex').slice(0, 32);
+    const normalizedClaim = clean(candidate.claim, 1000).toLocaleLowerCase().replace(/\\s+/g, ' ');
+    const claimId = 'auto-' + crypto.createHash('sha256').update(normalizedClaim).digest('hex').slice(0, 32);
     const previous = claimsById.get(claimId);
-    claimsById.set(claimId, previous || {
-      claimId,
-      text: clean(candidate.claim, 1000),
-      assessment: 'unreviewed',
-      rationale: clean('Automatically extracted from saved source excerpts. ' + candidate.assessment + ' This is a research lead, not a verified fact. Review the original sources before making a judgement.', 1000),
-      evidenceLinks,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    if (previous) {
+      const links = new Map((previous.evidenceLinks || []).map(link => [link.url, link]));
+      for (const link of evidenceLinks) if (!links.has(link.url)) links.set(link.url, link);
+      claimsById.set(claimId, { ...previous, evidenceLinks: [...links.values()].slice(0, 12), updatedAt: new Date() });
+    } else {
+      claimsById.set(claimId, {
+        claimId,
+        text: clean(candidate.claim, 1000),
+        assessment: 'unreviewed',
+        rationale: clean('Automatically extracted from saved source excerpts. ' + candidate.assessment + ' This is a research lead, not a verified fact. Review the original sources before making a judgement.', 1000),
+        evidenceLinks,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
   }
   const claims = [...claimsById.values()].slice(0, 50);
   const run = {
