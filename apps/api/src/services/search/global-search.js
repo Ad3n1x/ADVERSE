@@ -80,17 +80,23 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) add(intent.searchQuery, 'intent-focused subject');
   const intentVariants = buildIntentQueryVariants(raw, intent, 6);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
-  // AI-proposed leads are inserted before generic fallbacks so the bounded
-  // provider budget actually tests the model's interpretation.
-  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
-  // For applications, prioritize official admissions routes and requirements over
-  // generic keyword matches such as pages that merely contain the word "apply".
+  // Explicit user objectives and official destinations take priority over model-suggested
+  // expansions; AI leads use only the remaining bounded provider budget.
+  // For applications, prioritize official admissions routes over generic keyword matches.
   if (intent.type === 'application' && intent.searchQuery) {
     add(intent.searchQuery, 'intent-focused subject');
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
+  }
+  const secondaryTypes = Array.isArray(intent.secondaryIntents) ? intent.secondaryIntents.slice(0, 3) : [];
+  for (const secondaryType of secondaryTypes) {
+    const lead = intentVariants.find(entry => entry.reason === 'secondary intent: ' + secondaryType);
+    if (lead) add(lead.query, lead.reason);
+  }
+  if (intent.type === 'application' && intent.searchQuery && secondaryTypes.length === 0) {
     add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
@@ -349,7 +355,8 @@ function publicSearchCacheKey(input, context = '', intent = null) {
   const normalized = Array.isArray(input)
     ? JSON.stringify(input.slice(0, 5).map(item => typeof item === 'string' ? item : { query: item?.query, reason: item?.reason }))
     : clean(input, 200).normalize('NFKC').toLocaleLowerCase();
-  return normalized + ':' + clean(context, 1200).toLocaleLowerCase() + ':' + clean(intent?.type || '') + ':' + clean(intent?.searchQuery || '');
+  const secondary = Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents.slice(0, 3).join(',') : '';
+  return normalized + ':' + clean(context, 1200).toLocaleLowerCase() + ':' + clean(intent?.type || '') + ':' + clean(intent?.searchQuery || '') + ':' + secondary;
 }
 
 /**

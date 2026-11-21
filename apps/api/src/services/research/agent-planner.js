@@ -98,6 +98,7 @@ export async function planAgentFollowUps({ question, results, providerKeys = {},
     + '\nPrimary goal: ' + intent.type + ' — ' + clean(intent.goal || intent.label, 220)
     + '\nSubject: ' + intent.subject
     + '\nEntities: ' + JSON.stringify(intent.entities || [])
+    + '\nSecondary intent types: ' + JSON.stringify(intent.secondaryIntents || [])
     + '\nSubgoals: ' + JSON.stringify(intent.subgoals || [])
     + '\nConstraints: ' + JSON.stringify(intent.constraints || [])
     + '\nAmbiguities: ' + JSON.stringify(intent.ambiguities || [])
