@@ -94,18 +94,20 @@ function fallbackResult(fallback, reason = 'AI intent providers are not configur
 
 function normalizeModelResult(parsed, original, fallback, provider, model, context = '') {
   const groundedText = (original + ' ' + clean(context, 1200)).toLocaleLowerCase();
+  const evidenceTokens = groundedText.split(/\\s+/).filter(Boolean);
   const grounded = value => {
     const candidate = clean(value, 140).toLocaleLowerCase();
-    return Boolean(candidate) && (groundedText.includes(candidate) || candidate.split(/\s+/).filter(Boolean).every(token => groundedText.includes(token)));
+    const tokens = candidate.split(/\\s+/).filter(Boolean);
+    return Boolean(candidate) && (groundedText.includes(candidate) || (tokens.length > 0 && tokens.every(token => evidenceTokens.some(source => source === token || source.startsWith(token) || token.startsWith(source))));
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
   const subject = (fallback.confidence >= 0.86 && fallback.type === 'application' && fallback.subject)
     ? fallback.subject
-    : (clean(parsed?.subject, 180) || fallback.subject || original);
+    : (grounded(parsed?.subject) ? clean(parsed?.subject, 180) : (fallback.subject || original));
   const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application'
     ? (fallback.searchQuery || subject || original)
-    : (clean(parsed?.search_query, 220) || subject || original);
+    : (grounded(parsed?.search_query) ? clean(parsed?.search_query, 220) : (subject || original));
   const list = (value, maxItems, maxLength) => (Array.isArray(value) ? value : [])
     .map(item => clean(item, maxLength)).filter(Boolean).filter((item, index, rows) => rows.findIndex(other => other.toLowerCase() === item.toLowerCase()) === index).slice(0, maxItems);
   const suggestedQueries = (Array.isArray(parsed?.suggested_queries) ? parsed.suggested_queries : [])
