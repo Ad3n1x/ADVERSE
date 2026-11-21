@@ -80,6 +80,9 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) add(intent.searchQuery, 'intent-focused subject');
   const intentVariants = buildIntentQueryVariants(raw, intent, 6);
   for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
+  // AI-proposed leads are inserted before generic fallbacks so the bounded
+  // provider budget actually tests the model's interpretation.
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
   // For applications, prioritize official admissions routes and requirements over
   // generic keyword matches such as pages that merely contain the word "apply".
   if (intent.type === 'application' && intent.searchQuery) {
@@ -87,7 +90,6 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
     add(intent.searchQuery + ' admission requirements for applicants', 'intent: application');
   }
-  for (const item of intentVariants.filter(entry => entry.reason.startsWith('AI:'))) add(item.query, item.reason);
   for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
