@@ -1,7 +1,9 @@
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { ExperienceResearchJob, ExperienceWorkspace } from '../../models.js';
-import { searchAllPublic, rankPublicResults } from '../search/global-search.js';\nimport { understandSearchIntentWithGroq } from '../search/groq-intent.js';\nimport { buildResearchQueryPlan } from './research-query-plan.js';
+import { searchAllPublic, rankPublicResults } from '../search/global-search.js';
+import { understandSearchIntentWithGroq } from '../search/groq-intent.js';
+import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
 import { researchJobProgress, researchJobRetryDelayMs, RESEARCH_JOB_LEASE_MS } from './research-job-state.js';
