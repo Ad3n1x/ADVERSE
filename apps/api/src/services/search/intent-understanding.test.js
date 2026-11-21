@@ -38,8 +38,12 @@ test('distinguishes current, historical, comparison and how-to intent', () => {
 });
 
 test('understands eligibility, costs, programme availability, deadlines and scholarships', () => {
-  assert.equal(understandSearchIntent('Can I get into ABUAD with my grades?').type, 'eligibility');
-  assert.equal(understandSearchIntent('How much is ABUAD tuition?').type, 'fees-costs');
+  const eligibility = understandSearchIntent('Can I get into ABUAD with my grades?');
+  assert.equal(eligibility.type, 'eligibility');
+  assert.equal(eligibility.searchQuery, 'ABUAD');
+  const fees = understandSearchIntent('How much is ABUAD tuition?');
+  assert.equal(fees.type, 'fees-costs');
+  assert.equal(fees.searchQuery, 'ABUAD');
   assert.equal(understandSearchIntent('Does ABUAD offer mechatronics?').type, 'programme-availability');
   assert.equal(understandSearchIntent('When does ABUAD admission close?').type, 'deadline');
   assert.equal(understandSearchIntent('Find scholarships for mechatronics students').type, 'scholarship-funding');
