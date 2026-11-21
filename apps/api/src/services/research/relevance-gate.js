@@ -52,8 +52,12 @@ export function evaluateSourceRelevance(source, query, intent = null, options = 
   const matchedTerms = subjectTerms.filter(term => metadataTerms.includes(term));
   const entities = [...new Set([intent?.subject, ...entityText(intent)].filter(Boolean))];
   const entityMatches = entities.filter(entity => {
+    const normalizedEntity = normalizeSearchText(entity, 300).toLocaleLowerCase();
+    if (normalizedEntity && searchable.includes(normalizedEntity)) return true;
     const terms = tokenize(entity);
-    return terms.length > 0 && terms.some(term => metadataTerms.includes(term));
+    const matchedCount = terms.filter(term => metadataTerms.includes(term)).length;
+    const minimumMatches = terms.length <= 1 ? 1 : Math.ceil(terms.length * 0.67);
+    return terms.length > 0 && matchedCount >= minimumMatches;
   });
   const intentTerms = INTENT_TERMS[intent?.type] || [];
   const intentMatches = intentTerms.filter(term => {
