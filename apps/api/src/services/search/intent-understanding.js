@@ -36,7 +36,8 @@ function extractSubject(query, type) {
   if (type === 'application') {
     // The action prefix is removed above. Preserve institution-name components such as
     // "University of Lagos" and "College of Medicine" as part of the target entity.
-    subject = subject.replace(/^the\s+/i, '');
+    subject = subject.replace(/^the\s+/i, '')
+      .replace(/\s+(?:and|also|plus)\s+(?=(?:find|check|tell|show|what|how|when|whether|compare|verify|look|search)\b).*/i, '');
   } else {
     subject = subject
       .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
@@ -51,11 +52,12 @@ export function understandSearchIntent(input) {
   if (!originalQuery) return {
     type: 'general-research', label: 'General public-source research', confidence: 0,
     subject: '', searchQuery: '', sourcePreference: 'balanced', matchedSignals: [],
-    goal: 'Understand the topic', subgoals: [], entities: [], constraints: [],
+    goal: 'Understand the topic', subgoals: [], entities: [], constraints: [], secondaryIntents: [],
     clarificationNeeded: false, ambiguities: [], explanation: 'No search question was supplied.',
   };
 
-  const rule = RULES.find(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
+  const matchingRules = RULES.filter(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
+  const rule = matchingRules[0];
   const selected = rule || {
     type: 'general-research', label: 'Understand the request and discover relevant evidence',
     sourcePreference: 'balanced', subgoals: ['identify the main subject', 'find authoritative context', 'check important details'],
@@ -74,6 +76,7 @@ export function understandSearchIntent(input) {
     subgoals: selected.subgoals.slice(0, 5),
     entities: subject ? [{ text: subject, role: 'primary-subject', kind: 'unknown' }] : [],
     constraints: [],
+    secondaryIntents: matchingRules.slice(1).map(candidate => candidate.type).filter((type, index, rows) => type !== selected.type && rows.indexOf(type) === index).slice(0, 3),
     clarificationNeeded: false,
     ambiguities: [],
     explanation: rule
@@ -111,6 +114,9 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   };
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
   for (const suffix of suffixes[intent?.type] || suffixes['general-research']) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  for (const secondaryType of (Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents : []).slice(0, 3)) {
+    for (const suffix of (suffixes[secondaryType] || []).slice(0, 2)) add([subject, suffix].filter(Boolean).join(' '), 'secondary intent: ' + secondaryType);
+  }
   if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
   return candidates.slice(0, Math.max(1, Math.min(6, Number(limit) || 3)));
 }
