@@ -32,12 +32,13 @@ export default function ExperienceClaimsPanel({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    request<{ data: ExperienceClaim[] }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/claims')
+    request<{ data: ExperienceClaim[]; meta?: { answerStatus?: ExperienceAnswerStatus | null } }>('/experience/workspaces/' + encodeURIComponent(workspaceId) + '/claims')
       .then(response => {
         if (cancelled) return;
         const loaded = Array.isArray(response.data) ? response.data : [];
         setClaims(loaded);
         onClaimsChange(loaded);
+        if (response.meta?.answerStatus) onAnswerStatusChange?.(response.meta.answerStatus);
         setError('');
       })
       .catch(() => {
