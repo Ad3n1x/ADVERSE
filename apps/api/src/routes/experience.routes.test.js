@@ -48,5 +48,5 @@ test('application intent preserves a multi-word institution name', () => {
 test('ordinary constraints remain constraints without swallowing the subject', () => {
   const plan = deterministicPlan('Compare solar and wind power under $5000');
   assert.match(plan.focus, /solar and wind power/i);
-  assert.ok(plan.constraints.some(value => /under \\$5000/i.test(value)));
+  assert.ok(plan.constraints.some(value => /under \$5000/i.test(value)));
 });
