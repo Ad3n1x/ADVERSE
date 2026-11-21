@@ -92,7 +92,12 @@ function fallbackResult(fallback, reason = 'AI intent providers are not configur
   };
 }
 
-function normalizeModelResult(parsed, original, fallback, provider, model) {
+function normalizeModelResult(parsed, original, fallback, provider, model, context = '') {
+  const groundedText = (original + ' ' + clean(context, 1200)).toLocaleLowerCase();
+  const grounded = value => {
+    const candidate = clean(value, 140).toLocaleLowerCase();
+    return Boolean(candidate) && (groundedText.includes(candidate) || candidate.split(/\\s+/).filter(Boolean).every(token => groundedText.includes(token)));
+  };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
   const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
   const subject = (fallback.confidence >= 0.86 && fallback.type === 'application' && fallback.subject)
@@ -110,7 +115,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model) {
     .slice(0, 3);
   const entities = (Array.isArray(parsed?.entities) ? parsed.entities : [])
     .map(item => ({ text: clean(item?.text, 120), kind: clean(item?.kind, 40) || 'unknown', role: clean(item?.role, 50) || 'context' }))
-    .filter(item => item.text.length >= 2).slice(0, 8);
+    .filter(item => item.text.length >= 2 && grounded(item.text)).slice(0, 8);
   if (subject && !entities.some(item => item.text.toLowerCase() === subject.toLowerCase())) entities.unshift({ text: subject, kind: 'unknown', role: 'primary-subject' });
   return {
     type,
@@ -123,7 +128,7 @@ function normalizeModelResult(parsed, original, fallback, provider, model) {
     matchedSignals: fallback.matchedSignals || [],
     subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
     entities,
-    constraints: list(parsed?.constraints, 8, 140),
+    constraints: list(parsed?.constraints, 8, 140).filter(grounded),
     ambiguities: list(parsed?.ambiguities, 4, 140),
     clarificationNeeded: Boolean(parsed?.clarification_needed),
     suggestedQueries,
@@ -249,7 +254,7 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
     const settled = await Promise.all(providers.map(async provider => {
       try {
         const parsed = await provider.run();
-        return { name: provider.name, model: provider.model, value: normalizeModelResult(parsed, original, fallback, provider.name.toLowerCase(), provider.model) };
+        return { name: provider.name, model: provider.model, value: normalizeModelResult(parsed, original, fallback, provider.name.toLowerCase(), provider.model, context) };
       } catch (error) {
         return { name: provider.name, model: provider.model, error: clean(error?.message || 'provider unavailable', 160) };
       }
