@@ -161,7 +161,7 @@ async function saveJobResults(job, sources, live) {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
     successfulSearches: Number(live.meta?.successfulSearches || 0),
-    providerNames: [...new Set([...(live.meta?.providerNames || []), ...sources.flatMap(source => source.providers || [])].filter(Boolean))].slice(0, 8),
+    providerNames: [...new Set(sources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
     coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
     recordedAt: new Date(),
   };
@@ -193,7 +193,7 @@ async function executeJob(job, getUserProviderKeys) {
     searchMeta = {
       successfulSearches: Number(live.meta?.successfulSearches || 0),
       failedSearches: Number(live.meta?.failedSearches || 0),
-      providerNames: [...new Set([...(live.meta?.providerNames || []), ...candidateSources.flatMap(source => source.providers || [])].filter(Boolean))].slice(0, 8),
+      providerNames: [...new Set(candidateSources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
       coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
     };
     const checkpoint = await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
