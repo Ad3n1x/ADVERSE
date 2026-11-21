@@ -102,6 +102,7 @@ test('uses Gemini as an independent intent pillar when Groq is unavailable', asy
     assert.equal(intent.providers[0].name, 'Gemini');
     assert.equal(geminiBody.generationConfig.responseMimeType, 'application/json');
     assert.ok(intent.subgoals.includes('eligibility'));
+    assert.ok(!intent.constraints.includes('undergraduate'), 'AI must not invent an unstated qualification constraint');
   } finally {
     globalThis.fetch = originalFetch;
   }
