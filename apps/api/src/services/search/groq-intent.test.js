@@ -52,3 +52,41 @@ test('uses Groq structured intent and returns bounded query suggestions', async 
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('uses Gemini as the intent provider when Groq is not configured', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    assert.match(String(url), /generativelanguage\.googleapis\.com/);
+    assert.equal(init.headers['x-goog-api-key'], 'test-gemini-key');
+    return {
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ text: JSON.stringify({
+          type: 'destination',
+          label: 'Find the official admissions destination',
+          subject: 'ABUAD',
+          search_query: 'ABUAD',
+          source_preference: 'official',
+          confidence: 0.96,
+          explanation: 'The user wants to begin a university application.',
+          ambiguities: [],
+          suggested_queries: [
+            { query: 'ABUAD official admissions portal', reason: 'Find the official application destination' }
+          ]
+        }) }] } }]
+      })
+    };
+  };
+  try {
+    const intent = await understandSearchIntentWithGroq('I want to apply to ABUAD', {
+      env: { GEMINI_API_KEY: 'test-gemini-key', GEMINI_MODEL: 'gemini-2.5-flash' }
+    });
+    assert.equal(intent.provider, 'gemini');
+    assert.equal(intent.type, 'destination');
+    assert.equal(intent.subject, 'ABUAD');
+    assert.equal(intent.suggestedQueries.length, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
