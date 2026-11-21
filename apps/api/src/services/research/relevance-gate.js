@@ -33,7 +33,7 @@ function tokenize(value) {
 
 function entityText(intent) {
   const entities = Array.isArray(intent?.entities) ? intent.entities : [];
-  return entities.map(item => typeof item === 'string' ? item : item?.text).filter(Boolean);
+  return entities.flatMap(item => typeof item === 'string' ? [item] : [item?.text, item?.matchedText]).filter(Boolean);
 }
 
 /**
