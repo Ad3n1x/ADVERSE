@@ -44,3 +44,18 @@ test('workflow does not claim completion when required evidence or comparison is
   assert.equal(final.steps.find(step => step.type === 'discover-source').status, 'completed');
   assert.equal(final.steps.find(step => step.type === 'compare-evidence').status, 'blocked');
 });
+
+test('a completed empty search is reported as not found, not as a worker failure', () => {
+  const workflow = buildResearchWorkflow({ type: 'general-research' }, 'job-4');
+  const final = finalizeResearchWorkflow(workflow, {
+    searchCompleted: true,
+    sourceCount: 0,
+    checkedCount: 0,
+    claimCount: 0,
+    comparisonCount: 0,
+    answerStatus: { status: 'not_found' }
+  });
+  assert.equal(final.status, 'completed');
+  assert.equal(final.steps.find(step => step.type === 'discover-source').status, 'completed');
+  assert.equal(final.steps.find(step => step.type === 'verify-source').status, 'skipped');
+});
