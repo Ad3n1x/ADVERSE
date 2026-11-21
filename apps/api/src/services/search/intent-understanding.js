@@ -1,10 +1,6 @@
-const clean = value => String(value ?? '')
-  .normalize('NFKC')
-  .replace(/<[^>]*>/g, ' ')
-  .replace(/[\u0000-\u001f\u007f]/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim()
-  .slice(0, 500);
+import { normalizeSearchText } from './normalize-search-text.js';
+
+const clean = value => normalizeSearchText(value, 500);
 
 const RULES = [
   { type: 'application', label: 'Find the official application route and explain how to apply', patterns: [/\b(i\s+(?:want|would\s+like)\s+to\s+apply|want\s+to\s+apply|apply\s+(?:to|for)|application\s+(?:for|to)|admission(?:s)?\s+(?:for|to)|register\s+(?:for|at|with)|registration\s+(?:for|at)|enrol(?:l)?\s+(?:at|in|for)|gain\s+admission\s+to|admission\s+(?:portal|application)|how\s+to\s+apply)\b/i], sourcePreference: 'official', subgoals: ['official application portal', 'eligibility and entry requirements', 'deadlines and application dates', 'fees and required documents', 'application steps and next actions'] },
