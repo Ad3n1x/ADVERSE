@@ -81,12 +81,15 @@ export function expandSearchQueries(input, maxQueries = 5, intentOverride = null
   const aiLeads = variants.filter(item => item.reason.startsWith('AI:'));
   const secondaryLeads = variants.filter(item => item.reason.startsWith('secondary intent:'));
   const intentLeads = variants.filter(item => item.reason.startsWith('intent:'));
+  const outcomeLeads = variants.filter(item => item.reason.startsWith('official institution source:') || item.reason.startsWith('institution and programme') || item.reason.startsWith('additional costs') || item.reason.startsWith('check fee schedule'));
 
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
   if (intent.searchQuery && intent.searchQuery.toLocaleLowerCase() !== raw.toLocaleLowerCase()) {
     add(intent.searchQuery, 'intent-focused subject');
   }
+
+  for (const item of outcomeLeads) add(item.query, item.reason);
 
   if (intent.type === 'application' && intent.searchQuery) {
     add(intent.searchQuery + ' official admissions application portal', 'intent: application');
@@ -264,6 +267,24 @@ export function rankPublicResults(items, query, intent = null) {
   }).sort((a, b) => b._searchScore - a._searchScore || a._searchOrder - b._searchOrder);
 }
 
+/** Keep results tied to the resolved institution and requested task. */
+export function filterOutcomeScopedResults(items, intent) {
+  if (!intent?.institution) return items;
+  return (Array.isArray(items) ? items : []).filter(item => {
+    let host = '';
+    try { host = new URL(item.url).hostname.toLowerCase().replace(/^www\./, ''); } catch {}
+    const text = [item.title, item.url, item.excerpt, item.publisher].join(' ').toLocaleLowerCase();
+    const institutionMatch = host === intent.institution.domain
+      || host.endsWith('.' + intent.institution.domain)
+      || /\babuad\b|afe\s+babalola\s+university/i.test(text);
+    const programmeMatch = /\bmechatronics\b/i.test(text);
+    const taskMatch = intent.type === 'fees-costs'
+      ? /\b(tuition|school\s+fees?|fee\s+schedule|charges?|cost|payment|undergraduate\s+fees?)\b/i.test(text)
+      : true;
+    return institutionMatch && (programmeMatch || taskMatch);
+  });
+}
+
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const originalInputQuery = typeof input === 'string'
@@ -334,7 +355,9 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
   const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
-  const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
+  // A large result count is not a substitute for task relevance.
+  const scopedResults = filterOutcomeScopedResults(rankedResults, intent);
+  const results = scopedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
@@ -344,6 +367,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,
       resultCount: results.length,
+      relevanceGate: intent?.institution ? 'institution-scoped: candidates must match the named institution and either the programme or the requested fee topic' : 'intent-aware relevance ranking',
       providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
       coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }

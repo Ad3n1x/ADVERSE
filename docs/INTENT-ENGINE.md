@@ -11,7 +11,8 @@ ADVERSE interprets the outcome behind a search request and converts it into a bo
 3. **Arbitration** — clear high-confidence deterministic intent is retained; otherwise matching model interpretations are combined, and disagreements are resolved using the models' bounded confidence estimates. These estimates are not calibrated probabilities.
 4. **Multi-goal extraction** — the deterministic baseline and both AI providers retain one primary intent plus up to three secondary intent types. The planner allocates bounded search slots to each distinct objective while preserving the original request.
 5. **Research planning** — the search planner expands the original question with bounded intent-specific queries. The autonomous follow-up planner receives the full intent, prior investigation context when supplied, and a short summary of gathered public-source context.
-6. **Human inspection** — the search results panel shows the understood goal, subject, research tasks, entities, constraints, ambiguity and interpreter status.
+6. **Outcome contracts** — clear tasks resolve into concrete research entities, geography, required evidence tasks and completion criteria. For supported institution/programme fee requests, the planner searches the institution's official domain and the exact programme instead of generic price keywords.
+7. **Human inspection** — the workspace shows the expected outcome and its required investigation tasks. Discovery completion is distinct from evidence review and answer synthesis.
 
 ## Supported intent families
 
@@ -47,7 +48,9 @@ Credentials are read server-side. Do not expose them to browser code or logs. Ea
 ## Important limits
 
 - This is bounded public-source search, not exhaustive whole-web crawling.
-- Official-source preference is a retrieval strategy, not proof that a result is official.
+- Official-source preference and domain-targeted queries are retrieval strategies, not proof that a result is official.
+- A completed background discovery job means source collection and destination checks have finished; it does not mean the user's objective is answered. Source review, claim assessment and synthesis remain separate stages.
+- Institution aliases and programme names are explicit deterministic mappings. They must be expanded cautiously and never treated as evidence that a programme is currently offered.
 - AI-generated subgoals, secondary intents and search suggestions are hypotheses, not findings.
 - Multi-goal detection is bounded: it can miss implied tasks or over-detect overlapping wording, so the original request remains available to the search planner and user.
 - The system should ask for clarification only when an ambiguity materially changes the research task.

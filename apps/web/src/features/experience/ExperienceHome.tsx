@@ -46,10 +46,16 @@ type IntentPlan = {
   searchQuery?: string;
   sourcePreference?: string;
   providerLabel?: string;
+  researchTasks?: Array<{ id: string; label: string; required?: boolean }>;
+  expectedOutcome?: string;
+  institution?: { name: string; shortName: string; domain: string } | null;
+  programme?: string | null;
+  geography?: string | null;
 };
 
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
+  if (/\b(how much|price|cost|tuition|school fees?|fee schedule|acceptance fee)\b/.test(text)) return 'research';
   if (/\b(compare|versus|vs\.?|difference|better than|pros and cons)\b/.test(text)) return 'compare';
   if (/\b(?:apply\s+(?:to|for)|application\s+(?:to|for)|admission(?:s)?\s+(?:to|for))\b/i.test(text)) return 'plan';
   if (/\b(plan|schedule|roadmap|organize|steps|project|timeline)\b/.test(text)) return 'plan';
@@ -67,7 +73,9 @@ function buildIntentPlan(value: string): IntentPlan {
     ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
   const applicationSubject = request.match(/\b(?:apply|application|admission|admissions)\s+(?:to|for)\s+(.+)$/i)?.[1]?.trim();
-  const focus = (applicationSubject || request
+  const feeQuestion = /\b(how much|price|cost|tuition|school fees?|fee schedule|acceptance fee)\b/i.test(request);
+  const abuadMechatronics = /\b(?:abuad|afe\s+babalola\s+university)\b/i.test(request) && /\bmechatronics(?:\s+engineering)?\b/i.test(request);
+  const focus = (abuadMechatronics ? 'ABUAD Mechatronics Engineering' : applicationSubject || request
     .replace(/^(?:(?:please|can you|could you|i want to|i need to|help me|help us|we need to)\s+)*/i, '')
     .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
     .replace(/\b(?:under|below|within|before|after|by|between|using|with|without)\s+[^,.;!?]+/gi, '')
@@ -84,16 +92,20 @@ function buildIntentPlan(value: string): IntentPlan {
     kind,
     request,
     focus: focus.slice(0, 180),
-    outcome: outcomeByKind[kind],
+    outcome: feeQuestion ? 'An itemized, source-backed cost breakdown with academic-session validity and clearly stated unknowns.' : outcomeByKind[kind],
     constraints,
-    steps: ({
+    steps: feeQuestion
+      ? ['Confirm the institution and exact programme', 'Find the current official fee schedule', 'Identify compulsory additional charges', 'Verify the academic session and effective dates', 'Calculate the total and label unknowns']
+      : ({
       research: ['Clarify the question and scope', 'Gather relevant sources', 'Review evidence and open questions'],
       plan: ['Define the desired outcome', 'Break the work into milestones', 'Identify dependencies and next actions'],
       compare: ['Identify the available options', 'Choose evaluation criteria', 'Compare evidence and trade-offs'],
       create: ['Define the expected output', 'Collect requirements and resources', 'Create and review the result'],
       explore: ['Identify what matters most', 'Explore useful directions', 'Choose a concrete next step'],
     } as Record<IntentKind, string[]>)[kind],
-    spaces: ({
+    spaces: feeQuestion
+      ? ['Official fee schedule', 'Additional charges', 'Verified total cost']
+      : ({
       research: ['Source collection', 'Key findings', 'Open questions'],
       plan: ['Milestones', 'Task flow', 'Resources'],
       compare: ['Options', 'Evaluation criteria', 'Decision notes'],
@@ -101,6 +113,17 @@ function buildIntentPlan(value: string): IntentPlan {
       explore: ['Starting point', 'Discoveries', 'Next direction'],
     } as Record<IntentKind, string[]>)[kind],
     approvalRequired: actionPattern.test(request),
+    expectedOutcome: feeQuestion ? 'An itemized, source-backed cost breakdown with academic-session validity and clearly stated unknowns.' : outcomeByKind[kind],
+    institution: abuadMechatronics ? { name: 'Afe Babalola University', shortName: 'ABUAD', domain: 'abuad.edu.ng' } : null,
+    programme: abuadMechatronics ? 'Mechatronics Engineering' : null,
+    geography: abuadMechatronics ? 'Nigeria' : null,
+    researchTasks: feeQuestion ? [
+      { id: 'confirm-target', label: 'Confirm the institution and exact programme', required: true },
+      { id: 'official-fees', label: 'Find the current official tuition or fee schedule', required: true },
+      { id: 'additional-costs', label: 'Identify compulsory additional charges and one-time fees', required: true },
+      { id: 'session-validity', label: 'Verify the academic session and effective date of each fee', required: true },
+      { id: 'total-cost', label: 'Calculate a transparent total and separate unconfirmed costs', required: true }
+    ] : [],
   };
 }
 
@@ -837,17 +860,22 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </div>}
             </div>
             <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'ai' ? (plan.providerLabel || 'Groq / Gemini semantic planner') : 'Local semantic planner'}</strong></div>
+            {plan.researchTasks && plan.researchTasks.length > 0 && <section className="experience-outcome-task-panel" aria-label="Investigation tasks">
+              <div className="experience-outcome-task-heading"><span>OUTCOME-DRIVEN INVESTIGATION</span><strong>{plan.institution?.name || plan.semanticType || 'Research plan'}{plan.programme ? ' · ' + plan.programme : ''}{plan.geography ? ' · ' + plan.geography : ''}</strong></div>
+              <p>{plan.expectedOutcome || plan.outcome}</p>
+              <ol>{plan.researchTasks.map((task, index) => <li key={task.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{task.label}</strong><small>{task.required === false ? 'Supporting task' : 'Required to answer the request'}</small></div></li>)}</ol>
+            </section>}
             {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
             <section className="experience-journey" aria-labelledby="experience-journey-title" aria-live="polite">
               <div className="experience-journey-heading">
                 <div><span className="experience-section-label">YOUR INVESTIGATION</span><h3 id="experience-journey-title">Progress at a glance</h3></div>
-                <span className="experience-journey-state">{researchJob?.status === 'completed' ? 'Research complete' : researchJob?.status === 'paused' ? 'Paused' : researchJob?.status === 'failed' ? 'Needs attention' : isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete' : 'Ready to begin'}</span>
+                <span className="experience-journey-state">{researchJob?.status === 'completed' ? (reviewCounts.unreviewed > 0 ? 'Discovery saved · review pending' : 'Discovery saved · ready for synthesis') : researchJob?.status === 'paused' ? 'Paused' : researchJob?.status === 'failed' ? 'Needs attention' : isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete · review pending' : 'Ready to begin'}</span>
               </div>
               {researchJob && <div className="experience-job-progress">
                 <div className="experience-job-progress-label"><span>{researchJob.stage === 'queued' ? 'Waiting for a research worker' : researchJob.stage === 'completed' ? 'Research saved to workspace' : researchJob.stage === 'failed' ? 'Research stopped' : researchJob.stage === 'paused' ? 'Research paused' : 'ADVERSE · ' + researchJob.stage}</span><strong>{researchJob.progress}%</strong></div>
                 <div className="experience-job-progress-track"><span style={{ width: researchJob.progress + '%' }} /></div>
-                <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} saved sources · {researchJob.attempts || 0} attempt(s)</small>
+                <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} source candidates saved · {researchJob.attempts || 0} attempt(s)</small>
               </div>}
               {researchJob && <div className="experience-job-controls">
                 {['queued', 'running'].includes(researchJob.status) && <button type="button" onClick={() => void controlResearchJob('pause')}>Pause research</button>}

@@ -1,3 +1,4 @@
+import { buildOutcomeSearchQueries, enrichOutcomeIntent } from './outcome-intelligence.js';
 const clean = value => String(value ?? '')
   .normalize('NFKC')
   .replace(/<[^>]*>/g, ' ')
@@ -9,7 +10,7 @@ const clean = value => String(value ?? '')
 const RULES = [
   { type: 'application', label: 'Find the official application route and explain how to apply', patterns: [/\b(i\s+(?:want|would\s+like)\s+to\s+apply|want\s+to\s+apply|apply\s+(?:to|for)|application\s+(?:for|to)|admission(?:s)?\s+(?:for|to)|register\s+(?:for|at|with)|registration\s+(?:for|at)|enrol(?:l)?\s+(?:at|in|for)|gain\s+admission\s+to|admission\s+(?:portal|application)|how\s+to\s+apply)\b/i], sourcePreference: 'official', subgoals: ['official application portal', 'eligibility and entry requirements', 'deadlines and application dates', 'fees and required documents', 'application steps and next actions'] },
   { type: 'eligibility', label: 'Assess eligibility against stated requirements', patterns: [/\b(am\s+i\s+eligible|do\s+i\s+qualify|can\s+i\s+(?:get\s+in|gain\s+admission|apply)|my\s+(?:grades|results|scores|qualifications)|with\s+my\s+(?:grades|results|scores)|requirements?\s+for\s+me)\b/i], sourcePreference: 'official', subgoals: ['published eligibility criteria', 'compare supplied qualifications with requirements', 'identify missing or uncertain criteria'] },
-  { type: 'fees-costs', label: 'Find current fees and costs', patterns: [/\b(how\s+much|tuition|school\s+fees|acceptance\s+fee|application\s+fee|cost\s+of|price\s+of|fees?\s+for)\b/i], sourcePreference: 'official', subgoals: ['official fee schedule', 'additional and one-time charges', 'academic session and programme differences'] },
+  { type: 'fees-costs', label: 'Find current fees and costs', patterns: [/\b(how\s+much|tuition|school\s+fees|acceptance\s+fee|application\s+fee|cost\s+of|price(?:\s+of)?|fees?\s+for)\b/i], sourcePreference: 'official', subgoals: ['official fee schedule', 'additional and one-time charges', 'academic session and programme differences'] },
   { type: 'programme-availability', label: 'Check whether a programme or service is offered', patterns: [/\b(does|do|is|are)\s+.+\s+(offer|offers|offering|have|has|available|provide|provides)\b|\b(is\s+there|available\s+at|courses?\s+offered|programmes?\s+offered|majors?\s+offered)\b/i], sourcePreference: 'official', subgoals: ['official programme catalogue', 'campus and degree type', 'entry requirements and accreditation where relevant'] },
   { type: 'deadline', label: 'Find a deadline or important date', patterns: [/\b(deadline|application\s+deadline|closing\s+date|when\s+does|when\s+is|when\s+will|last\s+day|application\s+closes|registration\s+closes)\b/i], sourcePreference: 'official', subgoals: ['current official date', 'academic session or event it applies to', 'whether dates have changed'] },
   { type: 'scholarship-funding', label: 'Find scholarships and funding options', patterns: [/\b(scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition\s+support|fully\s+funded|study\s+grant)\b/i], sourcePreference: 'official', subgoals: ['eligibility and award coverage', 'application process and deadline', 'official sponsor and terms'] },
@@ -40,7 +41,7 @@ function extractSubject(query, type) {
       .replace(/\s+(?:and|also|plus)\s+(?=(?:find|check|tell|show|what|how|when|whether|compare|verify|look|search)\b).*/i, '');
   } else {
     subject = subject
-      .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+      .replace(/\b(please|how|much|when|does|do|is|are|can|could|would|what|where|i|get|into|with|my|grades|results|scores|qualifications|close|closing|students|scholarships?|bursar(?:y|ies)|financial\s+aid|funding|tuition|price|fees?|cost|offer|offers|offering|available|programme|program|course|courses|admission|admissions|want|would|like|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
       .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ');
   }
   return subject.replace(/[?!.]+$/g, '').replace(/\s+/g, ' ').trim() || query;
@@ -66,7 +67,7 @@ export function understandSearchIntent(input) {
   };
   const subject = extractSubject(originalQuery, selected.type);
   const matchedSignals = rule ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 120)) : [];
-  return {
+  const baseIntent = {
     type: selected.type,
     label: selected.label,
     confidence: rule ? 0.88 : 0.58,
@@ -85,6 +86,7 @@ export function understandSearchIntent(input) {
       ? 'The wording indicates a likely goal. ADVERSE preserves the complete request and builds bounded research tasks around it.'
       : 'No single strong goal marker was detected. ADVERSE preserves the wording and avoids guessing a narrower task.',
   };
+  return enrichOutcomeIntent(originalQuery, baseIntent);
 }
 
 /** Generate bounded research leads that directly support the user's intended outcome. */
@@ -114,6 +116,7 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'public-entity': ['official records profile background'],
     'general-research': ['authoritative background evidence'],
   };
+  for (const item of buildOutcomeSearchQueries(intent)) add(item.query, item.reason);
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
   const primarySuffixes = suffixes[intent?.type] || suffixes['general-research'];
   const secondaryTypes = (Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents : []).slice(0, 3);

@@ -108,11 +108,12 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     );
   };
   const modelType = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
-  const type = fallback.confidence >= 0.86 ? fallback.type : modelType;
-  const subject = (fallback.confidence >= 0.86 && fallback.type === 'application' && fallback.subject)
+  const stableInterpretation = fallback.confidence >= 0.86 && ['application', 'fees-costs'].includes(fallback.type);
+  const type = stableInterpretation ? fallback.type : modelType;
+  const subject = (stableInterpretation && fallback.subject)
     ? fallback.subject
     : (grounded(parsed?.subject) ? clean(parsed?.subject, 180) : (fallback.subject || original));
-  const searchQuery = fallback.confidence >= 0.86 && fallback.type === 'application'
+  const searchQuery = stableInterpretation
     ? (fallback.searchQuery || subject || original)
     : (grounded(parsed?.search_query) ? clean(parsed?.search_query, 220) : (subject || original));
   const list = (value, maxItems, maxLength) => (Array.isArray(value) ? value : [])
@@ -128,8 +129,8 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
   if (subject && !entities.some(item => item.text.toLowerCase() === subject.toLowerCase())) entities.unshift({ text: subject, kind: 'unknown', role: 'primary-subject' });
   return {
     type,
-    label: clean(parsed?.label, 140) || fallback.label,
-    goal: clean(parsed?.goal, 220) || fallback.goal || fallback.label,
+    label: stableInterpretation ? fallback.label : (clean(parsed?.label, 140) || fallback.label),
+    goal: stableInterpretation ? (fallback.goal || fallback.label) : (clean(parsed?.goal, 220) || fallback.goal || fallback.label),
     confidence: Number.isFinite(Number(parsed?.confidence)) ? Math.max(0, Math.min(1, Number(parsed.confidence))) : fallback.confidence,
     subject,
     searchQuery,
@@ -137,13 +138,19 @@ function normalizeModelResult(parsed, original, fallback, provider, model, conte
     matchedSignals: fallback.matchedSignals || [],
     subgoals: [...new Set([...list(parsed?.subgoals, 6, 160), ...(fallback.subgoals || [])])].slice(0, 6),
     secondaryIntents: [...new Set([...(fallback.secondaryIntents || []), ...(Array.isArray(parsed?.secondary_intents) ? parsed.secondary_intents : []).filter(type => TYPES.has(type))])].filter(intentType => intentType !== type).slice(0, 3),
-    entities,
-    constraints: list(parsed?.constraints, 8, 140).filter(grounded),
+    entities: [...(fallback.entities || []), ...entities].filter((item, index, rows) => rows.findIndex(other => other.text.toLowerCase() === item.text.toLowerCase() && other.role === item.role) === index).slice(0, 10),
+    constraints: [...new Set([...(fallback.constraints || []), ...list(parsed?.constraints, 8, 140).filter(grounded)])].slice(0, 8),
     ambiguities: list(parsed?.ambiguities, 4, 140),
-    clarificationNeeded: Boolean(parsed?.clarification_needed),
+    clarificationNeeded: stableInterpretation ? Boolean(fallback.clarificationNeeded) : Boolean(parsed?.clarification_needed),
     suggestedQueries,
     explanation: clean(parsed?.explanation, 420) || 'The AI model interpreted the intended outcome while preserving the original request.',
-    provider, model, confidenceKind: 'model-estimate', aiNote: null
+    researchTasks: fallback.researchTasks || [],
+    expectedOutcome: fallback.expectedOutcome || 'A direct answer supported by relevant evidence.',
+    institution: fallback.institution || null,
+    programme: fallback.programme || null,
+    geography: fallback.geography || null,
+    completionCriteria: fallback.completionCriteria || [],
+    provider, model, confidenceKind: stableInterpretation ? 'rule-and-model-enriched' : 'model-estimate', aiNote: null
   };
 }
 

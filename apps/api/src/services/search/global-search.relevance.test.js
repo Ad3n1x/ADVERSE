@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expandSearchQueries, rankPublicResults } from './global-search.js';
+import { expandSearchQueries, filterOutcomeScopedResults, rankPublicResults } from './global-search.js';
 
 test('query planner is bounded, unique, and starts with exact phrase intent', () => {
   const plan = expandSearchQueries('MovieBox old version download', 5);
@@ -67,4 +67,23 @@ test('application query plan keeps the institution and reserves a slot for AI in
   assert.ok(plan.some(item => item.query === 'ABUAD'));
   assert.ok(plan.some(item => item.reason.startsWith('AI:') && /official undergraduate admissions/i.test(item.query)));
   assert.ok(plan.some(item => item.reason === 'intent: application' && /official admissions application portal/i.test(item.query)));
+});
+
+
+test('institution-scoped fee research excludes topical lookalikes and unrelated universities', () => {
+  const intent = {
+    type: 'fees-costs',
+    institution: { name: 'Afe Babalola University', shortName: 'ABUAD', domain: 'abuad.edu.ng' },
+    programme: 'Mechatronics Engineering',
+  };
+  const results = filterOutcomeScopedResults([
+    { title: 'The Degree of Distortions under Second-Degree Price Discrimination', url: 'https://papers.ssrn.com/sol3/papers.cfm?id=1', excerpt: 'Price discrimination theory.' },
+    { title: 'Mechatronics Engineering Degree', url: 'https://example.edu/programmes/mechatronics', excerpt: 'Tuition and fees.' },
+    { title: 'ABUAD undergraduate fee schedule', url: 'https://www.abuad.edu.ng/fees', excerpt: 'Tuition and compulsory charges.' },
+    { title: 'Mechatronics Engineering at ABUAD', url: 'https://www.abuad.edu.ng/programmes/mechatronics', excerpt: 'Programme overview.' },
+  ], intent);
+  assert.deepEqual(results.map(item => item.title), [
+    'ABUAD undergraduate fee schedule',
+    'Mechatronics Engineering at ABUAD',
+  ]);
 });
