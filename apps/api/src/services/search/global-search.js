@@ -289,7 +289,9 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const originalQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean((queryPlan.find(item => item.reason === 'natural-language query') || queryPlan.find(item => item.reason === 'core terms') || queryPlan[0] || {}).query, 200);
-  const rankedResults = diversifyPublicResults([...merged.values()], originalQuery, { limit: 120, maxPerDomain: 3 });
+  // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
+  const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
+  const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3 });
   const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
