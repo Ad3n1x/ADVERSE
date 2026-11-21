@@ -1,4 +1,5 @@
 import { normalizeSearchText } from './normalize-search-text.js';
+import { resolveIntentEntities } from './entity-resolution.js';
 
 const clean = value => normalizeSearchText(value, 500);
 
@@ -58,22 +59,32 @@ export function understandSearchIntent(input) {
   };
   const subject = extractSubject(originalQuery, selected.type);
   const matchedSignals = rule ? rule.patterns.filter(pattern => pattern.test(originalQuery)).map(pattern => pattern.source.slice(0, 120)) : [];
+  const resolution = resolveIntentEntities(originalQuery);
+  const entities = resolution.entities.length
+    ? resolution.entities
+    : (subject ? [{ text: subject, matchedText: subject, role: 'primary-subject', kind: 'unknown' }] : []);
+  const searchEntities = entities
+    .filter(entity => entity.kind === 'institution' || entity.kind === 'programme')
+    .map(entity => entity.kind === 'institution' ? entity.matchedText : entity.text)
+    .filter(Boolean);
+  const searchQuery = searchEntities.length ? searchEntities.join(' ') : (subject.length >= 2 ? subject : originalQuery);
   return {
     type: selected.type,
     label: selected.label,
     confidence: rule ? 0.88 : 0.58,
     subject,
-    searchQuery: subject.length >= 2 ? subject : originalQuery,
+    searchQuery,
     sourcePreference: selected.sourcePreference,
+    preferences: { sourcePreference: selected.sourcePreference, ...resolution.preferences },
     matchedSignals,
     goal: selected.label,
     subgoals: selected.subgoals.slice(0, 5),
-    entities: subject ? [{ text: subject, role: 'primary-subject', kind: 'unknown' }] : [],
+    entities,
     constraints: [],
     clarificationNeeded: false,
     ambiguities: [],
     explanation: rule
-      ? 'The wording indicates a likely goal. ADVERSE preserves the complete request and builds bounded research tasks around it.'
+      ? 'The wording indicates a likely goal. ADVERSE preserves the complete request and builds bounded research tasks around resolved entities.'
       : 'No single strong goal marker was detected. ADVERSE preserves the wording and avoids guessing a narrower task.',
   };
 }
@@ -83,6 +94,11 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   const original = clean(input);
   if (!original) return [];
   const subject = clean(intent?.searchQuery || intent?.subject || original);
+  const canonicalEntities = (Array.isArray(intent?.entities) ? intent.entities : [])
+    .filter(entity => entity && ['institution', 'programme'].includes(entity.kind) && entity.text)
+    .map(entity => clean(entity.text))
+    .filter(Boolean);
+  const canonicalEntityQuery = [...new Set(canonicalEntities)].join(' ');
   const candidates = [{ query: original, reason: 'original question' }];
   const add = (query, reason) => {
     const value = clean(query);
@@ -108,5 +124,6 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
   for (const suffix of suffixes[intent?.type] || suffixes['general-research']) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
   if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
+  if (canonicalEntityQuery.length >= 2 && canonicalEntityQuery.toLocaleLowerCase() !== subject.toLocaleLowerCase()) add(canonicalEntityQuery, 'resolved entity names');
   return candidates.slice(0, Math.max(1, Math.min(6, Number(limit) || 3)));
 }
