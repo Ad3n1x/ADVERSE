@@ -73,3 +73,92 @@ test('uses Groq structured intent and returns bounded query suggestions', async 
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('uses Gemini as an independent intent pillar when Groq is unavailable', async () => {
+  const originalFetch = globalThis.fetch;
+  let geminiBody;
+  globalThis.fetch = async (url, init) => {
+    assert.match(String(url), /generativelanguage\.googleapis\.com/);
+    assert.equal(init.headers['x-goog-api-key'], 'gemini-test-key');
+    geminiBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({
+      type: 'application', label: 'Apply to ABUAD', goal: 'Gain admission to ABUAD',
+      subject: 'ABUAD', search_query: 'ABUAD', source_preference: 'official',
+      confidence: 0.97, explanation: 'The user wants to begin an admission application.',
+      subgoals: ['official portal', 'eligibility', 'deadlines'],
+      entities: [{ text: 'ABUAD', kind: 'university', role: 'target institution' }],
+      constraints: ['undergraduate'], ambiguities: [], clarification_needed: false,
+      suggested_queries: [{ query: 'ABUAD official admissions portal', reason: 'Find the official route' }]
+    }) }] } }] }) };
+  };
+  try {
+    const intent = await understandSearchIntentWithGroq('I want to apply for ABUAD', {
+      env: { GEMINI_API_KEY: 'gemini-test-key', GEMINI_INTENT_MODEL: 'gemini-2.5-flash' }
+    });
+    assert.equal(intent.type, 'application');
+    assert.equal(intent.subject, 'ABUAD');
+    assert.equal(intent.provider, 'gemini');
+    assert.equal(intent.providers[0].name, 'Gemini');
+    assert.equal(geminiBody.generationConfig.responseMimeType, 'application/json');
+    assert.ok(intent.subgoals.includes('eligibility'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('uses Groq and Gemini together and combines matching interpretations', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  const result = {
+    type: 'verification', label: 'Verify a public claim', goal: 'Check whether the claim is supported',
+    subject: 'agency policy', search_query: 'agency policy', source_preference: 'primary-and-independent',
+    confidence: 0.94, explanation: 'Check primary and independent evidence.',
+    subgoals: ['official policy notice'], entities: [{ text: 'agency', kind: 'organization', role: 'subject' }],
+    constraints: [], ambiguities: [], clarification_needed: false,
+    suggested_queries: [{ query: 'agency official policy notice', reason: 'Find primary evidence' }]
+  };
+  globalThis.fetch = async (url, init) => {
+    calls.push(String(url));
+    if (String(url).includes('api.groq.com')) {
+      return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify(result) } }] }) };
+    }
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(result) }] } }] }) };
+  };
+  try {
+    const intent = await understandSearchIntentWithGroq('Is it true that the agency changed its policy?', {
+      env: { GROQ_API_KEY: 'groq-test-key', GEMINI_API_KEY: 'gemini-test-key' }
+    });
+    assert.equal(calls.length, 2);
+    assert.equal(intent.type, 'verification');
+    assert.equal(intent.provider, 'groq+gemini-consensus');
+    assert.deepEqual(intent.providers.map(provider => provider.name), ['Groq', 'Gemini']);
+    assert.ok(intent.suggestedQueries.some(item => item.query === 'agency official policy notice'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('continues with the available AI provider when the other provider fails', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async url => {
+    if (String(url).includes('api.groq.com')) return { ok: false, status: 503 };
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify({
+      type: 'general-research', label: 'Research ABUAD', goal: 'Understand ABUAD',
+      subject: 'ABUAD', search_query: 'ABUAD', source_preference: 'official',
+      confidence: 0.82, explanation: 'Research the named institution.',
+      subgoals: ['official information'], entities: [], constraints: [], ambiguities: [],
+      clarification_needed: false, suggested_queries: []
+    }) }] } }] }) };
+  };
+  try {
+    const intent = await understandSearchIntentWithGroq('Tell me about ABUAD', {
+      env: { GROQ_API_KEY: 'groq-test-key', GEMINI_API_KEY: 'gemini-test-key' }
+    });
+    assert.equal(intent.provider, 'gemini');
+    assert.equal(intent.providers.length, 1);
+    assert.equal(intent.type, 'general-research');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
