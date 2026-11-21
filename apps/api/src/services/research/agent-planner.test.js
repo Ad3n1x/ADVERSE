@@ -75,3 +75,22 @@ test('planner uses the configured Groq key before the broken Gemini provider', a
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test('custom compatible AI endpoints reject private destinations and unsafe URL parts', async () => {
+  for (const value of [
+    'http://api.example.com/v1',
+    'https://user:pass@api.example.com/v1',
+    'https://api.example.com/v1?token=secret',
+    'https://api.example.com/v1#fragment',
+    'https://127.0.0.1/v1',
+    'https://169.254.169.254/latest',
+    'https://[::1]/v1',
+  ]) {
+    await assert.rejects(
+      () => import('./agent-planner.js').then(({ validateCompatibleProviderEndpoint }) => validateCompatibleProviderEndpoint(value)),
+      /HTTPS|credentials|private network/i,
+      value,
+    );
+  }
+});
