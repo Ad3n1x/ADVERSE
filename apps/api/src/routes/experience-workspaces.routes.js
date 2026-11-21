@@ -346,9 +346,9 @@ export function registerExperienceWorkspaceRoutes(app, {
       text: z.string().min(1).max(50000),
     }).safeParse(req.body || {});
     if (!parsed.success) return sendError(res, 400, 'INVALID_DOCUMENT', 'Only plain-text documents up to 50 KB are accepted.');
-    const filename = parsed.data.filename.replace(/[\\/\\0-\\x1f\\x7f]/g, '_').slice(0, 180);
-    const normalizedText = parsed.data.text.replace(/\\r\\n?/g, '\\n');
-    if (!normalizedText.trim() || /[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]/.test(normalizedText)) {
+    const filename = parsed.data.filename.replace(/[^a-zA-Z0-9._ -]/g, '_').slice(0, 180);
+    const normalizedText = parsed.data.text.replace(/\r\n?/g, '\n');
+    if (!normalizedText.trim() || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(normalizedText)) {
       return sendError(res, 400, 'INVALID_DOCUMENT_TEXT', 'Document text is empty or contains unsupported control characters.');
     }
     const byteLength = Buffer.byteLength(normalizedText, 'utf8');
