@@ -278,7 +278,8 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
     }
     if (resolutionId !== resolutionSequence.current) return;
     try {
-      // Preserve the complete request so search can interpret the action and its target together.\n      const query = trimmed;
+      // Preserve the complete request so search can interpret the action and its target together.
+      const query = trimmed;
       const response = await request<ExperienceSearchResponse>('/public-search?q=' + encodeURIComponent(query));
       if (resolutionId !== resolutionSequence.current) return;
       const freshSources = Array.isArray(response.data) ? response.data.slice(0, 12) : [];
