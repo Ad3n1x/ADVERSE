@@ -280,3 +280,33 @@
 .experience-job-control-notice{margin:6px 0 10px;color:#9db9ad;font-size:10px;line-height:1.55}
 
 .experience-claim-auto-label{display:inline-flex;align-items:center;padding:3px 6px;border:1px solid rgba(128,183,157,.24);border-radius:4px;color:#9ccab3;font:8px 'DM Mono',monospace;letter-spacing:.07em}
+
+
+/* ADVERSE clean workspace pass: progressive disclosure and a calmer first screen. */
+.experience-shell:before{background:radial-gradient(ellipse at 50% 20%,rgba(29,93,88,.12),transparent 48%),#080d13}
+.experience-ambient{opacity:.22;top:54px;height:430px}
+.experience-core{width:150px;height:150px;top:72px;box-shadow:none}
+.experience-orbit{opacity:.45}
+.experience-topbar{padding-top:17px;padding-bottom:17px}
+.experience-hero{width:min(880px,100%);padding:68px 24px 42px}
+.experience-hero h1{font-size:clamp(35px,5.2vw,56px);margin:17px 0 13px;letter-spacing:-.055em}
+.experience-lede{font-size:13px;line-height:1.65}
+.experience-intent-form{margin-top:26px;box-shadow:0 10px 34px rgba(0,0,0,.2)}
+.experience-examples{margin-top:30px}
+.experience-example{min-height:56px;background:rgba(15,29,37,.48)}
+.experience-workspace{margin-top:25px;padding:18px;background:rgba(13,25,35,.92);box-shadow:0 12px 36px rgba(0,0,0,.2)}
+.experience-journey{margin-top:15px}
+.experience-progress-details{margin-top:11px;border:1px solid rgba(113,160,157,.16);border-radius:10px;background:rgba(8,19,26,.35);text-align:left}
+.experience-progress-details>summary{display:flex;align-items:center;gap:8px;min-height:42px;padding:10px 13px;color:#b6d0c8;font-size:11px;font-weight:600;cursor:pointer;list-style:none}
+.experience-progress-details>summary::-webkit-details-marker{display:none}
+.experience-progress-details>summary:after{content:"+";margin-left:auto;color:#82cdb8;font:16px 'DM Mono',monospace}
+.experience-progress-details[open]>summary:after{content:"−"}
+.experience-progress-details[open]{padding-bottom:12px}
+.experience-progress-details>.experience-workspace-grid,
+.experience-progress-details>.experience-geospatial-launch,
+.experience-progress-details>.experience-geospatial-view{margin-left:12px;margin-right:12px}
+.experience-progress-details>.experience-geospatial-launch{margin-top:10px}
+.experience-progress-details>.experience-geospatial-view{margin-top:10px}
+.experience-live-sources{margin-top:14px;padding:14px;background:rgba(7,17,23,.42)}
+.experience-source-card{background:rgba(13,27,34,.62)}
+@media(max-width:680px){.experience-hero{padding:52px 17px 30px}.experience-hero h1{font-size:clamp(34px,9vw,48px)}.experience-workspace{padding:13px}.experience-progress-details>summary{font-size:10px}}
