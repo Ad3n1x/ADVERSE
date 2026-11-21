@@ -41,10 +41,11 @@ export const StepSchema = z.object({
     'compare-evidence', 'resolve-conflict', 'prepare-outcome'
   ]),
   objective: shortText(300),
+  required: z.boolean().default(true),
   requiredFields: z.array(shortText(80)).max(20).default([]),
   providerPolicy: z.enum(['official-first', 'primary-and-independent', 'balanced', 'documentation-first']).default('balanced'),
   status: z.enum(['pending', 'running', 'completed', 'blocked', 'failed', 'skipped']).default('pending'),
-  evidenceIds: z.array(id).max(100).default([]),
+  evidenceIds: z.array(z.string().trim().min(1).max(2048)).max(100).default([]),
   completedAt: dateText.nullable().default(null)
 }).strict();
 
