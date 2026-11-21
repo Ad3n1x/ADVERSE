@@ -659,7 +659,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
           <span>ADVERSE<small>BEYOND BROWSING</small></span>
         </a>
         <div className="experience-top-actions">
-          <span className="experience-mode"><i /> INTELLIGENCE ENVIRONMENT</span>
+          <span className="experience-mode"><i /> YOUR RESEARCH WORKSPACE</span>
           <span className="experience-account" title={userEmail}>{userEmail}</span><button className="experience-signout" type="button" onClick={onLogout}>Sign out <LogOut size={14} /></button>
         </div>
       </header>
@@ -676,11 +676,11 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
             id="adverse-intent"
             value={intent}
             onChange={event => setIntent(event.target.value)}
-            placeholder="I want to research, plan, compare, create..."
+            placeholder="Tell ADVERSE what you need to accomplish…"
             maxLength={500}
           />
           {intent && <button className="experience-clear" type="button" aria-label="Clear intent" onClick={() => setIntent('')}><X size={16} /></button>}
-          <button className="experience-submit" type="submit" disabled={!intent.trim()}>Shape workspace <ArrowRight size={16} /></button>
+          <button className="experience-submit" type="submit" disabled={!intent.trim()}>Start investigation <ArrowRight size={16} /></button>
         </form>
         <div className="experience-input-foot"><span><Search size={12} /> Start with an outcome, question, or task</span><span>Up to 500 characters</span></div>
 
@@ -736,6 +736,35 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
             <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'ai' ? (plan.providerLabel || 'Groq / Gemini semantic planner') : 'Local semantic planner'}</strong></div>
             {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
+            <section className="experience-journey" aria-labelledby="experience-journey-title" aria-live="polite">
+              <div className="experience-journey-heading">
+                <div><span className="experience-section-label">YOUR INVESTIGATION</span><h3 id="experience-journey-title">Progress at a glance</h3></div>
+                <span className="experience-journey-state">{isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete' : 'Ready to begin'}</span>
+              </div>
+              <ol className="experience-journey-steps">
+                <li className="is-complete">
+                  <span className="experience-journey-marker">1</span>
+                  <div><strong>Understand the request</strong><small>{plannerMode === 'ai' ? (plan.providerLabel || 'AI intent planner') : 'Local semantic fallback'} · {plan.focus}</small></div>
+                  <span className="experience-journey-status">READY</span>
+                </li>
+                <li className={isResolving ? 'is-active' : resolveError ? 'is-error' : sources.length ? 'is-complete' : 'is-pending'}>
+                  <span className="experience-journey-marker">2</span>
+                  <div><strong>Discover public sources</strong><small>{isResolving ? 'Searching connected public providers…' : resolveError ? 'Search needs another attempt' : sources.length ? sources.length + ' source candidates collected' : 'Waiting to search'}</small></div>
+                  <span className="experience-journey-status">{isResolving ? 'IN PROGRESS' : resolveError ? 'RETRY' : sources.length ? 'DONE' : 'NEXT'}</span>
+                </li>
+                <li className={sources.length && reviewCounts.unreviewed === 0 ? 'is-complete' : sources.length ? 'is-active' : 'is-pending'}>
+                  <span className="experience-journey-marker">3</span>
+                  <div><strong>Review and organize evidence</strong><small>{sources.length ? reviewCounts.unreviewed + ' still need review · ' + reviewCounts.useful + ' marked useful' : 'Source review begins when results arrive'}</small></div>
+                  <span className="experience-journey-status">{sources.length ? reviewCounts.unreviewed ? 'REVIEW' : 'DONE' : 'LOCKED'}</span>
+                </li>
+                <li className={claims.length > 0 ? 'is-active' : 'is-pending'}>
+                  <span className="experience-journey-marker">4</span>
+                  <div><strong>Build a cited research brief</strong><small>{claims.length ? claims.length + ' claim record(s) available to include' : 'Prepare the outcome from reviewed sources and linked evidence'}</small></div>
+                  <span className="experience-journey-status">{claims.length ? 'READY' : 'NEXT'}</span>
+                </li>
+              </ol>
+              <p className="experience-journey-next"><strong>Recommended next step:</strong> {isResolving ? 'ADVERSE is collecting sources. You can review the plan while it works.' : resolveError ? 'Retry the search or narrow the request if providers returned no usable results.' : !sources.length ? 'Start with a question or task above to begin an investigation.' : reviewCounts.unreviewed ? 'Open the original sources and mark the useful ones. ADVERSE keeps unreviewed material separate from verified findings.' : 'Use the dossier tools below to prepare a source-linked brief.'}</p>
+            </section>
             <div className="experience-workspace-grid">
               <div className="experience-plan">
                 <span className="experience-section-label">A POSSIBLE FLOW</span>
