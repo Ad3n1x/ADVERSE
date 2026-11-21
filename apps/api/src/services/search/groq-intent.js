@@ -6,7 +6,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 const CACHE_MAX = 250;
 const cache = new Map();
 const inflight = new Map();
-const TYPES = new Set(['destination','verification','current-events','historical','comparison','how-to','public-entity','general-research']);
+const TYPES = new Set(['application','destination','verification','current-events','historical','comparison','how-to','public-entity','general-research']);
 const SOURCE_PREFERENCES = new Set(['official','primary-and-independent','recent','dated-primary-records','parallel-sources','documentation','primary-and-reference','balanced']);
 
 const clean = (value, max = 220) => String(value ?? '')
@@ -46,9 +46,9 @@ function fallbackResult(input, fallback, reason = 'Groq is not configured or cou
 }
 
 function normalizeModelResult(parsed, original, fallback, model) {
-  const type = TYPES.has(parsed?.type) ? parsed.type : fallback.type;
+  const type = fallback.type === 'application' ? 'application' : (TYPES.has(parsed?.type) ? parsed.type : fallback.type);
   const subject = clean(parsed?.subject, 180) || fallback.subject || original;
-  const searchQuery = clean(parsed?.search_query, 220) || subject || original;
+  const searchQuery = fallback.type === 'application' ? (fallback.searchQuery || fallback.subject || subject || original) : (clean(parsed?.search_query, 220) || subject || original);
   const confidence = Number(parsed?.confidence);
   const suggestedQueries = (Array.isArray(parsed?.suggested_queries) ? parsed.suggested_queries : [])
     .map(item => ({ query: clean(item?.query, 180), reason: clean(item?.reason, 120) }))
@@ -91,7 +91,7 @@ async function requestGroq(input, apiKey, model) {
           role: 'system',
           content: [
             'You are the intent interpreter for ADVERSE, a public-source research and destination-discovery engine.',
-            'Interpret what the user is trying to accomplish, not just keywords.',
+            'Interpret what the user is trying to accomplish, not just keywords. Treat apply to a university, college, scholarship, job, or programme as an application-intent task; identify the named institution or opportunity as the subject and search for its official application route, requirements, eligibility, deadlines, and next steps.',
             'Distinguish the goal from the topic. Resolve conversational phrasing, implicit context, misspellings, multi-part requests, and ambiguous wording conservatively.',
             'Never answer the research question, assert facts, invent entities, or assume a claim is true.',
             'Do not turn an ambiguous request into a more specific one without evidence. If unclear, use general-research and explain the ambiguity.',
