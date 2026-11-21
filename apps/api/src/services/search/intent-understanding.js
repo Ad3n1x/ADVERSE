@@ -56,8 +56,10 @@ export function understandSearchIntent(input) {
     clarificationNeeded: false, ambiguities: [], explanation: 'No search question was supplied.',
   };
 
-  const matchingRules = RULES.filter(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
-  const rule = matchingRules[0];
+  const rule = RULES.find(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
+  const secondaryClauses = originalQuery.split(/\s+(?:and|also|plus)\s+|[,;]+/i).slice(1);
+  const secondaryRules = RULES.filter(candidate => candidate !== rule
+    && secondaryClauses.some(clause => candidate.patterns.some(pattern => pattern.test(clause))));
   const selected = rule || {
     type: 'general-research', label: 'Understand the request and discover relevant evidence',
     sourcePreference: 'balanced', subgoals: ['identify the main subject', 'find authoritative context', 'check important details'],
@@ -76,7 +78,7 @@ export function understandSearchIntent(input) {
     subgoals: selected.subgoals.slice(0, 5),
     entities: subject ? [{ text: subject, role: 'primary-subject', kind: 'unknown' }] : [],
     constraints: [],
-    secondaryIntents: matchingRules.slice(1).map(candidate => candidate.type).filter((type, index, rows) => type !== selected.type && rows.indexOf(type) === index).slice(0, 3),
+    secondaryIntents: secondaryRules.map(candidate => candidate.type).filter((type, index, rows) => type !== selected.type && rows.indexOf(type) === index).slice(0, 3),
     clarificationNeeded: false,
     ambiguities: [],
     explanation: rule
