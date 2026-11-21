@@ -64,6 +64,7 @@ const SYNONYMS = new Map([
 export function expandSearchQueries(input, maxQueries = 5, intentOverride = null) {
   const raw = clean(input, 200);
   if (!raw) return [];
+  const intent = intentOverride || understandSearchIntent(raw);
   const queries = [];
   const seen = new Set();
   const add = (q, reason) => {
