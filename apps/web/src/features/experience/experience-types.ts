@@ -13,6 +13,14 @@ export type ExperienceSource = {
   savedAt?: string;
   reviewStatus?: SourceReviewStatus;
   analystNote?: string;
+  relevance?: {
+    score: number;
+    matchedTerms: string[];
+    intentMatch: boolean;
+    entityMatch: boolean;
+    accepted: boolean;
+    rejectionReasons: string[];
+  };
   linkCheck?: {
     status?: 'reachable' | 'not_confirmed' | 'not_checked';
     checkedAt?: string | null;
