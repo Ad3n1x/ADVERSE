@@ -204,7 +204,7 @@ async function saveJobResults(job, sources, live) {
     searchCompleted: true,
     checkedCount: mergedSources.filter(source => source.linkCheck?.checkedAt).length,
     claimCount: typedClaims.length,
-    comparisonCount: 0,
+    comparisonCount: (extraction.claims || []).filter(group => (group.sources || []).length > 1 || (group.possibleConflicts || []).length > 0).length,
     answerStatus,
     evidenceIds: mergedSources.map(source => source.url)
   });
