@@ -1,7 +1,7 @@
-const clean = value => String(value ?? '').normalize('NFKC').replace(/<[^>]*>/g, ' ').replace(/[\\u0000-\\u001f\\u007f]/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 500);
+const clean = value => String(value ?? '').normalize('NFKC').replace(/<[^>]*>/g, ' ').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 500);
 
 const KNOWN_INSTITUTIONS = [
-  { pattern: /\\b(?:abuad|afe\\s+babalola\\s+university)\\b/i, name: 'Afe Babalola University', shortName: 'ABUAD', domain: 'abuad.edu.ng', country: 'Nigeria' }
+  { pattern: /\b(?:abuad|afe\s+babalola\s+university)\b/i, name: 'Afe Babalola University', shortName: 'ABUAD', domain: 'abuad.edu.ng', country: 'Nigeria' }
 ];
 
 export function enrichOutcomeIntent(originalQuery, intent) {
@@ -15,7 +15,7 @@ export function enrichOutcomeIntent(originalQuery, intent) {
     addEntity({ text: institution.name, kind: 'university', role: 'institution' });
     addEntity({ text: institution.shortName, kind: 'university-alias', role: 'institution-alias' });
   }
-  const programme = /\\bmechatronics(?:\\s+engineering)?\\b/i.test(query)
+  const programme = /\bmechatronics(?:\s+engineering)?\b/i.test(query)
     ? 'Mechatronics Engineering'
     : '';
   if (programme) addEntity({ text: programme, kind: 'academic-programme', role: 'programme' });
