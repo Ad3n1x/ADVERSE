@@ -90,7 +90,7 @@ export async function planAgentFollowUps({ question, results, providerKeys = {},
     return (index + 1) + '. Title: ' + clean(item.title, 180) + '\n   Source: ' + clean(host, 100) + '\n   Snippet: ' + clean(item.excerpt || item.description, 320);
   }).join('\n');
   if (!sourceContext) return { leads: [], mode: 'heuristic', provider: null };
-  const intent = await understandSearchIntentWithGroq(question, { providerKeys, env });
+  const intent = await understandSearchIntentWithGroq(question, { providerKeys, env, context: sourceContext });
   const prompt = 'Investigation question: ' + clean(question, 500)
     + '\n\nDual-provider intent interpretation (planning context, not facts):'
     + '\nPrimary goal: ' + intent.type + ' — ' + clean(intent.goal || intent.label, 220)
