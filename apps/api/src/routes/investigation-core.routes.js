@@ -76,7 +76,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       initialSearch.results=ranked.map(({_searchScore,_searchOrder,...item})=>item).filter(item=>{
        try{const url=normalizeResultUrl(validatePublicUrl(item.url).href);if(seen.has(url))return false;seen.add(url);item.url=url;return true;}catch{return false;}
       }).slice(0,24);
-      initialSearch.meta={query:question,providers:[...new Set(initialSearch.results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],coverage:live.meta?.coverage||'Initial public-source search completed.',successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0};
+      initialSearch.meta={query:question,intent:live.meta?.intent||null,queryPlan:live.queryPlan||[],providers:[...new Set(initialSearch.results.flatMap(item=>[item.provider,...(item.providers||[])].filter(Boolean)))],coverage:live.meta?.coverage||'Initial public-source search completed.',successfulSearches:live.meta?.successfulSearches||0,failedSearches:live.meta?.failedSearches||0};
      }catch(error){initialSearch.meta.error=String(error?.message||'Initial search provider unavailable.');}
      const investigativeRoutes=buildInvestigativeRoutes(question,initialSearch.results);
      res.status(202).json({data:{runId,investigationId:iid,status:'running',message:'Search received. Initial results and autonomous investigation are running as one workflow.',initialSearch}});
