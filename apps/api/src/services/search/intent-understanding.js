@@ -7,7 +7,7 @@ const clean = value => String(value ?? '')
 
 const RULES = [
   // Application intent must be recognized before generic entity/how-to wording.
-  { type: 'application', label: 'Find the official application or admissions route', patterns: [/\\b(i\\s+want\\s+to\\s+apply|i\\s+would\\s+like\\s+to\\s+apply|want\\s+to\\s+apply|apply\\s+(?:to|for)|application\\s+(?:for|to)|admission(?:s)?\\s+(?:for|to)|how\\s+to\\s+apply)\\b/i], confidence: 0.94, sourcePreference: 'official' },
+  { type: 'application', label: 'Find the official application or admissions route', patterns: [/\b(i\s+want\s+to\s+apply|i\s+would\s+like\s+to\s+apply|want\s+to\s+apply|apply\s+(?:to|for)|application\s+(?:for|to)|admission(?:s)?\s+(?:for|to)|how\s+to\s+apply)\b/i], confidence: 0.94, sourcePreference: 'official' },
   { type: 'destination', label: 'Find an official or working destination', patterns: [/\b(official\s+(website|site|page)|website|web\s*site|homepage|login\s+page|sign\s*in\s+page|download\s+(page|link)|working\s+link|where\s+can\s+i\s+(find|access|download))\b/i], confidence: 0.91, sourcePreference: 'official' },
   { type: 'verification', label: 'Check a claim against evidence', patterns: [/\b(is\s+it\s+true|is\s+this\s+true|verify|verification|fact\s*check|fact-check|debunk|real\s+or\s+fake|truth\s+about|scam|fraud|legitimate|authenticity|did\s+.*\s+happen)\b/i], confidence: 0.88, sourcePreference: 'primary-and-independent' },
   { type: 'current-events', label: 'Find current news and updates', patterns: [/\b(latest|updates?|today|currently|current|recent|breaking|this\s+week|this\s+month|updates?|news|202[5-9])\b/i], confidence: 0.9, sourcePreference: 'recent' },
@@ -18,6 +18,7 @@ const RULES = [
 ];
 
 const PREFIXES = [
+  /^(?:i\s+(?:want|would\s+like)\s+to\s+apply\s+(?:to|for)|want\s+to\s+apply\s+(?:to|for)|apply\s+(?:to|for)|application\s+(?:for|to)|admissions?\s+(?:for|to))\s+/i,
   /^(?:please\s+)?(?:find|search\s+for|look\s+up|research|investigate|show\s+me|tell\s+me\s+about|explain|check)\s+/i,
   /^(?:what\s+is|what\s+are|who\s+is|who\s+are|where\s+is|when\s+did|why\s+did|how\s+does|how\s+do\s+i)\s+/i,
   /^(?:is\s+it\s+true\s+that|is\s+this\s+true\s+that|build\s+a\s+timeline\s+of|create\s+a\s+timeline\s+of|compare)\s+/i,
@@ -29,7 +30,7 @@ function extractSubject(query) {
   let subject = query;
   for (const pattern of PREFIXES) subject = subject.replace(pattern, '');
   subject = subject
-    .replace(/\b(please|for\s+me|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
+    .replace(/\b(please|i|want|would|like|apply|application|admissions?|admission|the\s+latest|latest|today|currently|right\s+now|official\s+website|official\s+site|website|web\s*site|homepage|login\s+page|download\s+link|working\s+link|fact\s*check|verify|verification|is\s+it\s+true|real\s+or\s+fake|timeline|chronology|history|historical|compare|comparison|versus|vs\.?)\b/gi, ' ')
     .replace(/\b(?:the|a|an|for|of|on|about|that|what|are|is|it|this|me|to|do|does|did)\b/gi, ' ')
     .replace(/[?!.]+$/g, '')
     .replace(/\s+/g, ' ')
