@@ -199,7 +199,7 @@ export function registerExperienceWorkspaceRoutes(app, {
     }
     const previous = records.get(item.workspaceId);
     records.set(item.workspaceId, {
-      id: item.workspaceId, intent: item.intent, kind: item.kind,
+      id: item.workspaceId, ownerId: req.user.id, intent: item.intent, kind: item.kind,
       createdAt: createdAt.getTime(), sources: previous?.sources || [], claims: previous?.claims || [], researchRuns: previous?.researchRuns || [], documents: previous?.documents || [], members: previous?.members || [], sharingEvents: previous?.sharingEvents || [],
     });
     const sorted = [...records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8);
