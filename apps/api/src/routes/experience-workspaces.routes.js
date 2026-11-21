@@ -524,6 +524,55 @@ export function registerExperienceWorkspaceRoutes(app, {
     return res.status(204).end();
   }));
 
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/task', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('taskPlan').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    return res.json({ data: record.taskPlan || null });
+  }));
+
+  app.put('/api/v1/experience/workspaces/:workspaceId/task', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const parsed = z.object({
+      title: z.string().trim().min(2).max(180),
+      summary: z.string().trim().min(2).max(500),
+      steps: z.array(z.object({
+        id: z.string().trim().min(1).max(80),
+        title: z.string().trim().min(2).max(160),
+        instruction: z.string().trim().min(2).max(600),
+        sourceUrl: z.string().url().max(2048).nullable().optional(),
+        sourceTitle: z.string().trim().max(240).optional(),
+        status: z.enum(['next', 'in_progress', 'completed', 'blocked']).default('next'),
+      })).min(1).max(10),
+    }).safeParse(req.body || {});
+    if (!parsed.success) return sendError(res, 400, 'INVALID_TASK_PLAN', 'Provide a valid guided task with up to 10 steps.');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('sources').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const knownSources = new Map((record.sources || []).map(source => [source.url, source]));
+    const steps = parsed.data.steps.map((step, index) => {
+      const source = step.sourceUrl ? knownSources.get(step.sourceUrl) : null;
+      return {
+        ...step,
+        sourceUrl: source ? source.url : null,
+        sourceTitle: source ? String(source.title || step.sourceTitle || '').slice(0, 240) : '',
+        status: step.status,
+        order: index + 1,
+      };
+    });
+    const taskPlan = { title: parsed.data.title, summary: parsed.data.summary, steps, updatedAt: new Date().toISOString() };
+    if (isDb()) {
+      await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, { $set: { taskPlan } });
+    } else {
+      record.taskPlan = taskPlan;
+    }
+    return res.json({ data: taskPlan });
+  }));
+
   app.delete('/api/v1/experience/workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
