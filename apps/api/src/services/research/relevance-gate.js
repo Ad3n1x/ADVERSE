@@ -69,14 +69,14 @@ export function evaluateSourceRelevance(source, query, intent = null, options = 
 
   const reasons = [];
   const hasUsableMetadata = metadataTerms.length >= 3;
-  const hardSubjectMismatch = subjectTerms.length >= 2 && matchedTerms.length === 0 && hasUsableMetadata;
+  const hardSubjectMismatch = subjectTerms.length >= 2 && matchedTerms.length === 0 && entityMatches.length === 0 && hasUsableMetadata;
   if (hardSubjectMismatch) reasons.push('No meaningful subject terms match the requested topic.');
   if (intent?.type && intentTerms.length && !intentMatches.length && hasUsableMetadata) {
     reasons.push('No evidence of the requested task or information type appears in the available metadata.');
   }
 
   const accepted = !hardSubjectMismatch &&
-    (!hasUsableMetadata || matchedTerms.length > 0 || intentMatches.length > 0);
+    (!hasUsableMetadata || matchedTerms.length > 0 || entityMatches.length > 0 || intentMatches.length > 0);
   return {
     score,
     matchedTerms,
