@@ -1,3 +1,5 @@
+import { understandSearchIntent } from '../search/intent-understanding.js';
+
 const clean = (value, max = 220) => String(value == null ? '' : value).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 
 export function parseLeadResponse(text) {
@@ -85,7 +87,15 @@ export async function planAgentFollowUps({ question, results, providerKeys = {},
     return (index + 1) + '. Title: ' + clean(item.title, 180) + '\n   Source: ' + clean(host, 100) + '\n   Snippet: ' + clean(item.excerpt || item.description, 320);
   }).join('\n');
   if (!sourceContext) return { leads: [], mode: 'heuristic', provider: null };
-  const prompt = 'Investigation question: ' + clean(question, 500) + '\n\nFirst-pass public search results (unverified):\n' + sourceContext + '\n\nSuggest follow-up queries that test useful leads, seek primary sources, and independently check key claims. Do not simply repeat titles. Output JSON only.';
+  const intent = understandSearchIntent(question);
+  const prompt = 'Investigation question: ' + clean(question, 500)
+    + '\n\nHeuristic intent interpretation (may be wrong; do not override the original question):'
+    + '\nGoal: ' + intent.type
+    + '\nSubject: ' + intent.subject
+    + '\nPreferred source focus: ' + intent.sourcePreference
+    + '\nInterpretation note: ' + intent.explanation
+    + '\n\nFirst-pass public search results (unverified):\n' + sourceContext
+    + '\n\nSuggest follow-up queries that match the user goal, test useful leads, seek primary sources, and independently check key claims. Include a different evidence path where relevant. Do not simply repeat titles. Output JSON only.';
   const providers = [];
   if (geminiKey) providers.push({ name: 'Gemini', run: () => planWithGemini(geminiKey, geminiModel, prompt) });
   if (base && compatibleKey && compatibleModel) providers.push({ name: 'OpenAI-compatible', run: () => planWithCompatibleProvider(base, compatibleKey, compatibleModel, prompt) });

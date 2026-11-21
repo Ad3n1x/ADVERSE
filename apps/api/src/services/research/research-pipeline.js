@@ -1,6 +1,7 @@
 import { ingestEvidence } from './evidence-ingestion.js';
 import { enrichSourceProvenance } from './source-provenance.js';
 import { linkEvidenceAutomatically } from './evidence-linking.js';
+import { buildIntentQueryVariants, understandSearchIntent } from '../search/intent-understanding.js';
 
 const cleanQuery = value => String(value || '').replace(/\s+/g, ' ').trim().slice(0, 200);
 
@@ -32,7 +33,7 @@ export async function runResearchPipeline({
   memory,
 }) {
   const seedQueries = [...new Set((Array.isArray(queries) ? queries : []).map(cleanQuery).filter(Boolean))].slice(0, 3);
-  const firstPass = await Promise.allSettled(seedQueries.map(query => searchAllPublic(query)));
+  const firstPass = await Promise.allSettled(seedQueries.map(query => searchAllPublic(query, providerKeys)));
   const seedResults = firstPass.flatMap((item, index) =>
     item.status === 'fulfilled'
       ? (item.value.results || []).map(result => ({ ...result, matchedQuery: seedQueries[index] }))
@@ -77,7 +78,13 @@ export async function runResearchPipeline({
   // Deterministic fallback ensures the workflow can still pursue leads when
   // no AI credential is configured. These are search hypotheses, not findings.
   if (!planning.leads.length) {
-    const fallbacks = [
+    const intent = understandSearchIntent(investigationQuestion);
+    const intentLeads = buildIntentQueryVariants(investigationQuestion, intent, 4).slice(1)
+      .map(item => ({
+        query: item.query,
+        reason: 'Intent-aware follow-up for ' + intent.type + ': ' + item.reason + '.',
+      }));
+    const fallbacks = intentLeads.length ? intentLeads : [
       { query: investigationQuestion + ' official source', reason: 'Seek a primary or official record.' },
       { query: investigationQuestion + ' independent reporting', reason: 'Look for reporting from a separately operated publisher.' },
       { query: investigationQuestion + ' timeline evidence', reason: 'Clarify dates and sequence of events.' },
@@ -98,7 +105,7 @@ export async function runResearchPipeline({
     seenQueries.add(key);
     return true;
   }).slice(0, 3);
-  const followUpSettled = await Promise.allSettled(followUpLeads.map(lead => searchAllPublic(lead.query)));
+  const followUpSettled = await Promise.allSettled(followUpLeads.map(lead => searchAllPublic(lead.query, providerKeys)));
   const followUpResults = followUpSettled.flatMap((item, index) =>
     item.status === 'fulfilled'
       ? (item.value.results || []).map(result => ({

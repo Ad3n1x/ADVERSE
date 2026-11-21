@@ -1,6 +1,8 @@
 import { searchPublic } from './providers.js';
 import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
+import { buildIntentQueryVariants, understandSearchIntent } from './intent-understanding.js';
+import { understandSearchIntentWithGroq } from './groq-intent.js';
 
 const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
 
@@ -59,9 +61,10 @@ const SYNONYMS = new Map([
 ]);
 
 /** Small bounded query planner: exact wording first, then useful variants and individual terms. */
-export function expandSearchQueries(input, maxQueries = 5) {
+export function expandSearchQueries(input, maxQueries = 5, intentOverride = null) {
   const raw = clean(input, 200);
   if (!raw) return [];
+  const intent = intentOverride || understandSearchIntent(raw);
   const queries = [];
   const seen = new Set();
   const add = (q, reason) => {
@@ -74,6 +77,10 @@ export function expandSearchQueries(input, maxQueries = 5) {
   };
   add('"' + raw.replace(/"/g, '') + '"', 'exact phrase');
   add(raw, 'natural-language query');
+  const intentVariants = buildIntentQueryVariants(raw, intent, 5);
+  for (const item of intentVariants.filter(entry => entry.reason === 'intent-focused subject')) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('Groq:'))) add(item.query, item.reason);
+  for (const item of intentVariants.filter(entry => entry.reason.startsWith('intent:'))) add(item.query, item.reason);
   const words = [...new Set((raw.toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}._+-]*/gu) || []))];
   const meaningful = words.filter(w => !STOP.has(w));
   if (meaningful.length > 1) add(meaningful.join(' '), 'core terms');
@@ -82,11 +89,9 @@ export function expandSearchQueries(input, maxQueries = 5) {
     if (queries.length >= maxQueries || queries.some(item => item.reason === 'related wording')) break;
     const variants = SYNONYMS.get(word);
     if (variants) {
-      for (const variant of variants) {
-        const at = raw.toLocaleLowerCase().indexOf(word);
-        add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
-        if (queries.length >= maxQueries) break;
-      }
+      const variant = variants[0];
+      const at = raw.toLocaleLowerCase().indexOf(word);
+      add(at >= 0 ? raw.slice(0, at) + variant + raw.slice(at + word.length) : raw + ' ' + variant, 'related wording');
     }
   }
   if (meaningful.length > 1) add(meaningful.join(' OR '), 'broad term match');
@@ -211,9 +216,13 @@ export function rankPublicResults(items, query) {
 
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
 async function performSearchAllPublic(input, providerKeys = {}) {
+  const originalInputQuery = typeof input === 'string'
+    ? clean(input, 200)
+    : clean(((input.find(item => item && item.reason === 'natural-language query') || input[0]) || {}).query || input[0], 200);
+  const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys });
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
-    : expandSearchQueries(input);
+    : expandSearchQueries(input, 5, intent);
   const publicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
@@ -278,6 +287,7 @@ async function performSearchAllPublic(input, providerKeys = {}) {
     results,
     queryPlan,
     meta: {
+      intent,
       providerNames: [...new Set([...publicProviders.map(([name]) => name), 'Additional configured providers'])],
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,

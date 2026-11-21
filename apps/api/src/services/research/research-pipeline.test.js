@@ -138,3 +138,23 @@ test('research pipeline follows a planned lead and reports the investigation tra
   assert.equal(result.savedCount, 2);
   assert.ok(result.results.every(item => item.verificationStatus === 'unverified'));
 });
+
+
+test('research pipeline uses the interpreted goal for deterministic follow-up searches', async () => {
+  const harness = makeHarness({
+    results: [{ title: 'Seed report', url: 'https://example.com/seed', publisher: 'Example', provider: 'Test index' }],
+  });
+  harness.dependencies.question = 'Is it true that the agency changed its policy?';
+  const calls = [];
+  harness.dependencies.searchAllPublic = async query => {
+    calls.push(query);
+    return { results: [{ title: 'Seed report', url: 'https://example.com/seed', publisher: 'Example', provider: 'Test index' }] };
+  };
+
+  const result = await runResearchPipeline(harness.dependencies);
+
+  assert.ok(result.followUpQueries.some(item => /primary source evidence/i.test(item.query)));
+  assert.ok(result.followUpQueries.some(item => /independent fact check/i.test(item.query)));
+  assert.ok(calls.some(query => /primary source evidence/i.test(query)));
+  assert.equal(result.leadPlanning.mode, 'heuristic');
+});
