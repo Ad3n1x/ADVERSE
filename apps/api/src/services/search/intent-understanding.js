@@ -97,5 +97,8 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'general-research': [],
   };
   for (const suffix of suffixes[intent?.type] || []) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) {
+    add(item?.query, 'Groq: ' + clean(item?.reason || 'intent-specific lead', 80));
+  }
   return candidates.slice(0, Math.max(1, Math.min(5, Number(limit) || 3)));
 }
