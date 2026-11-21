@@ -91,3 +91,18 @@ test('empty or non-claim evidence returns a bounded, explicit empty analysis', (
   assert.deepEqual(result.claims, []);
   assert.ok(result.method.length > 0);
 });
+
+
+test('claim triage flags highly similar excerpts across domains as a provenance lead, not independent corroboration', () => {
+  const sharedExcerpt = 'The transport authority published its annual programme after reviewing regional demand, projected passenger growth, service reliability, capital investment, operating costs, and the timetable for implementation across the metropolitan network. The report describes planned improvements and sets out the authority\'s stated priorities for the coming year.';
+  const result = analyzeEvidenceClaims([
+    evidence('ev-wire', 'https://wire.example/transport', sharedExcerpt + ' The authority approved 120 projects in 2025 following its annual public review.'),
+    evidence('ev-copy', 'https://publisher.example/transport', sharedExcerpt + ' The authority approved 120 projects in 2025 following its annual public review.'),
+  ]);
+  const claim = result.claims.find(item => item.possibleSyndicationSignals?.length);
+  assert.ok(claim, 'expected a cross-domain near-identical passage to be flagged');
+  assert.equal(claim.possibleSyndicationSignals[0].sourceA, 'ev-wire');
+  assert.equal(claim.possibleSyndicationSignals[0].sourceB, 'ev-copy');
+  assert.match(claim.possibleSyndicationSignals[0].note, /not count them as independent corroboration/i);
+  assert.ok(!('sourceText' in claim.sources[0]), 'raw excerpts should not be copied into the claim summary metadata');
+});
