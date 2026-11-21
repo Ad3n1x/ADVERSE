@@ -118,8 +118,9 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
   const fallback = understandSearchIntent(original);
   if (!original) return { ...fallback, provider: 'rules', model: null, confidenceKind: 'rule-estimate', ambiguities: [], suggestedQueries: [] };
   const env = options.env || process.env;
-  const apiKey = String(env.GROQ_API_KEY || '').trim();
-  if (!apiKey) return fallbackResult(original, fallback, 'GROQ_API_KEY is not configured on the API service.');
+  const providerKeys = options.providerKeys || {};
+  const apiKey = String(providerKeys.GROQ_API_KEY || env.GROQ_API_KEY || '').trim();
+  if (!apiKey) return fallbackResult(original, fallback, 'Groq is not configured for this search or on the API service.');
 
   const model = clean(env.GROQ_INTENT_MODEL || MODEL_DEFAULT, 100);
   const key = model + ':' + original.toLocaleLowerCase();
