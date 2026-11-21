@@ -30,3 +30,23 @@ test('ranking remains deterministic when candidates tie', () => {
   ], 'unmatched topic');
   assert.deepEqual(results.map(item => item.url), ['https://example.org/first', 'https://example.org/second']);
 });
+
+test('application intent ranks admissions routes above incidental mentions of the institution', () => {
+  const intent = { type: 'application', sourcePreference: 'official' };
+  const results = rankPublicResults([
+    { title: 'ABUAD campus news and events', url: 'https://news.example.com/abuad', excerpt: 'Latest updates from the university.' },
+    { title: 'ABUAD Undergraduate Admissions Portal', url: 'https://admissions.abuad.edu.ng/apply', excerpt: 'Application steps and entry requirements.' },
+    { title: 'ABUAD employment opportunities', url: 'https://jobs.example.com/abuad', excerpt: 'Careers and vacancies.' },
+  ], 'ABUAD', intent);
+  assert.equal(results[0].title, 'ABUAD Undergraduate Admissions Portal');
+  assert.ok(results.findIndex(item => /employment/i.test(item.title)) > 0);
+});
+
+test('intent-aware ranking is optional and safely handles missing URLs', () => {
+  const results = rankPublicResults([
+    { title: 'ABUAD admissions portal' },
+    { title: 'ABUAD general overview' },
+  ], 'ABUAD', { type: 'application', sourcePreference: 'official' });
+  assert.equal(results.length, 2);
+  assert.equal(results[0].title, 'ABUAD admissions portal');
+});
