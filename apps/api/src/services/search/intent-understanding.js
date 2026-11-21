@@ -108,7 +108,7 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
   const suffixes = {
     application: ['official admissions application portal', 'admission requirements eligibility', 'application deadline fees required documents next steps'],
     eligibility: ['official eligibility criteria requirements', 'compare qualifications with entry requirements'],
-    'fees-costs': ['official fee schedule tuition additional charges', 'current academic session programme fees', 'institution programme degree fees 2026 2027', 'official undergraduate fee schedule programme tuition acceptance accommodation charges'],
+    'fees-costs': ['official fee schedule tuition additional charges', 'current academic session programme fees', 'official undergraduate fee schedule programme tuition acceptance accommodation charges 2026 2027'],
     'programme-availability': ['official programme catalogue available degrees', 'programme accreditation entry requirements'],
     deadline: ['official current deadline closing date', 'academic session application date changes'],
     'scholarship-funding': ['official scholarship eligibility coverage deadline', 'scholarship application procedure sponsor'],
