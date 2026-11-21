@@ -229,7 +229,9 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
   const [sourceSyncStatus, setSourceSyncStatus] = useState<'idle' | 'saved' | 'local'>('idle');
   const [plannerMode, setPlannerMode] = useState<'ai' | 'deterministic'>('deterministic');
   const [showGeospatial, setShowGeospatial] = useState(false);
-  const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);\n  const [guidedTask, setGuidedTask] = useState<GuidedTaskPlan | null>(null);\n  const [taskSaveNotice, setTaskSaveNotice] = useState('');
+  const [resolvedPlan, setResolvedPlan] = useState<IntentPlan | null>(null);
+  const [guidedTask, setGuidedTask] = useState<GuidedTaskPlan | null>(null);
+  const [taskSaveNotice, setTaskSaveNotice] = useState('');
   const resolutionSequence = useRef(0);
 
   useEffect(() => {
