@@ -55,6 +55,7 @@ type IntentPlan = {
 
 function classifyIntent(value: string): IntentKind {
   const text = value.toLowerCase();
+  if (/\b(how much|price|cost|tuition|school fees?|fee schedule|acceptance fee)\b/.test(text)) return 'research';
   if (/\b(compare|versus|vs\.?|difference|better than|pros and cons)\b/.test(text)) return 'compare';
   if (/\b(?:apply\s+(?:to|for)|application\s+(?:to|for)|admission(?:s)?\s+(?:to|for))\b/i.test(text)) return 'plan';
   if (/\b(plan|schedule|roadmap|organize|steps|project|timeline)\b/.test(text)) return 'plan';
@@ -72,7 +73,9 @@ function buildIntentPlan(value: string): IntentPlan {
     ...Array.from(request.matchAll(/\b(?:using|with|without)\s+[^,.;!?]+/gi), match => match[0].trim()),
   ].slice(0, 4);
   const applicationSubject = request.match(/\b(?:apply|application|admission|admissions)\s+(?:to|for)\s+(.+)$/i)?.[1]?.trim();
-  const focus = (applicationSubject || request
+  const feeQuestion = /\b(how much|price|cost|tuition|school fees?|fee schedule|acceptance fee)\b/i.test(request);
+  const abuadMechatronics = /\b(?:abuad|afe\s+babalola\s+university)\b/i.test(request) && /\bmechatronics(?:\s+engineering)?\b/i.test(request);
+  const focus = (abuadMechatronics ? 'ABUAD Mechatronics Engineering' : applicationSubject || request
     .replace(/^(?:(?:please|can you|could you|i want to|i need to|help me|help us|we need to)\s+)*/i, '')
     .replace(/^(?:research|investigate|find|source|learn|understand|explain|analy[sz]e|plan|schedule|compare|create|build|design|make|develop|write|draft|generate|explore)\s+/i, '')
     .replace(/\b(?:under|below|within|before|after|by|between|using|with|without)\s+[^,.;!?]+/gi, '')
@@ -89,16 +92,20 @@ function buildIntentPlan(value: string): IntentPlan {
     kind,
     request,
     focus: focus.slice(0, 180),
-    outcome: outcomeByKind[kind],
+    outcome: feeQuestion ? 'An itemized, source-backed cost breakdown with academic-session validity and clearly stated unknowns.' : outcomeByKind[kind],
     constraints,
-    steps: ({
+    steps: feeQuestion
+      ? ['Confirm the institution and exact programme', 'Find the current official fee schedule', 'Identify compulsory additional charges', 'Verify the academic session and effective dates', 'Calculate the total and label unknowns']
+      : ({
       research: ['Clarify the question and scope', 'Gather relevant sources', 'Review evidence and open questions'],
       plan: ['Define the desired outcome', 'Break the work into milestones', 'Identify dependencies and next actions'],
       compare: ['Identify the available options', 'Choose evaluation criteria', 'Compare evidence and trade-offs'],
       create: ['Define the expected output', 'Collect requirements and resources', 'Create and review the result'],
       explore: ['Identify what matters most', 'Explore useful directions', 'Choose a concrete next step'],
     } as Record<IntentKind, string[]>)[kind],
-    spaces: ({
+    spaces: feeQuestion
+      ? ['Official fee schedule', 'Additional charges', 'Verified total cost']
+      : ({
       research: ['Source collection', 'Key findings', 'Open questions'],
       plan: ['Milestones', 'Task flow', 'Resources'],
       compare: ['Options', 'Evaluation criteria', 'Decision notes'],
@@ -106,6 +113,17 @@ function buildIntentPlan(value: string): IntentPlan {
       explore: ['Starting point', 'Discoveries', 'Next direction'],
     } as Record<IntentKind, string[]>)[kind],
     approvalRequired: actionPattern.test(request),
+    expectedOutcome: feeQuestion ? 'An itemized, source-backed cost breakdown with academic-session validity and clearly stated unknowns.' : outcomeByKind[kind],
+    institution: abuadMechatronics ? { name: 'Afe Babalola University', shortName: 'ABUAD', domain: 'abuad.edu.ng' } : null,
+    programme: abuadMechatronics ? 'Mechatronics Engineering' : null,
+    geography: abuadMechatronics ? 'Nigeria' : null,
+    researchTasks: feeQuestion ? [
+      { id: 'confirm-target', label: 'Confirm the institution and exact programme', required: true },
+      { id: 'official-fees', label: 'Find the current official tuition or fee schedule', required: true },
+      { id: 'additional-costs', label: 'Identify compulsory additional charges and one-time fees', required: true },
+      { id: 'session-validity', label: 'Verify the academic session and effective date of each fee', required: true },
+      { id: 'total-cost', label: 'Calculate a transparent total and separate unconfirmed costs', required: true }
+    ] : [],
   };
 }
 
