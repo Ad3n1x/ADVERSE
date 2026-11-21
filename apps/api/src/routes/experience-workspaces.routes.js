@@ -146,7 +146,7 @@ function normalizeSources(input) {
 }
 
 export function registerExperienceWorkspaceRoutes(app, {
-  requireAuth, wrap, sendError, isDb, ExperienceWorkspace,
+  requireAuth, wrap, sendError, isDb, ExperienceWorkspace, User,
 }) {
   app.get('/api/v1/experience/workspaces', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
     if (isDb()) {
@@ -323,6 +323,119 @@ export function registerExperienceWorkspaceRoutes(app, {
     return res.status(201).json({ data, meta: { saved: data.length } });
   }));
 
+
+
+  // Workspace sharing is intentionally read-only in this release. Only an owner
+  // can grant/revoke access, and recipients must already have an active account.
+  app.get('/api/v1/experience/shared-workspaces', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    if (isDb()) {
+      const records = await ExperienceWorkspace.find({ 'members.userId': req.user.id })
+        .sort({ updatedAt: -1 }).limit(50).select('workspaceId ownerId intent kind updatedAt members').lean();
+      return res.json({ data: records.map(record => ({
+        id: record.workspaceId, ownerId: record.ownerId, intent: record.intent, kind: record.kind,
+        updatedAt: record.updatedAt,
+        role: record.members.find(member => member.userId === req.user.id)?.role || 'viewer',
+      })) });
+    }
+    const store = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__ ||= new Map();
+    const shared = [];
+    for (const [ownerId, records] of store.entries()) {
+      for (const record of records.values()) {
+        const membership = (record.members || []).find(member => member.userId === req.user.id);
+        if (membership) shared.push({ id: record.id, ownerId, intent: record.intent, kind: record.kind, updatedAt: record.updatedAt || record.createdAt, role: membership.role });
+      }
+    }
+    return res.json({ data: shared.sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0)).slice(0, 50) });
+  }));
+
+  app.get('/api/v1/experience/shared-workspaces/:workspaceId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ workspaceId, 'members.userId': req.user.id }).lean()
+      : (() => {
+          const store = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__ || new Map();
+          for (const records of store.values()) {
+            const item = records.get(workspaceId);
+            if (item && (item.members || []).some(member => member.userId === req.user.id)) return item;
+          }
+          return null;
+        })();
+    if (!record) return sendError(res, 404, 'SHARED_WORKSPACE_NOT_FOUND', 'Shared workspace not found.');
+    const membership = (record.members || []).find(member => member.userId === req.user.id);
+    return res.json({ data: {
+      id: record.workspaceId || record.id, ownerId: record.ownerId, intent: record.intent, kind: record.kind,
+      sources: record.sources || [], claims: record.claims || [], researchRuns: record.researchRuns || [],
+      documents: (record.documents || []).map(({ text, ...metadata }) => metadata),
+      role: membership?.role || 'viewer',
+    } });
+  }));
+
+  app.get('/api/v1/experience/workspaces/:workspaceId/members', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('members sharingEvents').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    return res.json({ data: record.members || [], audit: (record.sharingEvents || []).slice(-50).reverse() });
+  }));
+
+  app.post('/api/v1/experience/workspaces/:workspaceId/members', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const parsed = z.object({ email: z.string().trim().email().max(254) }).safeParse(req.body || {});
+    if (!parsed.success) return sendError(res, 400, 'INVALID_MEMBER', 'Provide the email address of an existing active ADVERSE account.');
+    if (!User?.findOne) return sendError(res, 503, 'SHARING_UNAVAILABLE', 'Account lookup is unavailable.');
+    const target = await User.findOne({ email: parsed.data.email.toLowerCase(), status: 'active' }).select('_id email').lean();
+    if (!target) return sendError(res, 404, 'MEMBER_NOT_FOUND', 'No active account exists for that email address.');
+    const memberId = String(target._id);
+    if (memberId === String(req.user.id)) return sendError(res, 400, 'CANNOT_SHARE_WITH_SELF', 'You already own this workspace.');
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('members').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    if ((record.members || []).some(member => member.userId === memberId)) {
+      return res.json({ data: (record.members || []).filter(member => member.userId === memberId), meta: { alreadyShared: true } });
+    }
+    if ((record.members || []).length >= 10) return sendError(res, 409, 'MEMBER_LIMIT_REACHED', 'A workspace can be shared with at most 10 accounts.');
+    const member = { userId: memberId, email: target.email, role: 'viewer', addedBy: req.user.id, addedAt: new Date() };
+    const event = { userId: memberId, email: target.email, action: 'shared', actorId: req.user.id, occurredAt: new Date() };
+    if (isDb()) {
+      await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, {
+        $addToSet: { members: member },
+        $push: { sharingEvents: { $each: [event], $slice: -50 } },
+      });
+    } else {
+      record.members ||= [];
+      record.sharingEvents ||= [];
+      record.members.push(member);
+      record.sharingEvents.push(event);
+      record.sharingEvents = record.sharingEvents.slice(-50);
+    }
+    return res.status(201).json({ data: [member], meta: { role: 'viewer', access: 'read-only' } });
+  }));
+
+  app.delete('/api/v1/experience/workspaces/:workspaceId/members/:memberId', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
+    const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
+    const memberId = String(req.params.memberId || '').slice(0, 100);
+    const record = isDb()
+      ? await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('members').lean()
+      : globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
+    if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
+    const member = (record.members || []).find(item => item.userId === memberId);
+    if (!member) return sendError(res, 404, 'MEMBER_NOT_FOUND', 'Workspace member not found.');
+    const event = { userId: member.userId, email: member.email, action: 'revoked', actorId: req.user.id, occurredAt: new Date() };
+    if (isDb()) {
+      await ExperienceWorkspace.updateOne({ ownerId: req.user.id, workspaceId }, {
+        $pull: { members: { userId: memberId } },
+        $push: { sharingEvents: { $each: [event], $slice: -50 } },
+      });
+    } else {
+      record.members = record.members.filter(item => item.userId !== memberId);
+      record.sharingEvents ||= [];
+      record.sharingEvents.push(event);
+      record.sharingEvents = record.sharingEvents.slice(-50);
+    }
+    return res.status(204).end();
+  }));
 
   // Deliberately accept plain text only. This avoids executing or parsing untrusted
   // office/PDF formats in the API process; richer parsers require isolated workers.
