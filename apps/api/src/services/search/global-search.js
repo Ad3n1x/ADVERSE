@@ -223,11 +223,11 @@ export function rankPublicResults(items, query) {
 }
 
 /** Search each provider with a bounded set of query variants; isolate provider/query failures. */
-async function performSearchAllPublic(input, providerKeys = {}) {
+async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const originalInputQuery = typeof input === 'string'
     ? clean(input, 200)
     : clean(((input.find(item => item && item.reason === 'natural-language query') || input[0]) || {}).query || input[0], 200);
-  const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys });
+  const intent = await understandSearchIntentWithGroq(originalInputQuery, { providerKeys, context: options.context || '' });
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input, 6, intent);
@@ -312,11 +312,11 @@ const PUBLIC_SEARCH_CACHE_MAX = 100;
 const publicSearchCache = new Map();
 const publicSearchInflight = new Map();
 
-function publicSearchCacheKey(input) {
+function publicSearchCacheKey(input, context = '') {
   const normalized = Array.isArray(input)
     ? JSON.stringify(input.slice(0, 5).map(item => typeof item === 'string' ? item : { query: item?.query, reason: item?.reason }))
     : clean(input, 200).normalize('NFKC').toLocaleLowerCase();
-  return normalized;
+  return normalized + ':' + clean(context, 1200).toLocaleLowerCase();
 }
 
 /**
@@ -324,9 +324,9 @@ function publicSearchCacheKey(input) {
  * credentials bypass it so one user's provider configuration never affects another.
  * Concurrent identical anonymous searches share one provider fan-out.
  */
-export async function searchAllPublic(input, providerKeys = {}) {
-  if (Object.keys(providerKeys || {}).length > 0) return performSearchAllPublic(input, providerKeys);
-  const key = publicSearchCacheKey(input);
+export async function searchAllPublic(input, providerKeys = {}, options = {}) {
+  if (Object.keys(providerKeys || {}).length > 0) return performSearchAllPublic(input, providerKeys, options);
+  const key = publicSearchCacheKey(input, options.context || '');
   const now = Date.now();
   const cached = publicSearchCache.get(key);
   if (cached && cached.expiresAt > now) return structuredClone(cached.value);
@@ -335,7 +335,7 @@ export async function searchAllPublic(input, providerKeys = {}) {
   const pending = publicSearchInflight.get(key);
   if (pending) return structuredClone(await pending);
 
-  const task = performSearchAllPublic(input, providerKeys);
+  const task = performSearchAllPublic(input, providerKeys, options);
   publicSearchInflight.set(key, task);
   try {
     const result = await task;
