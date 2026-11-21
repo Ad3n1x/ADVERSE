@@ -58,7 +58,8 @@ export function registerExperienceResearchJobRoutes(app, {
     if (existing) return res.status(200).json({ data: serialize(existing), meta: { reused: true } });
     const activeKey = String(req.user.id) + ':' + input.workspaceId;
     const active = await ExperienceResearchJob.findOne({ activeKey }).lean();
-    if (active) return res.status(409).json({ error: { code: 'RESEARCH_ALREADY_RUNNING', message: 'This workspace already has an active research job.', details: { jobId: active.jobId } } });
+    if (active && active.query === input.query) return res.status(200).json({ data: serialize(active), meta: { reused: true } });
+    if (active) return res.status(409).json({ error: { code: 'RESEARCH_ALREADY_RUNNING', message: 'This workspace already has a different active research job.', details: { jobId: active.jobId } } });
     const jobId = crypto.randomUUID();
     const now = new Date();
     try {
