@@ -11,11 +11,12 @@ const assessments: Array<{ value: ClaimAssessment; label: string }> = [
 ];
 
 export default function ExperienceClaimsPanel({
-  workspaceId, sources, onClaimsChange,
+  workspaceId, sources, onClaimsChange, refreshKey = 0,
 }: {
   workspaceId: string;
   sources: ExperienceSource[];
   onClaimsChange: (claims: ExperienceClaim[]) => void;
+  refreshKey?: number;
 }) {
   const [claims, setClaims] = useState<ExperienceClaim[]>([]);
   const [claimText, setClaimText] = useState('');
@@ -43,7 +44,7 @@ export default function ExperienceClaimsPanel({
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [workspaceId]);
+  }, [workspaceId, refreshKey]);
 
   const sourceTitles = useMemo(() => new Map(sources.map(source => [source.url, source.title || source.url])), [sources]);
 
@@ -97,7 +98,7 @@ export default function ExperienceClaimsPanel({
         <div><span className="experience-section-label"><ShieldCheck size={13} /> CLAIM LEDGER</span><h3 id="experience-claims-title">Connect statements to sources</h3></div>
         <span>{claims.length} saved claims</span>
       </div>
-      <p className="experience-extension-intro">Record a statement you are examining, link sources that support, challenge, or contextualise it, and preserve your current assessment. These labels are analyst judgements, not automatic truth verdicts.</p>
+      <p className="experience-extension-intro">ADVERSE extracts candidate statements from saved source excerpts and links them as context. They remain unreviewed until you assess the original sources. You can also add your own statements.</p>
       <div className="experience-claim-create">
         <label>
           <span>STATEMENT TO EXAMINE</span>
@@ -159,6 +160,7 @@ export default function ExperienceClaimsPanel({
           <div className="experience-claim-card-head">
             <strong>{claim.text}</strong>
             <span className={'experience-claim-status status-' + claim.assessment}>{claim.assessment.replace('_', ' ').toUpperCase()}</span>
+            {claim.claimId.startsWith('auto-') && <span className="experience-claim-auto-label">AUTO-EXTRACTED</span>}
           </div>
           {claim.evidenceLinks.length > 0 && <div className="experience-claim-linked-sources">
             {claim.evidenceLinks.map(link => <span key={link.url}>{link.role.toUpperCase()} · {sourceTitles.get(link.url) || link.url}</span>)}
