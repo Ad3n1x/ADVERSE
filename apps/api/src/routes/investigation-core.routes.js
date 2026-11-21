@@ -48,6 +48,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
      if(!investigation)return sendError(res,404,'NOT_FOUND','Investigation not found.');
      const title=String(investigation.title||'').trim();
      const question=String(investigation.question||title).trim();
+     const intentContext=String(req.body?.context||'').replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim().slice(0,1200);
      if(question.length<2)return sendError(res,400,'RESEARCH_QUESTION_REQUIRED','Add a clear investigation question before starting the agent.');
      const currentState=investigation.agentRunState||{};
      if(isFreshRunningAgentRun(currentState))return sendError(res,409,'AGENT_ALREADY_RUNNING','This investigation already has a research run in progress.');
@@ -70,7 +71,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
      const providerKeys=await getUserProviderKeys(req.user.id);
      let initialSearch={results:[],meta:{query:question,providers:[],coverage:'Initial search unavailable; the autonomous research agent will continue with configured providers.'}};
      try{
-      const live=await searchAllPublic(question,providerKeys);
+      const live=await searchAllPublic(question,providerKeys,{context:intentContext});
       const ranked=diversifyPublicResults(Array.isArray(live.results)?live.results:[],question,{limit:24,maxPerDomain:3});
       const seen=new Set();
       initialSearch.results=ranked.map(({_searchScore,_searchOrder,...item})=>item).filter(item=>{
@@ -107,7 +108,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       if(!current.length)continue;
       await recordTrace({stage:'search',round,status:'running',detail:round===1?'Searching the original mission across available public indexes.':'Following promising leads from round '+(round-1)+' and cross-checking them against additional public sources.'});
       const settled=await Promise.all(current.map(async item=>{
-       try{return {plan:item,result:await searchAllPublic(item.query,providerKeys)};}
+       try{return {plan:item,result:await searchAllPublic(item.query,providerKeys,{context:[intentContext,'Original investigation: '+question].filter(Boolean).join(' | ')})};}
        catch{return {plan:item,result:{results:[],meta:{failedSearches:1},error:'Provider search failed'}};}
       }));
       for(const item of settled){
@@ -117,7 +118,7 @@ export function registerInvestigationCoreRoutes(app, deps) {
       await recordTrace({stage:'search',round,status:'complete',queries:current.map(item=>item.query),resultCount:settled.reduce((sum,item)=>sum+(item.result.results||[]).length,0),providers:[...new Set(settled.flatMap(item=>(item.result.results||[]).flatMap(r=>[r.provider,...(r.providers||[])].filter(Boolean))))]});
       if(round<4){
        await recordTrace({stage:'plan',round,status:'running',detail:'Evaluating round '+round+' findings and planning the next bounded set of independent follow-up searches.'});
-       const planned=await planAgentFollowUps({question,results:allResults,providerKeys});
+       const planned=await planAgentFollowUps({question,results:allResults,providerKeys,context:intentContext});
        const aiCandidates=planned.mode==='ai'&&Array.isArray(planned.leads)?planned.leads.slice(0,3):[];
        const previouslyUsedRoutes=new Set(plan.map(item=>item.routeId).filter(Boolean));
        const routeCandidates=investigativeRoutesForRound(investigativeRoutes,round)
