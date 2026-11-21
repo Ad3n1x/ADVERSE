@@ -113,7 +113,7 @@ export function registerExperienceResearchJobRoutes(app, {
   app.post('/api/v1/experience/jobs/:jobId/resume', jobsRateLimit, requireAuth, wrap(async (req, res) => {
     const job = await ExperienceResearchJob.findOneAndUpdate(
       { ownerId: req.user.id, jobId: String(req.params.jobId || '').slice(0, 100), status: 'paused' },
-      { $set: { status: 'queued', stage: 'queued', progress: Math.min(90, Number(req.body?.resumeProgress || 0)), pauseRequested: false, cancelRequested: false, nextRunAt: new Date(), leaseOwner: '', leaseExpiresAt: null, errorCode: '', errorMessage: '' }, $push: { events: { $each: [{ stage: 'queued', message: 'Research resumed. ADVERSE will continue from the saved workspace evidence.', progress: 0, at: new Date() }], $slice: -30 } } },
+      { $set: { status: 'queued', stage: 'queued', progress: 0, pauseRequested: false, cancelRequested: false, nextRunAt: new Date(), leaseOwner: '', leaseExpiresAt: null, errorCode: '', errorMessage: '' }, $push: { events: { $each: [{ stage: 'queued', message: 'Research resumed. ADVERSE will continue from the saved workspace evidence.', progress: 0, at: new Date() }], $slice: -30 } } },
       { new: true },
     ).lean();
     if (!job) return sendError(res, 409, 'JOB_NOT_RESUMABLE', 'This research job is not paused.');
