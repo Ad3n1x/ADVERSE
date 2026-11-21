@@ -82,10 +82,6 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     candidates.push({ query: value, reason });
   };
 
-  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) {
-    add(subject, 'intent-focused subject');
-  }
-
   const suffixes = {
     destination: ['official site domain'],
     verification: ['primary source evidence', 'independent fact check'],
@@ -100,5 +96,9 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     add(item?.query, 'Groq: ' + clean(item?.reason || 'intent-specific lead', 80));
   }
   for (const suffix of suffixes[intent?.type] || []) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  // Keep goal-specific evidence leads ahead of a generic subject-only variant.
+  if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) {
+    add(subject, 'intent-focused subject');
+  }
   return candidates.slice(0, Math.max(1, Math.min(5, Number(limit) || 3)));
 }
