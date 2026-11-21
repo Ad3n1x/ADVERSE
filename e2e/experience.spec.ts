@@ -139,6 +139,8 @@ test('authenticated experience supports source triage, claim links, chronology, 
   await page.locator('.experience-review-toolbar button').filter({ hasText: 'Useful' }).click();
   await expect(page.locator('.experience-source-card').getByText('Public energy storage report').first()).toBeVisible();
 
+  const claimsDetails = page.locator('details.experience-progress-details').filter({ hasText: 'Claims, dossier, run history and access documents' });
+  await claimsDetails.locator('summary').click();
   await page.getByLabel('Statement to examine').fill('Grid-scale energy storage deployment increased during the reporting period.');
   await page.getByLabel('Link source: Public energy storage report').check();
   await page.getByLabel('Evidence role for Public energy storage report').selectOption('supports');
