@@ -225,18 +225,18 @@ async function executeJob(job, getUserProviderKeys) {
     const resolvedIntent = ResolvedIntentSchema.parse({
       originalQuery: job.query,
       type: resolved.type || 'general-research',
-      goal: resolved.goal || resolved.label || 'Research the requested subject',
-      subject: resolved.subject || resolved.searchQuery || job.query,
+      goal: clean(resolved.goal || resolved.label || 'Research the requested subject', 300),
+      subject: clean(resolved.subject || resolved.searchQuery || job.query, 300),
       entities: (Array.isArray(resolved.entities) ? resolved.entities : []).map(item => ({
-        text: typeof item === 'string' ? item : item?.text,
+        text: clean(typeof item === 'string' ? item : item?.text, 150),
         kind: entityKinds.has(item?.kind) ? item.kind : 'unknown',
-        role: item?.role || 'context'
+        role: clean(item?.role || 'context', 80)
       })).filter(item => typeof item.text === 'string' && item.text.trim()).slice(0, 20),
-      constraints: Array.isArray(resolved.constraints) ? resolved.constraints.filter(value => typeof value === 'string').slice(0, 20) : [],
+      constraints: Array.isArray(resolved.constraints) ? resolved.constraints.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 20) : [],
       preferences: { sourcePreference: resolved.sourcePreference || 'balanced' },
-      subgoals: Array.isArray(resolved.subgoals) ? resolved.subgoals.filter(value => typeof value === 'string').slice(0, 12) : [],
+      subgoals: Array.isArray(resolved.subgoals) ? resolved.subgoals.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 12) : [],
       clarificationNeeded: Boolean(resolved.clarificationNeeded),
-      ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').slice(0, 10) : [],
+      ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 10) : [],
       confidence: Math.max(0, Math.min(1, Number(resolved.confidence) || 0))
     });
     const queries = buildResearchQueryPlan(job.query, resolved);
