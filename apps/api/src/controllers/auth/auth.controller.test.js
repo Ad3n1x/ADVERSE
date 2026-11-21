@@ -134,7 +134,7 @@ test('database account deletion removes owned research jobs without touching ano
   };
   const controller = createAuthController({
     authSchema: z.object({}), sendError: () => res, ownerEmail: () => 'owner@example.com',
-    isDb: () => true, User: deleteModel('User'), memory, id: () => 'unused',
+    isDb: () => true, User: { ...deleteModel('User'), deleteOne: async (filter) => { deleted.push({ name: 'User.deleteOne', filter }); return { deletedCount: 1 }; } }, memory, id: () => 'unused',
     setSession: () => {}, tokenFor: () => 'unused',
     Investigation: investigation, Evidence: deleteModel('Evidence'), Entity: deleteModel('Entity'),
     Relationship: deleteModel('Relationship'), Watch: deleteModel('Watch'), Alert: deleteModel('Alert'),
