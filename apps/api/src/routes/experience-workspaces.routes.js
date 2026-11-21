@@ -265,13 +265,13 @@ export function registerExperienceWorkspaceRoutes(app, {
     const workspaceId = String(req.params.workspaceId || '').slice(0, 100);
     if (!workspaceId) return sendError(res, 400, 'INVALID_WORKSPACE_ID', 'Workspace ID is required.');
     if (isDb()) {
-      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims').lean();
+      const record = await ExperienceWorkspace.findOne({ ownerId: req.user.id, workspaceId }).select('claims answerStatus').lean();
       if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
-      return res.json({ data: Array.isArray(record.claims) ? record.claims : [] });
+      return res.json({ data: Array.isArray(record.claims) ? record.claims : [], meta: { answerStatus: record.answerStatus || null } });
     }
     const record = globalThis.__ADVERSE_EXPERIENCE_WORKSPACES__?.get(req.user.id)?.get(workspaceId);
     if (!record) return sendError(res, 404, 'WORKSPACE_NOT_FOUND', 'Workspace not found.');
-    return res.json({ data: record.claims || [] });
+    return res.json({ data: record.claims || [], meta: { answerStatus: record.answerStatus || null } });
   }));
 
   app.put('/api/v1/experience/workspaces/:workspaceId/claims', workspaceRateLimit, requireAuth, wrap(async (req, res) => {
