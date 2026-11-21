@@ -51,11 +51,14 @@ export function understandSearchIntent(input) {
   if (!originalQuery) return {
     type: 'general-research', label: 'General public-source research', confidence: 0,
     subject: '', searchQuery: '', sourcePreference: 'balanced', matchedSignals: [],
-    goal: 'Understand the topic', subgoals: [], entities: [], constraints: [],
+    goal: 'Understand the topic', subgoals: [], entities: [], constraints: [], secondaryIntents: [],
     clarificationNeeded: false, ambiguities: [], explanation: 'No search question was supplied.',
   };
 
   const rule = RULES.find(candidate => candidate.patterns.some(pattern => pattern.test(originalQuery)));
+  const secondaryClauses = originalQuery.split(/\\s+(?:and|also|plus)\\s+|[,;]+/i).slice(1);
+  const secondaryRules = RULES.filter(candidate => candidate !== rule
+    && secondaryClauses.some(clause => candidate.patterns.some(pattern => pattern.test(clause))));
   const selected = rule || {
     type: 'general-research', label: 'Understand the request and discover relevant evidence',
     sourcePreference: 'balanced', subgoals: ['identify the main subject', 'find authoritative context', 'check important details'],
@@ -74,6 +77,7 @@ export function understandSearchIntent(input) {
     subgoals: selected.subgoals.slice(0, 5),
     entities: subject ? [{ text: subject, role: 'primary-subject', kind: 'unknown' }] : [],
     constraints: [],
+    secondaryIntents: secondaryRules.map(candidate => candidate.type).filter((type, index, rows) => type !== selected.type && rows.indexOf(type) === index).slice(0, 3),
     clarificationNeeded: false,
     ambiguities: [],
     explanation: rule
@@ -110,7 +114,15 @@ export function buildIntentQueryVariants(input, intent = understandSearchIntent(
     'general-research': ['authoritative background evidence'],
   };
   for (const item of (Array.isArray(intent?.suggestedQueries) ? intent.suggestedQueries : [])) add(item?.query, 'AI: ' + clean(item?.reason || 'intent-specific research lead'));
-  for (const suffix of suffixes[intent?.type] || suffixes['general-research']) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  const primarySuffixes = suffixes[intent?.type] || suffixes['general-research'];
+  const secondaryTypes = (Array.isArray(intent?.secondaryIntents) ? intent.secondaryIntents : []).slice(0, 3);
+  const primaryLeadCount = secondaryTypes.length ? Math.min(2, primarySuffixes.length) : primarySuffixes.length;
+  for (const suffix of primarySuffixes.slice(0, primaryLeadCount)) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
+  for (const secondaryType of secondaryTypes) {
+    const suffix = (suffixes[secondaryType] || [])[0];
+    if (suffix) add([subject, suffix].filter(Boolean).join(' '), 'secondary intent: ' + secondaryType);
+  }
+  for (const suffix of primarySuffixes.slice(primaryLeadCount)) add([subject, suffix].filter(Boolean).join(' '), 'intent: ' + intent.type);
   if (subject.length >= 2 && subject.toLocaleLowerCase() !== original.toLocaleLowerCase()) add(subject, 'intent-focused subject');
-  return candidates.slice(0, Math.max(1, Math.min(6, Number(limit) || 3)));
+  return candidates.slice(0, Math.max(1, Math.min(12, Number(limit) || 3)));
 }
