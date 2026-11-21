@@ -240,7 +240,7 @@ export async function understandSearchIntentWithGroq(input, options = {}) {
   const groqKey = String(providerKeys.GROQ_API_KEY || env.GROQ_API_KEY || '').trim();
   const geminiKey = String(providerKeys.GEMINI_API_KEY || env.GEMINI_API_KEY || '').trim();
   const groqModel = clean(providerKeys.GROQ_INTENT_MODEL || env.GROQ_INTENT_MODEL || GROQ_MODEL_DEFAULT, 100);
-  const geminiModel = clean(providerKeys.GEMINI_MODEL || env.GEMINI_INTENT_MODEL || env.GEMINI_MODEL || GEMINI_MODEL_DEFAULT, 100).replace(/^models\//, '');
+  const geminiModel = clean(providerKeys.GEMINI_INTENT_MODEL || providerKeys.GEMINI_MODEL || env.GEMINI_INTENT_MODEL || env.GEMINI_MODEL || GEMINI_MODEL_DEFAULT, 100).replace(/^models\//, '');
   const context = options.context || '';
   if (!groqKey && !geminiKey) return fallbackResult(fallback, 'Groq and Gemini are not configured for intent understanding.');
 
