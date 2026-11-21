@@ -75,6 +75,34 @@ test('uses Groq structured intent and returns bounded query suggestions', async 
 });
 
 
+
+test('uses previous investigation context to resolve a short follow-up question', async () => {
+  const originalFetch = globalThis.fetch;
+  let requestBody;
+  globalThis.fetch = async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      type: 'deadline', label: 'Find the admission deadline', goal: 'Find the deadline for the current application',
+      subject: 'ABUAD', search_query: 'ABUAD deadline', source_preference: 'official',
+      confidence: 0.96, explanation: 'The prior investigation identifies ABUAD as the institution.',
+      subgoals: ['official application closing date'], entities: [{ text: 'ABUAD', kind: 'university', role: 'institution' }],
+      constraints: [], ambiguities: [], clarification_needed: false, suggested_queries: []
+    }) } }] }) };
+  };
+  try {
+    const intent = await understandSearchIntentWithGroq('What about the deadline?', {
+      env: { GROQ_API_KEY: 'context-test-key' },
+      context: 'I want to apply for ABUAD.'
+    });
+    assert.equal(intent.type, 'deadline');
+    assert.equal(intent.subject, 'ABUAD');
+    assert.equal(intent.searchQuery, 'ABUAD deadline');
+    assert.match(requestBody.messages[1].content, /I want to apply for ABUAD/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('uses Gemini as an independent intent pillar when Groq is unavailable', async () => {
   const originalFetch = globalThis.fetch;
   let geminiBody;
