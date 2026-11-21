@@ -8,6 +8,7 @@ import { evaluateAnswerStatus } from './answer-status.js';
 import { ResolvedIntentSchema, TypedClaimSchema } from './research-contracts.js';
 import { buildResearchWorkflow, finalizeResearchWorkflow } from './workflow-engine.js';
 import { buildTypedClaim } from './typed-claim-extraction.js';
+import { normalizeSearchText } from '../search/normalize-search-text.js';
 import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
@@ -18,7 +19,7 @@ const POLL_MS = Math.max(1000, Number(process.env.EXPERIENCE_RESEARCH_POLL_MS ||
 let active = false;
 let timer = null;
 
-const clean = (value, max = 300) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+const clean = (value, max = 300) => normalizeSearchText(value, max);
 
 async function appendEvent(jobId, stage, message, progress, extra = {}) {
   const now = new Date();
