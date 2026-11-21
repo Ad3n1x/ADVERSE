@@ -108,3 +108,46 @@ test('account deletion also removes private experience workspaces and user-linke
   assert.equal(sharedWorkspace.sharingEvents[0].userId, ownerId);
   assert.deepEqual(globalThis.__ADVERSE_METRICS__.map(item => item.userId), [otherId, '']);
 });
+
+
+test('database account deletion removes owned research jobs without touching another account', async () => {
+  const deleted = [];
+  const ownedInvestigations = { select() { return this; }, lean: async () => [{ _id: 'case-owned' }] };
+  const deleteModel = (name) => ({
+    deleteMany: async (filter) => { deleted.push({ name, filter }); return { deletedCount: 1 }; },
+  });
+  const experienceWorkspace = {
+    ...deleteModel('ExperienceWorkspace'),
+    updateMany: async (filter, update) => { deleted.push({ name: 'ExperienceWorkspace.updateMany', filter, update }); return { modifiedCount: 1 }; },
+  };
+  const investigation = {
+    find: () => ownedInvestigations,
+    ...deleteModel('Investigation'),
+  };
+  const memory = { users: new Map() };
+  let clearedCookie = false;
+  const res = {
+    statusCode: 200, headers: {},
+    status(code) { this.statusCode = code; return this; },
+    setHeader(name, value) { this.headers[name] = value; if (name === 'Set-Cookie') clearedCookie = true; },
+    end() { this.ended = true; return this; },
+  };
+  const controller = createAuthController({
+    authSchema: z.object({}), sendError: () => res, ownerEmail: () => 'owner@example.com',
+    isDb: () => true, User: { ...deleteModel('User'), deleteOne: async (filter) => { deleted.push({ name: 'User.deleteOne', filter }); return { deletedCount: 1 }; } }, memory, id: () => 'unused',
+    setSession: () => {}, tokenFor: () => 'unused',
+    Investigation: investigation, Evidence: deleteModel('Evidence'), Entity: deleteModel('Entity'),
+    Relationship: deleteModel('Relationship'), Watch: deleteModel('Watch'), Alert: deleteModel('Alert'),
+    CyberAsset: deleteModel('CyberAsset'), CyberEvent: deleteModel('CyberEvent'),
+    ExperienceWorkspace: experienceWorkspace, ExperienceResearchJob: deleteModel('ExperienceResearchJob'),
+    SearchMetric: deleteModel('SearchMetric'),
+  });
+
+  await controller.deleteAccount({ user: { id: 'account-to-delete' } }, res);
+
+  assert.equal(res.statusCode, 204);
+  assert.equal(res.ended, true);
+  assert.equal(clearedCookie, true);
+  assert.ok(deleted.some(item => item.name === 'ExperienceResearchJob'
+    && item.filter.ownerId === 'account-to-delete'));
+});
