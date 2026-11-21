@@ -10,7 +10,7 @@ const normalize = value => String(value || '')
   .replace(/[^\p{L}\p{N}]+/gu, ' ')
   .trim();
 
-export function improvePublicSearchRanking(items, query) {
+export function improvePublicSearchRanking(items, query, intent = null) {
   const normalizedQuery = normalize(query);
   const terms = [...new Set(normalizedQuery.split(/\s+/).filter(term => term.length > 1))];
 
@@ -43,6 +43,32 @@ export function improvePublicSearchRanking(items, query) {
     if (excerptWords >= 18) score += 2;
     else if (excerptWords >= 8) score += 1;
     else if (!excerptWords) score -= 2;
+
+    // Preserve task intent during the final result pass as well as initial provider ranking.
+    const taskTerms = {
+      application: ['admission','admissions','application','apply','applicant','portal','undergraduate','postgraduate','direct entry','registration'],
+      eligibility: ['eligibility','entry requirements','admission requirements','qualifications','cut off','criteria'],
+      'fees-costs': ['tuition','school fees','fee schedule','acceptance fee','cost','charges'],
+      'programme-availability': ['programme','program','course','degree','department','faculty','offered'],
+      deadline: ['deadline','closing date','application closes','registration closes','important dates'],
+      'scholarship-funding': ['scholarship','financial aid','bursary','funding','grant'],
+      destination: ['official website','official site','portal','login','contact'],
+      verification: ['official statement','press release','primary source','evidence','investigation'],
+      'current-events': ['latest','news','update','announced','statement'],
+      historical: ['archive','historical','timeline','history','records'],
+      comparison: ['comparison','versus','pros and cons','differences'],
+      'how-to': ['how to','guide','documentation','instructions','steps','tutorial'],
+      'public-entity': ['official profile','about','organization','university','agency']
+    };
+    const phrases = taskTerms[String(intent?.type || '')] || [];
+    if (phrases.length) {
+      const titleTaskHits = phrases.filter(term => (' ' + title + ' ').includes(' ' + normalize(term) + ' ')).length;
+      const urlTaskHits = phrases.filter(term => (' ' + normalize(item?.url) + ' ').includes(' ' + normalize(term) + ' ')).length;
+      const excerptTaskHits = phrases.filter(term => (' ' + excerpt + ' ').includes(' ' + normalize(term) + ' ')).length;
+      score += Math.min(24, titleTaskHits * 8 + urlTaskHits * 6 + excerptTaskHits * 2);
+      if (intent.type === 'application' && !titleTaskHits && !urlTaskHits && /\\b(jobs?|careers?|vacancies|employment|reviews?|rankings?)\\b/i.test(title + ' ' + normalize(item?.url))) score -= 10;
+    }
+    if (intent?.sourcePreference === 'official' && /\\.(edu(?:\\.[a-z]{2})?|gov(?:\\.[a-z]{2})?|ac\\.[a-z]{2})$/i.test((() => { try { return new URL(item?.url).hostname.replace(/^www\\./i, ''); } catch { return ''; } })())) score += 2;
 
     // Freshness matters most when the query explicitly asks for recent information.
     const freshnessIntent = /\b(latest|today|current|recent|newest|breaking|news|updates?|this week|202[5-9])\b/i.test(String(query || ''));
