@@ -48,9 +48,9 @@ export function createPasswordResetController({ isDb, User, memory, sendError, s
    const salt=crypto.randomBytes(16).toString('hex');
    const passwordHash=salt+':'+scryptSync(p.data.password,salt,64).toString('hex');
    if(isDb()){
-    const updated=await User.updateOne({_id:user._id,passwordResetTokenHash:tokenHash,passwordResetExpiresAt:{$gt:now}},{$set:{passwordHash,passwordResetTokenHash:'',passwordResetExpiresAt:null}});
+    const updated=await User.updateOne({_id:user._id,passwordResetTokenHash:tokenHash,passwordResetExpiresAt:{$gt:now}},{$set:{passwordHash,passwordResetTokenHash:'',passwordResetExpiresAt:null},$inc:{authVersion:1}});
     if(!updated.modifiedCount)return sendError(res,400,'RESET_LINK_INVALID','This password reset link is invalid or expired. Request a new one.');
-   }else{user.passwordHash=passwordHash;user.passwordResetTokenHash='';user.passwordResetExpiresAt=null;}
+   }else{user.passwordHash=passwordHash;user.passwordResetTokenHash='';user.passwordResetExpiresAt=null;user.authVersion=(Number(user.authVersion)||0)+1;}
    res.json({data:{message:'Password updated. You can now sign in with your new password.'}});
   
   }
