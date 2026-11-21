@@ -22,7 +22,22 @@ type SourceReviewStatus = 'unreviewed' | 'useful' | 'not_relevant';
 type SourceReviewFilter = 'all' | SourceReviewStatus;
 
 type ExperienceSearchResponse = { data: ExperienceSource[]; meta?: { coverage?: string; providerError?: string; successfulSearches?: number; providers?: string[] } };
-type ResearchJobSnapshot = { id: string; workspaceId: string; status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'; stage: string; progress: number; attempts: number; sourceCount: number; successfulSearches: number; providerNames: string[]; coverage: string; errorMessage?: string };
+type AnswerStatusSnapshot = {
+  status: 'answered' | 'partially_answered' | 'not_found' | 'conflicting' | 'insufficient_evidence' | 'needs_clarification';
+  completionRatio: number;
+  unresolvedQuestions: string[];
+  conflictCount: number;
+  explanation: string;
+};
+type ResearchJobSnapshot = {
+  id: string; workspaceId: string;
+  status: 'queued' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled';
+  stage: string; progress: number; attempts: number; sourceCount: number;
+  successfulSearches: number; providerNames: string[]; coverage: string;
+  errorMessage?: string; answerStatus?: AnswerStatusSnapshot | null;
+  resolvedIntent?: Record<string, unknown> | null;
+  workflow?: Record<string, unknown> | null;
+};
 const HISTORY_KEY = 'adverse.experience.history.v1';
 const HISTORY_LIMIT = 8;
 
@@ -1055,6 +1070,20 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                 <div className="experience-job-progress-track"><span style={{ width: researchJob.progress + '%' }} /></div>
                 <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} saved sources · {researchJob.attempts || 0} attempt(s)</small>
               </div>}
+              {researchJob?.answerStatus && <section className={'experience-answer-status status-' + researchJob.answerStatus.status} aria-live="polite">
+                <div className="experience-answer-status-head">
+                  <div><span>RESEARCH ANSWER STATUS</span><strong>{researchJob.answerStatus.status.replaceAll('_', ' ').toUpperCase()}</strong></div>
+                  <b>{Math.round(researchJob.answerStatus.completionRatio * 100)}%</b>
+                </div>
+                <div className="experience-answer-status-track"><span style={{ width: Math.round(researchJob.answerStatus.completionRatio * 100) + '%' }} /></div>
+                <p>{researchJob.answerStatus.explanation}</p>
+                {researchJob.answerStatus.conflictCount > 0 && <small>{researchJob.answerStatus.conflictCount} conflicting claim(s) require review.</small>}
+                {researchJob.answerStatus.unresolvedQuestions.length > 0 && <div className="experience-answer-unresolved">
+                  <span>STILL UNRESOLVED</span>
+                  <ul>{researchJob.answerStatus.unresolvedQuestions.map(field => <li key={field}>{field}</li>)}</ul>
+                </div>}
+                <small>Completion is based on supported, source-linked claims—not provider search counts or AI confidence.</small>
+              </section>}
               {researchJob && <div className="experience-job-controls">
                 {['queued', 'running'].includes(researchJob.status) && <button type="button" onClick={() => void controlResearchJob('pause')}>Pause research</button>}
                 {researchJob.status === 'paused' && <button type="button" onClick={() => void controlResearchJob('resume')}>Resume research</button>}
@@ -1184,6 +1213,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
                         <div className="experience-source-title-row">
                           <a href={source.url} target="_blank" rel="noopener noreferrer">{source.title || source.url}<ArrowUpRight size={13} /></a>
                           <span className={'experience-review-status status-' + reviewStatus.replace('_', '-')}>{reviewStatus === 'not_relevant' ? 'NOT RELEVANT' : reviewStatus.toUpperCase()}</span>
+                          {source.relevance && <span className="experience-source-relevance" title="Retrieval relevance heuristic, not factual accuracy">TOPIC MATCH {source.relevance.score}/100</span>}
                         </div>
                         <span>{source.publisher || source.provider || 'Public source'} · {source.linkCheck?.status === 'reachable' ? 'Reachable when checked' : source.linkCheck?.status === 'not_confirmed' ? 'Reachability not confirmed' : 'Not checked'}{source.linkCheck?.httpStatus ? ' · HTTP ' + source.linkCheck.httpStatus : ''}{source.linkCheck?.redirects?.length ? ' · ' + source.linkCheck.redirects.length + ' redirect(s)' : ''}{source.providers?.length ? ' · ' + source.providers.length + ' provider matches' : ''}</span>
                         {source.alternativeFor && <p className="experience-source-alternative">ALTERNATIVE CANDIDATE · Found as a possible alternative to <a href={source.alternativeFor} target="_blank" rel="noreferrer">{source.alternativeFor}</a></p>}
