@@ -175,7 +175,16 @@ async function saveJobResults(job, sources, live) {
     const typedCandidate = buildTypedClaim(candidate, sourceIds, claimId);
     if (!typedCandidate) continue;
     const parsed = TypedClaimSchema.safeParse(typedCandidate);
-    if (parsed.success) typedClaimsById.set(claimId, parsed.data);
+    if (parsed.success) {
+      const previousTyped = typedClaimsById.get(claimId);
+      typedClaimsById.set(claimId, previousTyped ? {
+        ...parsed.data,
+        assessment: previousTyped.assessment || parsed.data.assessment,
+        confidence: previousTyped.confidence ?? parsed.data.confidence,
+        entityId: previousTyped.entityId ?? parsed.data.entityId,
+        sourceIds: [...new Set([...(previousTyped.sourceIds || []), ...parsed.data.sourceIds])].slice(0, 20)
+      } : parsed.data);
+    }
   }
   const typedClaims = [...typedClaimsById.values()].slice(0, 80);
   const answerStatus = evaluateAnswerStatus({
