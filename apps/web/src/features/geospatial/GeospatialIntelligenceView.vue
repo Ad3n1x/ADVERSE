@@ -112,6 +112,7 @@ async function refreshEarthquakes() {
       });
       if (disposed) { quakeLayer = null; return; }
       await viewer.dataSources.add(quakeLayer);
+      viewer.scene.requestRender();
     }
     earthquakes.value = parsed.slice(0, 10);
     quakeCount.value = parsed.length;
@@ -164,6 +165,7 @@ async function refreshNaturalEvents() {
       });
       if (disposed) { naturalLayer = null; return; }
       await viewer.dataSources.add(naturalLayer);
+      viewer.scene.requestRender();
     }
     naturalEvents.value = parsed.slice(0, 10);
     naturalCount.value = parsed.length;
@@ -260,6 +262,11 @@ onMounted(async () => {
     viewer = createApplicationViewer({
       container: mapHost.value, creditContainer: creditHost.value, showRenderLoopErrors: false,
     });
+    // Keep the 3D globe responsive on ordinary devices by rendering on demand.
+    // Public feed and evidence controls remain interactive without a continuous GPU loop.
+    viewer.scene.requestRenderMode = true;
+    viewer.scene.maximumRenderTimeChange = Infinity;
+    viewer.resolutionScale = Math.min(window.devicePixelRatio || 1, 1.25);
     viewer.scene.globe.show = true;
     viewer.scene.globe.enableLighting = true;
     viewer.scene.skyAtmosphere.show = true;
