@@ -1,4 +1,4 @@
-import { buildIntentQueryVariants } from './intent-understanding.js';
+import { buildIntentQueryVariants } from '../search/intent-understanding.js';
 
 const clean = value => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 220);
 
