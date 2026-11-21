@@ -1,0 +1,25 @@
+.experience-access-panel{margin:22px 0 8px;padding:18px;border:1px solid rgba(130,160,205,.2);border-radius:18px;background:rgba(10,18,34,.58)}
+.experience-access-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.experience-access-card{min-width:0;padding:16px;border:1px solid rgba(130,160,205,.16);border-radius:14px;background:rgba(255,255,255,.025)}
+.experience-access-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.experience-access-heading h3{margin:8px 0 0;font-size:17px}
+.experience-access-heading>span{font-size:12px;color:var(--muted,#9aa9c1)}
+.experience-access-card>p{font-size:12px;line-height:1.6;color:var(--muted,#9aa9c1);min-height:38px}
+.experience-access-form{display:flex;gap:8px}
+.experience-access-form input{min-width:0;flex:1}
+.experience-access-form input,.experience-document-input{border:1px solid var(--border,rgba(130,160,205,.25));border-radius:9px;padding:10px;background:rgba(0,0,0,.18);color:inherit}
+.experience-access-form button,.experience-document-upload,.experience-access-list button,.experience-access-footer button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(100,160,255,.3);border-radius:9px;padding:9px 11px;background:rgba(48,112,210,.13);color:inherit;font-size:12px;cursor:pointer}
+.experience-access-panel button:disabled{opacity:.45;cursor:not-allowed}
+.experience-access-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:7px}
+.experience-access-list li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid rgba(130,160,205,.12)}
+.experience-access-list li>span{display:grid;min-width:0;gap:3px}
+.experience-access-list b{font-size:12px;overflow-wrap:anywhere}
+.experience-access-list small,.experience-access-empty{font-size:11px;color:var(--muted,#9aa9c1)}
+.experience-access-list li>div{display:flex;gap:5px}
+.experience-access-list li>div button{padding:7px}
+.experience-document-input{display:none}
+.experience-document-upload{margin-top:2px}
+.experience-access-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.experience-access-footer span{font-size:11px;color:var(--muted,#9aa9c1)}
+.experience-access-error{font-size:12px;color:#ff9c9c}
+@media(max-width:760px){.experience-access-grid{grid-template-columns:1fr}.experience-access-panel{padding:12px}.experience-access-card{padding:12px}}

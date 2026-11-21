@@ -9,6 +9,7 @@ import ExperienceClaimsPanel from './ExperienceClaimsPanel';
 import ExperienceCoveragePanel from './ExperienceCoveragePanel';
 import ExperienceDossierActions from './ExperienceDossierActions';
 import ExperienceRunHistoryPanel from './ExperienceRunHistoryPanel';
+import WorkspaceAccessDocuments from './WorkspaceAccessDocuments';
 import ExperienceSourceTimeline from './ExperienceSourceTimeline';
 import type { ExperienceClaim, ExperienceSource } from './experience-types';
 import './experience-home.css';
@@ -757,6 +758,7 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               <ExperienceClaimsPanel key={activeWorkspaceId} workspaceId={activeWorkspaceId} sources={sources} onClaimsChange={setClaims} />
               <ExperienceDossierActions workspaceId={activeWorkspaceId} intent={activeIntent} sources={sources} claims={claims} />
               <ExperienceRunHistoryPanel workspaceId={activeWorkspaceId} refreshKey={runRefreshKey} />
+              <WorkspaceAccessDocuments workspaceId={activeWorkspaceId} />
             </>}
             <section className="experience-live-sources" aria-live="polite">
               <div className="experience-live-sources-head">
