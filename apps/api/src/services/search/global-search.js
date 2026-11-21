@@ -1,5 +1,6 @@
 import { searchPublic } from './providers.js';
 import { normalizeSearchText } from './normalize-search-text.js';
+import { filterRelevantSources } from '../research/relevance-gate.js';
 import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
 import { buildIntentQueryVariants, understandSearchIntent } from './intent-understanding.js';
@@ -327,7 +328,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
   const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
-  const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
+  const relevance = filterRelevantSources(rankedResults, rankingQuery || originalQuery, intent);
+  const results = relevance.accepted.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
@@ -337,6 +339,12 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,
       resultCount: results.length,
+      relevance: {
+        candidateCount: relevance.evaluated.length,
+        acceptedCount: relevance.accepted.length,
+        rejectedCount: relevance.rejected.length,
+        gate: 'subject-and-intent-metadata-v1'
+      },
       providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
       coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
