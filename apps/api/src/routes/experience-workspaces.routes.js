@@ -284,8 +284,8 @@ export function registerExperienceWorkspaceRoutes(app, {
       updatedAt: now,
     }));
     const typedClaims = (record.typedClaims || []).map(typed => {
-      const normalized = String(typed.statement || '').toLocaleLowerCase().replace(/\\s+/g, ' ').trim();
-      const reviewed = claims.find(claim => claim.text.toLocaleLowerCase().replace(/\\s+/g, ' ').trim() === normalized);
+      const normalized = String(typed.statement || '').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+      const reviewed = claims.find(claim => claim.text.toLocaleLowerCase().replace(/\s+/g, ' ').trim() === normalized);
       return reviewed ? { ...typed, assessment: reviewed.assessment } : typed;
     });
     const answerStatus = evaluateAnswerStatus({
