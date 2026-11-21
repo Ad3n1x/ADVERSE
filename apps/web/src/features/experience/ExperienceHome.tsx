@@ -46,6 +46,7 @@ type IntentPlan = {
   searchQuery?: string;
   sourcePreference?: string;
   providerLabel?: string;
+  entities?: Array<{ text: string; kind: string; role: string }>;
 };
 
 type GuidedTaskStep = {
