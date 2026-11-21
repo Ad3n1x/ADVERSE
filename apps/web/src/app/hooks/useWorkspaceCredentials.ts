@@ -71,7 +71,7 @@ export function useWorkspaceCredentials(
     setAiKeysSaving(true);
     try {
       const body = Object.fromEntries(
-        ['GEMINI_API_KEY', 'GEMINI_MODEL', 'AI_PROVIDER_BASE_URL', 'AI_PROVIDER_API_KEY', 'AI_PROVIDER_MODEL'].map((key) => [key, '']),
+        ['GROQ_API_KEY', 'GROQ_INTENT_MODEL', 'GEMINI_API_KEY', 'GEMINI_MODEL', 'AI_PROVIDER_BASE_URL', 'AI_PROVIDER_API_KEY', 'AI_PROVIDER_MODEL'].map((key) => [key, '']),
       );
       const response = await request<{ data: { userConfigured: string[]; environmentConfigured: string[] }; message: string }>(
         '/ai/credentials', { method: 'PUT', body: JSON.stringify(body) },
