@@ -2,7 +2,7 @@
 
 ## Purpose
 
-ADVERSE interprets the outcome behind a search request and converts it into a bounded, inspectable research plan. It must preserve the user's wording, identify the subject and relevant constraints, and avoid turning guesses into facts.
+ADVERSE interprets the outcome behind a request and converts it into a bounded, inspectable plan that can guide the user toward completing the objective. It must preserve the user's wording, identify the subject and relevant constraints, and avoid turning guesses into facts. The complete intent-to-action requirements, including step-by-step guidance, exact destinations, persistent progress and user-confirmed external actions, are defined in [PRODUCT-VISION.md](PRODUCT-VISION.md).
 
 ## Interpretation layers
 
@@ -44,6 +44,12 @@ Credentials are read server-side. Do not expose them to browser code or logs. Ea
 - If both fail or neither is configured, deterministic interpretation continues.
 - Search planning keeps the original query and never treats a model's interpretation or a search result as verified fact.
 - Provider status is exposed in the response metadata so degraded operation is visible.
+
+## From research planning to objective completion
+
+The current intent engine provides the interpretation and research-planning foundation. It must not equate a completed discovery job with a completed user objective. The target workflow continues through evidence-backed answer synthesis, an actionable procedure, an exact destination for the current step, durable checklist progress and replanning when the user reports progress or a blocker. Persistent step completion and progress-driven replanning must be demonstrated in the authenticated workspace before they are described as shipped.
+
+A candidate implementation exists in the open `fix/full-intent-focused-research` branch, alongside a smaller multi-goal intent branch. Both are divergent from `main`; treat them as review material, not production capabilities. Rebase and reconcile their changes, resolve security findings, run the full API/UI/E2E suite and verify the deployment before merging.
 
 ## Important limits
 
