@@ -6,6 +6,7 @@ import { understandSearchIntentWithGroq } from '../search/groq-intent.js';
 import { understandSearchIntent } from '../search/intent-understanding.js';
 import { evaluateAnswerStatus } from './answer-status.js';
 import { ResolvedIntentSchema, TypedClaimSchema } from './research-contracts.js';
+import { buildResearchWorkflow, finalizeResearchWorkflow } from './workflow-engine.js';
 import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
@@ -190,6 +191,19 @@ async function saveJobResults(job, sources, live) {
     sourceCount: mergedSources.length,
     searchCompleted: true
   });
+  const workflowSeed = live.meta?.workflow || buildResearchWorkflow(
+    live.meta?.resolvedIntent || { type: live.meta?.semanticType || 'general-research' },
+    job.jobId + '-workflow'
+  );
+  const workflow = finalizeResearchWorkflow(workflowSeed, {
+    entities: live.meta?.resolvedIntent?.entities || [],
+    sourceCount: mergedSources.length,
+    checkedCount: mergedSources.filter(source => source.linkCheck?.checkedAt).length,
+    claimCount: typedClaims.length,
+    comparisonCount: typedClaims.length >= 2 ? typedClaims.length : 0,
+    answerStatus,
+    evidenceIds: mergedSources.map(source => source.url)
+  });
   const run = {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
@@ -201,9 +215,9 @@ async function saveJobResults(job, sources, live) {
   const researchRuns = [...(workspace.researchRuns || []).filter(item => item.runId !== job.jobId), run]
     .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()).slice(-20);
   await ExperienceWorkspace.updateOne({ ownerId: job.ownerId, workspaceId: job.workspaceId }, {
-    $set: { sources: mergedSources, claims, typedClaims, resolvedIntent: live.meta?.resolvedIntent || undefined, answerStatus, pipelineVersion: 'intent-evidence-v1', researchRuns },
+    $set: { sources: mergedSources, claims, typedClaims, resolvedIntent: live.meta?.resolvedIntent || undefined, workflow, answerStatus, pipelineVersion: 'intent-evidence-v1', researchRuns },
   });
-  return { sourceCount: mergedSources.length, claimCount: claims.length, typedClaimCount: typedClaims.length, answerStatus, run };
+  return { sourceCount: mergedSources.length, claimCount: claims.length, typedClaimCount: typedClaims.length, answerStatus, workflow, run };
 }
 
 async function executeJob(job, getUserProviderKeys) {
@@ -241,6 +255,7 @@ async function executeJob(job, getUserProviderKeys) {
       ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 10) : [],
       confidence: Math.max(0, Math.min(1, Number(resolved.confidence) || 0))
     });
+    const workflow = buildResearchWorkflow(resolvedIntent, job.jobId + '-workflow');
     const queries = buildResearchQueryPlan(job.query, resolved);
     await appendEvent(job.jobId, 'searching', 'Searching the original request and ' + Math.max(0, queries.length - 1) + ' focused sub-questions.', researchJobProgress('searching'));
     const outcomes = await Promise.allSettled(queries.map(query => searchAllPublic(query, providerKeys || {}, { intent: resolved })));
@@ -276,6 +291,7 @@ async function executeJob(job, getUserProviderKeys) {
       semanticType: resolved.type || 'general-research',
       intentProvider: semantic?.provider || 'rules-fallback',
       resolvedIntent,
+      workflow,
       providerNames: [...new Set(candidateSources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
       coverage: 'Bounded public-source discovery across ' + queries.length + ' intent-focused searches. Provider indexes are not exhaustive.',
     };
@@ -309,6 +325,7 @@ async function executeJob(job, getUserProviderKeys) {
       sourceCount: saved.sourceCount,
       resolvedIntent: searchMeta.resolvedIntent || undefined,
       answerStatus: saved.answerStatus,
+      workflow: saved.workflow,
       pipelineVersion: 'intent-evidence-v1',
       successfulSearches: Number(searchMeta.successfulSearches || 0),
       providerNames: saved.run.providerNames, coverage: saved.run.coverage,
