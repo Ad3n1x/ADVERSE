@@ -99,3 +99,23 @@ test('preserves institution-name words when extracting application targets', () 
     assert.equal(intent.searchQuery, expected);
   }
 });
+
+test('understands shorthand institution programme price requests from the complete sentence', () => {
+  const query = 'abuad price for mechatronics degree';
+  const intent = understandSearchIntent(query);
+  assert.equal(intent.type, 'fees-costs');
+  assert.equal(intent.searchQuery, 'ABUAD Mechatronics Engineering');
+  const variants = buildIntentQueryVariants(query, intent, 6).map(item => item.query.toLowerCase());
+  assert.ok(variants.some(item => item.includes('official fee schedule')));
+  assert.ok(variants.some(item => item.includes('academic session programme fees')));
+  assert.ok(variants.some(item => item.includes('undergraduate fee schedule')));
+  assert.ok(variants.some(item => item.includes('afe babalola university mechatronics engineering')));
+});
+
+test('keeps institution and programme together for fee discovery', () => {
+  const query = 'what is the price for mechatronics at ABUAD?';
+  const intent = understandSearchIntent(query);
+  assert.equal(intent.type, 'fees-costs');
+  assert.match(intent.searchQuery, /mechatronics/i);
+  assert.match(intent.searchQuery, /abuad/i);
+});

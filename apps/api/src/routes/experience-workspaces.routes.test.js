@@ -440,3 +440,45 @@ test('workspace sharing cannot target the owner or an unknown account', async ()
   });
   assert.equal(invalid.statusCode, 400);
 });
+
+
+test('guided task progress persists, is restricted to workspace sources, and stays owner-scoped', async () => {
+  const api = makeHarness();
+  const owner = 'experience-task-owner-' + randomUUID();
+  const other = 'experience-task-other-' + randomUUID();
+  const workspaceId = 'workspace-task-' + randomUUID();
+  const sourceUrl = 'https://abuad.edu.ng/admissions/fees';
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Find ABUAD Mechatronics fees and application steps', kind: 'plan', createdAt: Date.now() },
+  });
+  await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ url: sourceUrl, title: 'ABUAD Official Admissions and Fees' }] },
+  });
+  const task = {
+    title: 'Your application pathway',
+    summary: 'Follow official instructions and verify fees before proceeding.',
+    steps: [
+      { id: 'step-1', title: 'Open official admissions', instruction: 'Check that the page belongs to ABUAD.', sourceUrl, sourceTitle: 'ABUAD Official Admissions and Fees', status: 'in_progress' },
+      { id: 'step-2', title: 'Confirm programme fees', instruction: 'Check the current academic session.', sourceUrl: 'https://untrusted.example.org/fake-fees', status: 'next' },
+    ],
+  };
+  const saved = await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/task', {
+    user: { id: owner }, params: { workspaceId }, body: task,
+  });
+  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.body.data.steps[0].sourceUrl, sourceUrl);
+  assert.equal(saved.body.data.steps[1].sourceUrl, null);
+
+  const loaded = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/task', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(loaded.body.data.title, task.title);
+  assert.equal(loaded.body.data.steps[0].status, 'in_progress');
+
+  const denied = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/task', {
+    user: { id: other }, params: { workspaceId },
+  });
+  assert.equal(denied.statusCode, 404);
+});

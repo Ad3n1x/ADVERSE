@@ -1,10 +1,45 @@
 import { searchPublic } from './providers.js';
+import { normalizeSearchText } from './normalize-search-text.js';
+import { filterRelevantSources } from '../research/relevance-gate.js';
 import { searchConfiguredProviders } from './provider-adapters.js';
 import { searchPurili, searchTruegle } from './free-search-providers.js';
 import { buildIntentQueryVariants, understandSearchIntent } from './intent-understanding.js';
 import { understandSearchIntentWithGroq } from './groq-intent.js';
 
-const clean = (value, max = 1200) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\s+/g, ' ').trim().slice(0, max);
+const clean = (value, max = 1200) => normalizeSearchText(
+  String(value || '').replace(/&amp;/gi, '&').replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, '<').replace(/&gt;/gi, '>'),
+  max
+);
+
+const PUBLIC_PROVIDER_NAMES = [
+  'Wikipedia / Crossref / OpenAlex',
+  'GDELT Global News',
+  'Google News',
+  'Wikidata Knowledge Graph',
+  'Purili Web Search',
+  'Truegle Web Search'
+];
+
+/** Select provider families by task; this controls discovery, not the final relevance decision. */
+export function getPublicProviderPolicy(intent = {}) {
+  const type = String(intent?.type || 'general-research');
+  const primaryWebTasks = new Set([
+    'application', 'eligibility', 'fees-costs', 'programme-availability',
+    'deadline', 'scholarship-funding'
+  ]);
+  if (primaryWebTasks.has(type)) {
+    return PUBLIC_PROVIDER_NAMES.filter(name => name !== 'Wikipedia / Crossref / OpenAlex');
+  }
+  if (type === 'destination') {
+    return PUBLIC_PROVIDER_NAMES.filter(name =>
+      !['Wikipedia / Crossref / OpenAlex', 'GDELT Global News', 'Google News'].includes(name)
+    );
+  }
+  if (type === 'how-to') {
+    return PUBLIC_PROVIDER_NAMES.filter(name => !['GDELT Global News', 'Google News'].includes(name));
+  }
+  return [...PUBLIC_PROVIDER_NAMES];
+}
 
 const TRACKING_PARAMS = /^(utm_[^=]+|gclid|dclid|fbclid|msclkid|mc_cid|mc_eid|ref_src|igshid|yclid|vero_id)$/i;
 
@@ -170,7 +205,7 @@ export function rankPublicResults(items, query, intent = null) {
   const tokens = value => normalize(value).split(/\s+/).filter(Boolean);
   const normalizedQuery = normalize(query);
   const allTerms = [...new Set(tokens(query))];
-  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app','i','want','would','like','apply','application','admission','admissions']);
+  const genericTerms = new Set(['the','and','for','with','from','into','that','this','what','when','where','who','why','how','are','was','were','old','new','version','latest','best','about','find','search','info','information','history','official','page','site','website','please','a','an','of','to','app','i','want','would','like','apply','application','admission','admissions','degree','degrees','programme','program','course','courses','price','prices','fee','fees','tuition']);
   const subjectTerms = allTerms.filter(term => !genericTerms.has(term));
   const phrase = value => normalizedQuery.length >= 3 && (' ' + normalize(value) + ' ').includes(' ' + normalizedQuery + ' ');
   const hasTerm = (field, term) => (' ' + normalize(field) + ' ').includes(' ' + term + ' ');
@@ -210,7 +245,7 @@ export function rankPublicResults(items, query, intent = null) {
     const taskTerms = {
       application: ['admission','admissions','application','apply','applicant','portal','undergraduate','postgraduate','direct entry','registration'],
       eligibility: ['eligibility','entry requirements','admission requirements','qualifications','cut off','criteria'],
-      'fees-costs': ['tuition','school fees','fee schedule','acceptance fee','cost','charges'],
+      'fees-costs': ['tuition','tuition fees','school fees','fee schedule','programme fees','program fees','undergraduate fees','acceptance fee','cost','price','charges','accommodation'],
       'programme-availability': ['programme','program','course','degree','department','faculty','offered'],
       deadline: ['deadline','closing date','application closes','registration closes','important dates'],
       'scholarship-funding': ['scholarship','financial aid','bursary','funding','grant'],
@@ -262,7 +297,7 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   const queryPlan = Array.isArray(input)
     ? input.slice(0, 5).map(item => typeof item === 'string' ? { query: item, reason: 'planned query' } : item)
     : expandSearchQueries(input, 6, intent);
-  const publicProviders = [
+  const allPublicProviders = [
     ['Wikipedia / Crossref / OpenAlex', searchPublic],
     ['GDELT Global News', searchGdelt],
     ['Google News', searchGoogleNews],
@@ -270,6 +305,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
     ['Purili Web Search', searchPurili],
     ['Truegle Web Search', searchTruegle]
   ];
+  const allowedProviders = new Set(getPublicProviderPolicy(intent));
+  const publicProviders = allPublicProviders.filter(([name]) => allowedProviders.has(name));
   // Public indexes get bounded query variants; user-connected API keys are only
   // called once per search to avoid multiplying quota usage by every variant.
   const publicSettledPromise = Promise.all(queryPlan.flatMap(plan => publicProviders.map(async ([name, run]) => {
@@ -323,7 +360,8 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
   // Rank by the interpreted subject, not filler words in the user's conversational phrasing.
   const rankingQuery = clean(intent.searchQuery || originalQuery, 200);
   const rankedResults = diversifyPublicResults([...merged.values()], rankingQuery || originalQuery, { limit: 120, maxPerDomain: 3, intent });
-  const results = rankedResults.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
+  const relevance = filterRelevantSources(rankedResults, rankingQuery || originalQuery, intent);
+  const results = relevance.accepted.map(({ _searchScore, _searchOrder, ...item }) => ({ ...item, providerErrors: failures }));
   return {
     results,
     queryPlan,
@@ -333,8 +371,14 @@ async function performSearchAllPublic(input, providerKeys = {}, options = {}) {
       successfulSearches: settled.filter(item => !item.failure).length,
       failedSearches: failures.length,
       resultCount: results.length,
-      providerRequestStrategy: 'Public indexes receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
-      coverage: 'Bounded query expansion across public reference, academic, news, knowledge-graph, Purili, Truegle, and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
+      relevance: {
+        candidateCount: relevance.evaluated.length,
+        acceptedCount: relevance.accepted.length,
+        rejectedCount: relevance.rejected.length,
+        gate: 'subject-and-intent-metadata-v1'
+      },
+      providerRequestStrategy: 'Intent-routed public providers receive bounded query variants; user-connected API providers receive one natural-language query per search to reduce quota usage.',
+      coverage: 'Bounded, intent-routed query expansion across selected public web, reference, news, knowledge-graph and optional connected providers. Search coverage depends on provider availability and indexes; this is not exhaustive whole-web crawling.'
     }
   };
 }

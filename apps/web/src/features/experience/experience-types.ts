@@ -13,6 +13,14 @@ export type ExperienceSource = {
   savedAt?: string;
   reviewStatus?: SourceReviewStatus;
   analystNote?: string;
+  relevance?: {
+    score: number;
+    matchedTerms: string[];
+    intentMatch: boolean;
+    entityMatch: boolean;
+    accepted: boolean;
+    rejectionReasons: string[];
+  };
   linkCheck?: {
     status?: 'reachable' | 'not_confirmed' | 'not_checked';
     checkedAt?: string | null;
@@ -42,4 +50,14 @@ export type ExperienceResearchRun = {
   providerNames: string[];
   coverage: string;
   recordedAt: string;
+};
+
+export type ExperienceAnswerStatus = {
+  status: 'answered' | 'partially_answered' | 'not_found' | 'conflicting' | 'insufficient_evidence' | 'needs_clarification';
+  requiredFields: Array<{ field: string; required: boolean; satisfied: boolean; evidenceIds: string[] }>;
+  completionRatio: number;
+  unresolvedQuestions: string[];
+  conflictCount: number;
+  explanation: string;
+  evaluatedAt?: string;
 };

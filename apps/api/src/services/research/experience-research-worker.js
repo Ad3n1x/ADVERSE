@@ -1,7 +1,15 @@
 import os from 'node:os';
 import crypto from 'node:crypto';
 import { ExperienceResearchJob, ExperienceWorkspace } from '../../models.js';
-import { searchAllPublic } from '../search/global-search.js';
+import { searchAllPublic, rankPublicResults } from '../search/global-search.js';
+import { understandSearchIntentWithGroq } from '../search/groq-intent.js';
+import { understandSearchIntent } from '../search/intent-understanding.js';
+import { evaluateAnswerStatus } from './answer-status.js';
+import { ResolvedIntentSchema, TypedClaimSchema } from './research-contracts.js';
+import { buildResearchWorkflow, finalizeResearchWorkflow } from './workflow-engine.js';
+import { buildTypedClaim } from './typed-claim-extraction.js';
+import { normalizeSearchText } from '../search/normalize-search-text.js';
+import { buildResearchQueryPlan } from './research-query-plan.js';
 import { scrapePublicPage, validatePublicUrl } from '../../providers.js';
 import { analyzeEvidenceClaims } from '../../claim-analysis.js';
 import { researchJobProgress, researchJobRetryDelayMs, RESEARCH_JOB_LEASE_MS } from './research-job-state.js';
@@ -11,7 +19,7 @@ const POLL_MS = Math.max(1000, Number(process.env.EXPERIENCE_RESEARCH_POLL_MS ||
 let active = false;
 let timer = null;
 
-const clean = (value, max = 300) => String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+const clean = (value, max = 300) => normalizeSearchText(value, max);
 
 async function appendEvent(jobId, stage, message, progress, extra = {}) {
   const now = new Date();
@@ -75,7 +83,7 @@ function toWorkspaceSource(item, checked = null) {
     publisher: clean(item.publisher || host, 240),
     provider: clean(item.provider || (item.providers || []).join(', '), 160),
     providers: [...new Set([...(item.providers || []), ...(item.provider ? [item.provider] : [])].map(value => clean(value, 160)).filter(Boolean))].slice(0, 8),
-    sourceType: 'web', alternativeFor: null, reviewStatus: 'unreviewed', analystNote: '',
+    sourceType: 'web', relevance: item.relevance || undefined, alternativeFor: null, reviewStatus: 'unreviewed', analystNote: '',
     publishedAt: item.publishedAt || null, retrievedAt: new Date().toISOString(),
     linkCheck, savedAt: new Date(),
   };
@@ -157,6 +165,49 @@ async function saveJobResults(job, sources, live) {
     }
   }
   const claims = [...claimsById.values()].slice(0, 50);
+  const typedClaimsById = new Map((workspace.typedClaims || []).map(claim => [claim.claimId, claim]));
+  for (const candidate of extraction.claims || []) {
+    const statement = clean(candidate.claim, 1000);
+    const sourceIds = [...new Set((candidate.sources || [])
+      .map(source => String(source.url || '').trim())
+      .filter(url => mergedSources.some(saved => saved.url === url)))].slice(0, 12);
+    if (!statement || !sourceIds.length) continue;
+    const claimId = 'typed-' + crypto.createHash('sha256').update(statement.toLocaleLowerCase()).digest('hex').slice(0, 32);
+    const typedCandidate = buildTypedClaim(candidate, sourceIds, claimId);
+    if (!typedCandidate) continue;
+    const parsed = TypedClaimSchema.safeParse(typedCandidate);
+    if (parsed.success) {
+      const previousTyped = typedClaimsById.get(claimId);
+      typedClaimsById.set(claimId, previousTyped ? {
+        ...parsed.data,
+        assessment: previousTyped.assessment || parsed.data.assessment,
+        confidence: previousTyped.confidence ?? parsed.data.confidence,
+        entityId: previousTyped.entityId ?? parsed.data.entityId,
+        sourceIds: [...new Set([...(previousTyped.sourceIds || []), ...parsed.data.sourceIds])].slice(0, 20)
+      } : parsed.data);
+    }
+  }
+  const typedClaims = [...typedClaimsById.values()].slice(0, 80);
+  const answerStatus = evaluateAnswerStatus({
+    intent: live.meta?.resolvedIntent || { type: 'general-research' },
+    claims: typedClaims,
+    sourceCount: mergedSources.length,
+    searchCompleted: true
+  });
+  const workflowSeed = live.meta?.workflow || buildResearchWorkflow(
+    live.meta?.resolvedIntent || { type: live.meta?.semanticType || 'general-research' },
+    job.jobId + '-workflow'
+  );
+  const workflow = finalizeResearchWorkflow(workflowSeed, {
+    entities: live.meta?.resolvedIntent?.entities || [],
+    sourceCount: mergedSources.length,
+    searchCompleted: true,
+    checkedCount: mergedSources.filter(source => source.linkCheck?.checkedAt).length,
+    claimCount: typedClaims.length,
+    comparisonCount: (extraction.claims || []).filter(group => (group.sources || []).length > 1 || (group.possibleConflicts || []).length > 0).length,
+    answerStatus,
+    evidenceIds: mergedSources.map(source => source.url)
+  });
   const run = {
     runId: job.jobId, query: job.query, plannerKind: job.plannerKind,
     sourceCount: mergedSources.length,
@@ -168,9 +219,9 @@ async function saveJobResults(job, sources, live) {
   const researchRuns = [...(workspace.researchRuns || []).filter(item => item.runId !== job.jobId), run]
     .sort((a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()).slice(-20);
   await ExperienceWorkspace.updateOne({ ownerId: job.ownerId, workspaceId: job.workspaceId }, {
-    $set: { sources: mergedSources, claims, researchRuns },
+    $set: { sources: mergedSources, claims, typedClaims, resolvedIntent: live.meta?.resolvedIntent || undefined, workflow, answerStatus, pipelineVersion: 'intent-evidence-v1', researchRuns },
   });
-  return { sourceCount: mergedSources.length, claimCount: claims.length, run };
+  return { sourceCount: mergedSources.length, claimCount: claims.length, typedClaimCount: typedClaims.length, answerStatus, workflow, run };
 }
 
 async function executeJob(job, getUserProviderKeys) {
@@ -180,21 +231,73 @@ async function executeJob(job, getUserProviderKeys) {
     await appendEvent(job.jobId, 'planning', 'Preparing your request and provider configuration.', researchJobProgress('planning'));
     if (await finishRequested(job)) return;
     const providerKeys = await getUserProviderKeys(job.ownerId).catch(() => ({}));
-    await appendEvent(job.jobId, 'searching', 'Searching public sources against your complete request.', researchJobProgress('searching'));
-    const live = await searchAllPublic(job.query, providerKeys || {});
-    if (await finishRequested(job)) return;
-    if (!(live.results || []).length && Number(live.meta?.failedSearches || 0) > 0) {
-      throw new Error('Public search providers are temporarily unavailable.');
+    await appendEvent(job.jobId, 'planning', 'Analysing the complete sentence and expanding it into focused sub-questions.', researchJobProgress('planning'));
+    let semantic = null;
+    try {
+      semantic = await understandSearchIntentWithGroq(job.query, { providerKeys: providerKeys || {} });
+    } catch {
+      // Deterministic intent rules remain available if Groq and Gemini are unavailable.
     }
+    const resolved = semantic || understandSearchIntent(job.query);
+    const entityKinds = new Set(['institution', 'programme', 'location', 'person', 'organisation', 'product', 'date', 'unknown']);
+    const resolvedIntent = ResolvedIntentSchema.parse({
+      originalQuery: job.query,
+      type: resolved.type || 'general-research',
+      goal: clean(resolved.goal || resolved.label || 'Research the requested subject', 300),
+      subject: clean(resolved.subject || resolved.searchQuery || job.query, 300),
+      entities: (Array.isArray(resolved.entities) ? resolved.entities : []).map(item => ({
+        text: clean(typeof item === 'string' ? item : item?.text, 150),
+        ...(typeof item === 'object' && item?.matchedText ? { matchedText: clean(item.matchedText, 150) } : {}),
+        ...(typeof item === 'object' && item?.country ? { country: clean(item.country, 100) } : {}),
+        kind: entityKinds.has(item?.kind) ? item.kind : 'unknown',
+        role: clean(item?.role || 'context', 80)
+      })).filter(item => typeof item.text === 'string' && item.text.trim()).slice(0, 20),
+      constraints: Array.isArray(resolved.constraints) ? resolved.constraints.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 20) : [],
+      preferences: { sourcePreference: resolved.sourcePreference || 'balanced', ...(resolved.preferences?.country ? { country: clean(resolved.preferences.country, 100) } : {}), ...(resolved.preferences?.currency ? { currency: clean(resolved.preferences.currency, 8) } : {}) },
+      subgoals: Array.isArray(resolved.subgoals) ? resolved.subgoals.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 12) : [],
+      clarificationNeeded: Boolean(resolved.clarificationNeeded),
+      ambiguities: Array.isArray(resolved.ambiguities) ? resolved.ambiguities.filter(value => typeof value === 'string').map(value => clean(value, 200)).filter(Boolean).slice(0, 10) : [],
+      confidence: Math.max(0, Math.min(1, Number(resolved.confidence) || 0))
+    });
+    const workflow = buildResearchWorkflow(resolvedIntent, job.jobId + '-workflow');
+    const queries = buildResearchQueryPlan(job.query, resolved);
+    await appendEvent(job.jobId, 'searching', 'Searching the original request and ' + Math.max(0, queries.length - 1) + ' focused sub-questions.', researchJobProgress('searching'));
+    const outcomes = await Promise.allSettled(queries.map(query => searchAllPublic(query, providerKeys || {}, { intent: resolved })));
+    if (await finishRequested(job)) return;
+    const completedSearches = outcomes.filter(item => item.status === 'fulfilled').map(item => item.value);
+    if (!completedSearches.length) throw new Error('Public search providers are temporarily unavailable.');
+    const combined = new Map();
+    for (const result of completedSearches.flatMap(item => Array.isArray(item.results) ? item.results : [])) {
+      const rawUrl = String(result.url || '').trim();
+      if (!rawUrl) continue;
+      const key = rawUrl.toLowerCase().split('#')[0];
+      if (!combined.has(key)) combined.set(key, result);
+      else {
+        const previous = combined.get(key);
+        combined.set(key, {
+          ...previous,
+          providers: [...new Set([...(previous.providers || []), ...(result.providers || []), ...(previous.provider ? [previous.provider] : []), ...(result.provider ? [result.provider] : [])])].slice(0, 8),
+        });
+      }
+    }
+    const rankedResults = rankPublicResults([...combined.values()], semantic?.searchQuery || job.query, semantic || {});
+    const liveResults = rankedResults.slice(0, 16);
     candidateSources = [];
-    for (const item of (Array.isArray(live.results) ? live.results : []).slice(0, 16)) {
+    for (const item of liveResults) {
       try { candidateSources.push(toWorkspaceSource(item)); } catch {}
     }
+    const successfulSearches = completedSearches.reduce((sum, item) => sum + Number(item.meta?.successfulSearches || 0), 0);
+    const failedSearches = outcomes.reduce((sum, item) => sum + (item.status === 'rejected' ? 1 : Number(item.value?.meta?.failedSearches || 0)), 0);
     searchMeta = {
-      successfulSearches: Number(live.meta?.successfulSearches || 0),
-      failedSearches: Number(live.meta?.failedSearches || 0),
+      successfulSearches,
+      failedSearches,
+      queries,
+      semanticType: resolved.type || 'general-research',
+      intentProvider: semantic?.provider || 'rules-fallback',
+      resolvedIntent,
+      workflow,
       providerNames: [...new Set(candidateSources.flatMap(source => [...(source.providers || []), ...(source.provider ? [source.provider] : [])]).filter(Boolean))].slice(0, 8),
-      coverage: clean(live.meta?.coverage || 'Bounded public-source discovery; coverage is not exhaustive.', 500),
+      coverage: 'Bounded public-source discovery across ' + queries.length + ' intent-focused searches. Provider indexes are not exhaustive.',
     };
     const checkpoint = await ExperienceResearchJob.updateOne({ jobId: job.jobId, leaseOwner: workerId }, {
       $set: { candidateSources, searchMeta, searchCompleted: true, successfulSearches: searchMeta.successfulSearches, providerNames: searchMeta.providerNames, coverage: searchMeta.coverage },
@@ -224,6 +327,10 @@ async function executeJob(job, getUserProviderKeys) {
     $set: {
       status: 'completed', stage: 'completed', progress: 100,
       sourceCount: saved.sourceCount,
+      resolvedIntent: searchMeta.resolvedIntent || undefined,
+      answerStatus: saved.answerStatus,
+      workflow: saved.workflow,
+      pipelineVersion: 'intent-evidence-v1',
       successfulSearches: Number(searchMeta.successfulSearches || 0),
       providerNames: saved.run.providerNames, coverage: saved.run.coverage,
       finishedAt: new Date(), leaseOwner: '', leaseExpiresAt: null,

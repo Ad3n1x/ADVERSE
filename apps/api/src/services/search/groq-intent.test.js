@@ -30,6 +30,33 @@ test('keeps deterministic university application intent when Groq returns a broa
   }
 });
 
+test('keeps deterministic ABUAD and Mechatronics resolution when AI returns a broad intent', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    json: async () => ({ choices: [{ message: { content: JSON.stringify({
+      type: 'general-research', label: 'Research a university', goal: 'Research a university programme',
+      subject: 'ABUAD mechatronics degree', search_query: 'ABUAD mechatronics degree',
+      source_preference: 'balanced', confidence: 0.6, explanation: 'Broad research intent.',
+      subgoals: [], entities: [{ text: 'ABUAD', kind: 'university', role: 'institution' }],
+      constraints: [], ambiguities: [], clarification_needed: false, suggested_queries: []
+    }) } }] })
+  });
+  try {
+    const intent = await understandSearchIntentWithGroq('abuad price for mechatronics degree', {
+      env: { GROQ_API_KEY: 'test-key' }
+    });
+    assert.equal(intent.type, 'fees-costs');
+    assert.equal(intent.searchQuery, 'ABUAD Mechatronics Engineering');
+    assert.equal(intent.preferences.country, 'Nigeria');
+    assert.equal(intent.preferences.currency, 'NGN');
+    assert.ok(intent.entities.some(entity => entity.text === 'Afe Babalola University' && entity.matchedText === 'ABUAD'));
+    assert.ok(intent.entities.some(entity => entity.text === 'Mechatronics Engineering'));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('uses Groq structured intent and returns bounded query suggestions', async () => {
   const originalFetch = globalThis.fetch;
   let requestBody;
