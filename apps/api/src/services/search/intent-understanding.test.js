@@ -37,3 +37,18 @@ test('empty input produces an explicit empty interpretation', () => {
   assert.equal(understandSearchIntent('  ').confidence, 0);
   assert.deepEqual(buildIntentQueryVariants('  '), []);
 });
+
+test('includes bounded AI-generated intent leads without dropping the original question', () => {
+  const query = 'Is it true that the agency changed its policy?';
+  const intent = {
+    ...understandSearchIntent(query),
+    suggestedQueries: [
+      { query: 'agency official policy notice', reason: 'primary notice' },
+      { query: 'independent agency policy reporting', reason: 'independent check' }
+    ]
+  };
+  const variants = buildIntentQueryVariants(query, intent, 5);
+  assert.equal(variants[0].query, query);
+  assert.ok(variants.some(item => item.query === 'agency official policy notice'));
+  assert.ok(variants.some(item => item.reason.includes('Groq')));
+});
