@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerExperienceWorkspaceRoutes } from './experience-workspaces.routes.js';
 
-function makeHarness() {
+function makeHarness(users = []) {
   const routes = new Map();
   const app = {
     get(path, ...handlers) { routes.set('GET ' + path, handlers); },
@@ -18,6 +18,7 @@ function makeHarness() {
     sendError,
     isDb: () => false,
     ExperienceWorkspace: null,
+    User: { findOne(query) { return { select() { return { lean: async () => users.find(user => user.email === query.email && user.status === 'active') || null }; } }; } },
   });
   return {
     async call(method, path, req) {
@@ -373,4 +374,69 @@ test('plain-text document ingestion rejects unsupported media, control bytes, an
     user: { id: owner }, params: { workspaceId }, body: { filename: 'large.txt', text: 'x'.repeat(50001) },
   });
   assert.equal(oversized.statusCode, 400);
+});
+
+
+test('workspace sharing grants read-only access to an existing account and supports revocation', async () => {
+  const member = { _id: 'shared-user-' + randomUUID(), email: 'analyst@example.org', status: 'active' };
+  const owner = 'sharing-owner-' + randomUUID();
+  const api = makeHarness([member]);
+  const workspaceId = 'workspace-sharing-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Review public infrastructure evidence', kind: 'research', createdAt: Date.now() },
+  });
+  await api.call('PUT', '/api/v1/experience/workspaces/:workspaceId/sources', {
+    user: { id: owner }, params: { workspaceId },
+    body: { sources: [{ url: 'https://example.org/record', title: 'Public record' }] },
+  });
+  const shared = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: member.email },
+  });
+  assert.equal(shared.statusCode, 201);
+  assert.equal(shared.body.meta.access, 'read-only');
+
+  const list = await api.call('GET', '/api/v1/experience/shared-workspaces', { user: { id: member._id } });
+  assert.equal(list.body.data.length, 1);
+  assert.equal(list.body.data[0].role, 'viewer');
+
+  const detail = await api.call('GET', '/api/v1/experience/shared-workspaces/:workspaceId', {
+    user: { id: member._id }, params: { workspaceId },
+  });
+  assert.equal(detail.statusCode, 200);
+  assert.equal(detail.body.data.sources.length, 1);
+  assert.equal(detail.body.data.role, 'viewer');
+
+  const members = await api.call('GET', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId },
+  });
+  assert.equal(members.body.data[0].userId, member._id);
+  assert.equal(members.body.audit[0].action, 'shared');
+
+  const revoke = await api.call('DELETE', '/api/v1/experience/workspaces/:workspaceId/members/:memberId', {
+    user: { id: owner }, params: { workspaceId, memberId: member._id },
+  });
+  assert.equal(revoke.statusCode, 204);
+  const afterRevoke = await api.call('GET', '/api/v1/experience/shared-workspaces/:workspaceId', {
+    user: { id: member._id }, params: { workspaceId },
+  });
+  assert.equal(afterRevoke.statusCode, 404);
+});
+
+test('workspace sharing cannot target the owner or an unknown account', async () => {
+  const owner = 'sharing-owner-' + randomUUID();
+  const api = makeHarness();
+  const workspaceId = 'workspace-sharing-validation-' + randomUUID();
+  await api.call('POST', '/api/v1/experience/workspaces', {
+    user: { id: owner },
+    body: { workspaceId, intent: 'Validate workspace sharing', kind: 'research', createdAt: Date.now() },
+  });
+  const unknown = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: 'missing@example.org' },
+  });
+  assert.equal(unknown.statusCode, 404);
+  const invalid = await api.call('POST', '/api/v1/experience/workspaces/:workspaceId/members', {
+    user: { id: owner }, params: { workspaceId }, body: { email: 'not-an-email' },
+  });
+  assert.equal(invalid.statusCode, 400);
 });
