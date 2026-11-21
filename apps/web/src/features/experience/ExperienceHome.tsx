@@ -46,6 +46,11 @@ type IntentPlan = {
   searchQuery?: string;
   sourcePreference?: string;
   providerLabel?: string;
+  researchTasks?: Array<{ id: string; label: string; required?: boolean }>;
+  expectedOutcome?: string;
+  institution?: { name: string; shortName: string; domain: string } | null;
+  programme?: string | null;
+  geography?: string | null;
 };
 
 function classifyIntent(value: string): IntentKind {
@@ -837,17 +842,22 @@ export default function ExperienceHome({ onLogout, userEmail }: { onLogout: () =
               </div>}
             </div>
             <div className="experience-planner-mode"><span>INTENT PLANNER</span><strong>{plannerMode === 'ai' ? (plan.providerLabel || 'Groq / Gemini semantic planner') : 'Local semantic planner'}</strong></div>
+            {plan.researchTasks && plan.researchTasks.length > 0 && <section className="experience-outcome-task-panel" aria-label="Investigation tasks">
+              <div className="experience-outcome-task-heading"><span>OUTCOME-DRIVEN INVESTIGATION</span><strong>{plan.institution?.name || plan.semanticType || 'Research plan'}{plan.programme ? ' · ' + plan.programme : ''}{plan.geography ? ' · ' + plan.geography : ''}</strong></div>
+              <p>{plan.expectedOutcome || plan.outcome}</p>
+              <ol>{plan.researchTasks.map((task, index) => <li key={task.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{task.label}</strong><small>{task.required === false ? 'Supporting task' : 'Required to answer the request'}</small></div></li>)}</ol>
+            </section>}
             {plan.approvalRequired && <div className="experience-approval-note"><Sparkles size={14} /> This request appears to involve an external action. ADVERSE will require your explicit review and approval before any connected service can act.</div>}
             <p className="experience-workspace-description">{workspace.description}</p>
             <section className="experience-journey" aria-labelledby="experience-journey-title" aria-live="polite">
               <div className="experience-journey-heading">
                 <div><span className="experience-section-label">YOUR INVESTIGATION</span><h3 id="experience-journey-title">Progress at a glance</h3></div>
-                <span className="experience-journey-state">{researchJob?.status === 'completed' ? 'Research complete' : researchJob?.status === 'paused' ? 'Paused' : researchJob?.status === 'failed' ? 'Needs attention' : isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete' : 'Ready to begin'}</span>
+                <span className="experience-journey-state">{researchJob?.status === 'completed' ? (reviewCounts.unreviewed > 0 ? 'Discovery saved · review pending' : 'Discovery saved · ready for synthesis') : researchJob?.status === 'paused' ? 'Paused' : researchJob?.status === 'failed' ? 'Needs attention' : isResolving ? 'Working on your request' : resolveError ? 'Needs attention' : sources.length ? 'Discovery complete · review pending' : 'Ready to begin'}</span>
               </div>
               {researchJob && <div className="experience-job-progress">
                 <div className="experience-job-progress-label"><span>{researchJob.stage === 'queued' ? 'Waiting for a research worker' : researchJob.stage === 'completed' ? 'Research saved to workspace' : researchJob.stage === 'failed' ? 'Research stopped' : researchJob.stage === 'paused' ? 'Research paused' : 'ADVERSE · ' + researchJob.stage}</span><strong>{researchJob.progress}%</strong></div>
                 <div className="experience-job-progress-track"><span style={{ width: researchJob.progress + '%' }} /></div>
-                <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} saved sources · {researchJob.attempts || 0} attempt(s)</small>
+                <small>{researchJob.successfulSearches} successful provider searches · {researchJob.sourceCount} source candidates saved · {researchJob.attempts || 0} attempt(s)</small>
               </div>}
               {researchJob && <div className="experience-job-controls">
                 {['queued', 'running'].includes(researchJob.status) && <button type="button" onClick={() => void controlResearchJob('pause')}>Pause research</button>}
