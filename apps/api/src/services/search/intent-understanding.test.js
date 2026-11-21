@@ -52,3 +52,14 @@ test('includes bounded AI-generated intent leads without dropping the original q
   assert.ok(variants.some(item => item.query === 'agency official policy notice'));
   assert.ok(variants.some(item => item.reason.includes('Groq')));
 });
+
+
+test('recognizes an indirect university application request and plans official admissions searches', () => {
+  const query = 'I want to apply to ABUAD';
+  const intent = understandSearchIntent(query);
+  assert.equal(intent.type, 'destination');
+  assert.equal(intent.searchQuery, 'ABUAD');
+  const variants = buildIntentQueryVariants(query, intent, 5);
+  assert.ok(variants.some(item => /official admissions application portal/i.test(item.query)));
+  assert.ok(variants.some(item => /admission requirements application deadline/i.test(item.query)));
+});
