@@ -10,7 +10,7 @@ test('archive monitoring uses timestamp-only fallback when a digest is unavailab
 });
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hasMaterialArchiveChange, notifyAlertByEmail, compareArchiveSnapshots } from './monitor.js';
+import { hasMaterialArchiveChange, notifyAlertByEmail, compareArchiveSnapshots, getTelemetryRetentionWindow, pruneSearchMetrics } from './monitor.js';
 
 test('archive snapshot comparison reports text changes', async () => {
   globalThis.fetch = async (url) => {
@@ -131,4 +131,39 @@ test('archive alerts fall back to the configured Brevo sender', async () => {
       else process.env[key] = originalEnv[key];
     }
   }
+});
+
+
+test('telemetry retention window uses the configured period and safely bounds invalid settings', () => {
+  const now = new Date('2026-11-21T12:00:00.000Z');
+  const configured = getTelemetryRetentionWindow(now, 30);
+  assert.equal(configured.retentionDays, 30);
+  assert.equal(configured.cutoff.toISOString(), '2026-10-22T12:00:00.000Z');
+  assert.equal(getTelemetryRetentionWindow(now, 'invalid').retentionDays, 90);
+  assert.equal(getTelemetryRetentionWindow(now, 0).retentionDays, 1);
+  assert.equal(getTelemetryRetentionWindow(now, 9000).retentionDays, 3650);
+});
+
+test('telemetry cleanup deletes only records older than the configured retention cutoff', async () => {
+  let configQuery;
+  let deleteQuery;
+  const result = await pruneSearchMetrics({
+    now: new Date('2026-11-21T12:00:00.000Z'),
+    PlatformConfigModel: {
+      findOne(query) {
+        configQuery = query;
+        return { lean: async () => ({ value: 45 }) };
+      },
+    },
+    SearchMetricModel: {
+      async deleteMany(query) {
+        deleteQuery = query;
+        return { deletedCount: 3 };
+      },
+    },
+  });
+  assert.deepEqual(configQuery, { key: 'retentionDays' });
+  assert.equal(result.retentionDays, 45);
+  assert.equal(result.deletedCount, 3);
+  assert.equal(deleteQuery.createdAt.$lt.toISOString(), '2026-10-07T12:00:00.000Z');
 });
