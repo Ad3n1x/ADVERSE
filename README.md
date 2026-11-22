@@ -2,7 +2,7 @@
 
 **ADVERSE — Find the right source. Follow the evidence.**
 
-ADVERSE is an intent-first public-source search and research workspace built by AD3N1X. Visitors start on the public landing page, which introduces the product and its interactive 3D research scene. After sign-in, users enter `/experience` to shape a task into a structured workflow, discover public sources, and organise evidence with provenance visible. The legacy `/classic` workspace has been retired. ADVERSE supports research and source organisation—it does not guarantee exhaustive coverage, establish truth automatically, or replace human judgement.
+ADVERSE is an intent-to-action assistant built by AD3N1X. Its product objective is to understand what a person is trying to accomplish, turn the complete request into an evidence-backed plan, guide the user through relevant destinations and steps, and preserve progress until the objective is resolved or its remaining blockers are clear. Public-source discovery, destination checks, evidence provenance and investigation tools provide the research foundation. Visitors start on the public landing page, which introduces the product and its interactive 3D research scene. After sign-in, users enter `/experience`. The legacy `/classic` workspace has been retired. ADVERSE is not exhaustive whole-web search or an automated truth authority; material findings require source review and human judgement. The full intent-to-action requirements and the distinction between existing capabilities and remaining work are recorded in [the product vision](docs/PRODUCT-VISION.md).
 
 ## Creator and official links
 
