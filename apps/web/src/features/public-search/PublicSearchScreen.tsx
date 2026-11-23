@@ -3,7 +3,7 @@ import { useState } from 'react';
 import './research-direction.css';
 import IntelligenceScene from '../../components/layout/IntelligenceScene';
 
-type Props = { onSignIn: () => void; onCreateAccount: () => void };
+type Props = { onSignIn: () => void; onCreateAccount: (objective?: string) => void };
 
 const capabilities = [
   { icon: BrainCircuit, title: 'Understand the objective', text: 'Start with a goal in ordinary language. ADVERSE treats the request as an investigation to organize, not merely a phrase to match.' },
@@ -24,7 +24,7 @@ export default function PublicSearchScreen({ onSignIn, onCreateAccount }: Props)
  const [objective, setObjective] = useState('');
  const begin = () => {
    // Authentication is required before an objective can be persisted or researched.
-   onCreateAccount();
+   onCreateAccount(objective.trim());
  };
  return <main className="adverse-landing"><IntelligenceScene />
   <header className="landing-nav">
