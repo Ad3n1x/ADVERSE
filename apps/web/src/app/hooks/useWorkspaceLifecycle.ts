@@ -14,8 +14,8 @@ export function useWorkspaceLifecycle(deps: Record<string, any>) {
   useEffect(()=>{if(authState!=='authenticated')return;const refreshRole=()=>{void request<{data:{role?:string}}>('/auth/me').then(d=>setAccountRole(d.data.role||'user')).catch(()=>setAccountRole('user'));};const timer=window.setInterval(refreshRole,15000);return()=>window.clearInterval(timer);},[authState]);
   useEffect(()=>{if(tab==='Settings'&&authState==='authenticated'){void loadProviderCredentials();void loadAiCredentials();}},[tab,authState]);
   useEffect(()=>{if(!toolPopupSelector)return;const node=document.querySelector(toolPopupSelector);const target=(node?.closest('.panel')||node) as HTMLElement|null;if(!target)return;target.classList.add('tool-popup-active');const onKeyDown=(event:KeyboardEvent)=>{if(event.key==='Escape')setToolPopupSelector('');};window.addEventListener('keydown',onKeyDown);return()=>{target.classList.remove('tool-popup-active');window.removeEventListener('keydown',onKeyDown);};},[toolPopupSelector]);
-  const nav:{label:string;items:Tab[];icons:any[]}[]=[{label:'INTELLIDESK',items:['Intelligence Desk','Geospatial'],icons:[Radar,Globe2]},{label:'PREFERENCES',items:['Settings'],icons:[Settings2]}];
-  const tabLabels:Record<Tab,string>={'Intelligence Desk':'IntelliDesk',Geospatial:'Geospatial',Settings:'Settings'};
+  const nav:{label:string;items:Tab[];icons:any[]}[]=[{label:'OBJECTIVE SPACE',items:['Intelligence Desk','Geospatial'],icons:[Radar,Globe2]},{label:'PREFERENCES',items:['Settings'],icons:[Settings2]}];
+  const tabLabels:Record<Tab,string>={'Intelligence Desk':'Objective Space',Geospatial:'Geospatial',Settings:'Settings'};
   const titleFor=(t:Tab)=>tabLabels[t];
   const timeline=useMemo(()=>[...evidence].sort((a,b)=>new Date(a.publishedAt||a.captureTimestamp||a.retrievedAt||0).getTime()-new Date(b.publishedAt||b.captureTimestamp||b.retrievedAt||0).getTime()),[evidence]);
   const selectedEvidence=evidence.find((e: Evidence)=>key(e)===relEvidence);
